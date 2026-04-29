@@ -4,91 +4,152 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Marketplace Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-:root{--primary:#6750A4;--primary-c:#EADDFF;--bg:#F4F0FB;--surface:#fff;--sv:#E7E0EC;
-  --on-sv:#49454F;--error:#B3261E;--success:#2E7D32;}
+:root{
+  --primary:#6750A4;--primary-light:#EADDFF;--bg:#F4F0FB;--surface:#fff;
+  --border:#E7E0EC;--muted:#49454F;--error:#B3261E;--success:#2E7D32;--warn:#F57F17;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Roboto',sans-serif;background:var(--bg);color:#1C1B1F;min-height:100vh}
-header{background:linear-gradient(135deg,#4527A0,var(--primary));color:#fff;padding:14px 20px;
-  display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-header h1{font-size:17px;font-weight:700}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:#1C1B1F;min-height:100vh}
+
+header{
+  background:linear-gradient(135deg,#4527A0,var(--primary));color:#fff;
+  padding:0 20px;display:flex;align-items:center;justify-content:space-between;
+  height:56px;box-shadow:0 2px 8px rgba(0,0,0,.2);position:sticky;top:0;z-index:100
+}
+header h1{font-size:16px;font-weight:700;letter-spacing:.2px}
 .logout-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;
   padding:6px 14px;border-radius:16px;font-size:13px;cursor:pointer;font-family:inherit}
+
+.tab-nav{background:var(--surface);border-bottom:2px solid var(--border);
+  display:flex;overflow-x:auto;position:sticky;top:56px;z-index:99;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;padding:14px 20px;border:none;background:none;
+  font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
+  border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;white-space:nowrap}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+  border-radius:9px;font-size:10px;font-weight:700;background:var(--error);color:#fff;margin-left:5px;padding:0 4px}
 
 #gate{max-width:360px;margin:80px auto;background:var(--surface);border-radius:20px;
   padding:32px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center}
 #gate h2{font-size:20px;font-weight:700;margin-bottom:8px;color:var(--primary)}
-#gate p{font-size:13px;color:var(--on-sv);margin-bottom:24px}
-.gate-input{width:100%;padding:13px 15px;border:2px solid var(--sv);border-radius:12px;
+#gate p{font-size:13px;color:var(--muted);margin-bottom:24px}
+.gate-input{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
   font-size:15px;font-family:inherit;outline:none;margin-bottom:12px}
 .gate-input:focus{border-color:var(--primary)}
 .gate-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;
   border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
-.gate-err{font-size:13px;color:var(--error);margin-top:10px}
 
-#main{display:none;max-width:920px;margin:0 auto;padding:20px}
-.section{background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.08)}
-.section-title{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:16px;
-  padding-bottom:10px;border-bottom:2px solid var(--sv);display:flex;align-items:center;gap:8px}
+#main{display:none}
+.tab-content{max-width:960px;margin:0 auto;padding:20px;display:none}
+.tab-content.active{display:block}
+
+.card{background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 6px rgba(0,0,0,.07)}
+.card-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;
+  padding-bottom:12px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
+.card-title-meta{font-size:11px;font-weight:400;color:var(--muted);margin-left:auto}
 
 .form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px}
-.form-group label{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px}
+.form-group label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 input[type=text],input[type=number],input[type=password],input[type=datetime-local],textarea,select{
-  padding:10px 12px;border:2px solid var(--sv);border-radius:10px;font-size:14px;
-  font-family:inherit;outline:none;width:100%;background:#fff}
+  padding:10px 12px;border:2px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;width:100%;background:#fff}
 input:focus,textarea:focus,select:focus{border-color:var(--primary)}
 textarea{resize:vertical;min-height:60px}
 
-.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 .btn-primary{background:var(--primary);color:#fff}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-green{background:#2E7D32;color:#fff}
-.btn-green:disabled{opacity:.5;cursor:not-allowed}
 .btn-red{background:var(--error);color:#fff}
-.btn-ghost{background:var(--sv);color:#1C1B1F}
+.btn-ghost{background:var(--border);color:#1C1B1F}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
 
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-top:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.4px;color:var(--on-sv);border-bottom:2px solid var(--sv);background:var(--bg)}
-td{padding:10px;border-bottom:1px solid var(--sv);vertical-align:middle}
+th{text-align:left;padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);background:var(--bg)}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--sv);margin-top:14px}
+.tbl-chk{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+.empty-row td{text-align:center;color:var(--muted);padding:32px;font-size:13px}
 
 .chip{display:inline-block;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700}
 .chip-draft{background:#F3E5F5;color:#6A1B9A}
 .chip-listed{background:#E8F5E9;color:var(--success)}
 .chip-ended{background:#FFEBEE;color:var(--error)}
-.chip-pending{background:#FFF8E1;color:#F57F17}
+.chip-pending{background:#FFF8E1;color:var(--warn)}
 .chip-approved{background:#E8F5E9;color:var(--success)}
 
-.upload-bar{height:6px;background:var(--sv);border-radius:3px;margin-top:8px;overflow:hidden;display:none}
-.upload-bar-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .3s}
-.refresh-badge{font-size:11px;color:var(--on-sv);font-weight:400;margin-left:auto}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.stat-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.stat-value{font-size:26px;font-weight:700;color:var(--primary);line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:4px}
+.game-card{background:var(--surface);border-radius:16px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);border:2px solid var(--border);display:flex;flex-direction:column}
+.game-thumb-wrap{height:110px;overflow:hidden;position:relative;
+  background:linear-gradient(135deg,#4527A0,var(--primary));
+  display:flex;align-items:center;justify-content:center}
+.game-thumb-wrap img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.game-thumb-icon{font-size:32px;opacity:.5;z-index:0}
+.game-card-body{padding:14px;flex:1;display:flex;flex-direction:column;gap:8px}
+.game-card-name{font-size:15px;font-weight:700;line-height:1.2}
+.game-card-meta{font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.game-stats-row{display:flex;gap:14px}
+.game-stat{text-align:center}
+.game-stat-val{font-size:16px;font-weight:700;color:var(--primary)}
+.game-stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase}
+.game-card-actions{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.assign-inline{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px;padding-top:8px;border-top:1px dashed var(--border)}
+.assign-inline input{width:72px;padding:6px 8px;font-size:12px}
+.assign-inline label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.assign-pair{display:flex;flex-direction:column;gap:3px}
+
+.thumb-upload-area{border:2px dashed var(--border);border-radius:10px;height:90px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;
+  overflow:hidden;background:var(--bg);transition:border-color .15s;flex-direction:column;gap:4px}
+.thumb-upload-area:hover{border-color:var(--primary)}
+.thumb-upload-area img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.thumb-upload-hint{font-size:11px;color:var(--muted);text-align:center;padding:4px 8px;z-index:1;pointer-events:none}
+
+.bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;
+  background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-top:12px}
+.bulk-info{font-size:12px;color:var(--muted);flex:1;white-space:nowrap}
+.zip-badge{font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 7px;border-radius:6px;font-weight:700}
+
 .msg{font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px}
 .msg-ok{background:#E8F5E9;color:var(--success)}
 .msg-err{background:#FFEBEE;color:var(--error)}
-.empty-row td{text-align:center;color:var(--on-sv);padding:24px;font-size:13px}
-.assign-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px}
-.assign-row .form-group{min-width:80px}
-.bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;
-  background:var(--bg);border:1px solid var(--sv);border-radius:10px;margin-top:12px}
-.bulk-info{font-size:12px;color:var(--on-sv);flex:1;white-space:nowrap}
-.tbl-chk{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
-.zip-badge{font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 7px;border-radius:6px;font-weight:700}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-/* ── Prizes ── */
+.rev-cards{display:flex;flex-direction:column;gap:10px}
+.rev-card{display:flex;gap:14px;align-items:center;padding:12px;background:var(--bg);border-radius:12px}
+.rev-thumb{width:54px;height:54px;border-radius:10px;flex-shrink:0;overflow:hidden;
+  background:linear-gradient(135deg,#4527A0,var(--primary));
+  display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:18px}
+.rev-thumb img{width:100%;height:100%;object-fit:cover}
+.rev-info{flex:1;min-width:0}
+.rev-name{font-size:13px;font-weight:700;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rev-stats{display:flex;gap:16px;flex-wrap:wrap}
+.rev-stat{display:flex;flex-direction:column}
+.rev-val{font-size:14px;font-weight:700;color:var(--primary)}
+.rev-lbl{font-size:10px;color:var(--muted);text-transform:uppercase}
+
 .prizes-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.prize-card{border:2px solid var(--sv);border-radius:12px;overflow:hidden;transition:border-color .15s}
+.prize-card{border:2px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .15s}
 .prize-card.active{border-color:var(--primary)}
 .prize-hdr{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;background:#fff;user-select:none}
 .prize-hdr input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
 .prize-hdr-label{font-size:14px;font-weight:600;flex:1}
-.prize-body{padding:12px 13px;background:#FAFAFA;border-top:1px solid var(--sv);display:none}
+.prize-body{padding:12px 13px;background:#FAFAFA;border-top:1px solid var(--border);display:none}
 .prize-kind-row{display:flex;gap:16px;margin-bottom:10px}
 .prize-kind-row label{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
 .prize-kind-row input[type=radio]{accent-color:var(--primary)}
@@ -96,16 +157,18 @@ tr:last-child td{border-bottom:none}
 .prize-thing{display:flex;flex-direction:column;gap:8px}
 .prize-thing input[type=text]{padding:8px 10px;font-size:13px}
 .prize-img-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.prize-img-btn{padding:7px 12px;font-size:12px;background:var(--sv);border:none;border-radius:8px;
-  cursor:pointer;font-family:inherit;font-weight:600}
-.prize-img-preview{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--sv);display:none}
-.prize-uploading{font-size:11px;color:var(--on-sv)}
+.prize-img-btn{padding:7px 12px;font-size:12px;background:var(--border);border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600}
+.prize-img-preview{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none}
+.prize-uploading{font-size:11px;color:var(--muted)}
 
 @media(max-width:600px){
-  #main{padding:12px}
+  .tab-content{padding:12px}
+  .tab-btn{padding:12px 14px;font-size:12px}
   .form-row{flex-direction:column}
-  .btn{padding:9px 14px;font-size:12px}
   .prizes-grid{grid-template-columns:1fr}
+  .games-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .btn{padding:9px 14px;font-size:12px}
 }
 </style>
 </head>
@@ -121,106 +184,173 @@ tr:last-child td{border-bottom:none}
   <p>Enter your admin password to manage the marketplace.</p>
   <input class="gate-input" id="pwdInput" type="password" placeholder="Admin password">
   <button class="gate-btn" onclick="unlock()">Unlock</button>
-  <div class="gate-err" id="gateErr"></div>
+  <div style="font-size:13px;color:var(--error);margin-top:10px" id="gateErr"></div>
 </div>
 
 <div id="main">
+  <nav class="tab-nav" id="tabNav">
+    <button class="tab-btn active" onclick="showTab('sheets')">📄 Sheets</button>
+    <button class="tab-btn" onclick="showTab('games')">🎮 Games</button>
+    <button class="tab-btn" onclick="showTab('sales')">
+      📊 Sales <span class="tab-badge" id="pendingBadge" style="display:none"></span>
+    </button>
+    <button class="tab-btn" onclick="showTab('settings')">⚙️ Settings</button>
+  </nav>
 
-  <!-- ── SHEETS ── -->
-  <div class="section">
-    <div class="section-title">📄 Sheets
-      <span class="refresh-badge" id="sheetCount"></span>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>PDFs or a ZIP of PDFs</label>
-        <input type="file" id="sheetFile" accept=".pdf,.zip" multiple onchange="previewSheetFiles()">
+  <!-- ── SHEETS TAB ── -->
+  <div id="tc-sheets" class="tab-content active">
+    <div class="card">
+      <div class="card-title">📄 Sheet Library
+        <span class="card-title-meta" id="sheetCountMeta"></span>
       </div>
-      <div class="form-group" style="justify-content:flex-end;min-width:auto">
-        <label>&nbsp;</label>
-        <button class="btn btn-primary" id="uploadBtn" onclick="uploadSheets()">Upload All</button>
+      <div class="form-row">
+        <div class="form-group">
+          <label>PDFs or ZIP of PDFs</label>
+          <input type="file" id="sheetFile" accept=".pdf,.zip" multiple onchange="previewSheetFiles()">
+        </div>
+        <div class="form-group" style="justify-content:flex-end;min-width:auto">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" id="uploadBtn" onclick="uploadSheets()">Upload All</button>
+        </div>
       </div>
-    </div>
-    <div style="font-size:12px;color:var(--on-sv);margin-bottom:8px">
-      💡 Select individual PDFs <em>or</em> a single ZIP containing them all. Name files like <strong>47.pdf</strong> — sheet number is auto-detected.
-    </div>
-    <div id="sheetFileList" style="margin-bottom:8px"></div>
-    <div id="uploadMsg"></div>
-    <div class="bulk-bar" id="bulkBar" style="display:none">
-      <span class="bulk-info" id="bulkInfo">0 selected</span>
-      <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="selectAllSheets()">Select All</button>
-      <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="deselectAllSheets()">None</button>
-      <button class="btn btn-red" id="bulkDeleteBtn" style="font-size:11px;padding:6px 10px" onclick="deleteSelected()" disabled>Delete Selected</button>
-      <button class="btn btn-red" style="font-size:11px;padding:6px 10px;background:#7B1C1C" onclick="deleteAllSheets()">🗑 Delete All</button>
-    </div>
-    <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
-      <table>
-        <thead><tr>
-          <th><input type="checkbox" class="tbl-chk" id="selectAllChk" onchange="toggleSelectAll(this.checked)"></th>
-          <th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th>
-        </tr></thead>
-        <tbody id="sheetsTbl"></tbody>
-      </table>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+        💡 Name files like <strong>47.pdf</strong> — sheet number is auto-detected from filename.
+      </div>
+      <div id="sheetFileList"></div>
+      <div id="uploadMsg"></div>
+      <div class="bulk-bar" id="bulkBar" style="display:none">
+        <span class="bulk-info" id="bulkInfo">0 selected</span>
+        <button class="btn btn-ghost btn-sm" onclick="selectAllSheets()">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="deselectAllSheets()">None</button>
+        <button class="btn btn-red btn-sm" id="bulkDeleteBtn" onclick="deleteSelected()" disabled>Delete Selected</button>
+        <button class="btn btn-red btn-sm" style="background:#7B1C1C" onclick="deleteAllSheets()">🗑 Delete All</button>
+      </div>
+      <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
+        <table>
+          <thead><tr>
+            <th><input type="checkbox" class="tbl-chk" id="selectAllChk" onchange="toggleSelectAll(this.checked)"></th>
+            <th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th>
+          </tr></thead>
+          <tbody id="sheetsTbl"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- ── GAMES ── -->
-  <div class="section">
-    <div class="section-title">🎮 Games</div>
+  <!-- ── GAMES TAB ── -->
+  <div id="tc-games" class="tab-content">
+    <div class="card">
+      <div class="card-title">➕ Create New Game</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2;min-width:160px">
+          <label>Game Name</label>
+          <input type="text" id="gameName" placeholder="e.g. Sunday Special" maxlength="80">
+        </div>
+        <div class="form-group" style="max-width:200px">
+          <label>Date &amp; Time</label>
+          <input type="datetime-local" id="gameDateTime">
+        </div>
+        <div class="form-group" style="max-width:85px">
+          <label>₹ / Sheet</label>
+          <input type="number" id="gamePrice" min="1" value="5">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Description (optional)</label>
+          <textarea id="gameDesc" placeholder="Extra info about the game" maxlength="200"></textarea>
+        </div>
+        <div class="form-group" style="max-width:160px">
+          <label>Thumbnail Image</label>
+          <div class="thumb-upload-area" id="thumbArea" onclick="document.getElementById('thumbFile').click()">
+            <img id="thumbPreview" src="" style="display:none">
+            <span style="font-size:22px;z-index:1">🖼️</span>
+            <div class="thumb-upload-hint" id="thumbHint">Click to upload</div>
+          </div>
+          <input type="file" id="thumbFile" accept="image/*" style="display:none" onchange="uploadThumb(this)">
+          <div id="thumbStatus" style="font-size:11px;color:var(--muted);margin-top:3px"></div>
+        </div>
+      </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label>Game Name</label>
-        <input type="text" id="gameName" placeholder="e.g. Sunday Special" maxlength="80">
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+          Prizes — tick the ones to offer
+        </div>
+        <div class="prizes-grid" id="prizesGrid"></div>
       </div>
-      <div class="form-group" style="max-width:220px">
-        <label>Date &amp; Time</label>
-        <input type="datetime-local" id="gameDateTime">
-      </div>
-      <div class="form-group" style="max-width:100px">
-        <label>₹ / Sheet</label>
-        <input type="number" id="gamePrice" min="1" value="5">
-      </div>
+
+      <button class="btn btn-primary" onclick="createGame()">+ Create Game</button>
+      <div id="createGameMsg"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Description (optional)</label>
-        <textarea id="gameDesc" placeholder="Extra info about the game" maxlength="200"></textarea>
-      </div>
-    </div>
 
-    <!-- Prizes -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-        Prizes — tick the ones you want to offer
-      </div>
-      <div class="prizes-grid" id="prizesGrid"></div>
-    </div>
-
-    <button class="btn btn-primary" onclick="createGame()">+ Create Game</button>
-    <div id="createGameMsg"></div>
-
-    <div class="tbl-wrap" id="gamesTblWrap" style="display:none">
-      <table>
-        <thead><tr><th>Name</th><th>Status</th><th>Sheets</th><th>Sold</th><th>Assign Range</th><th>Actions</th></tr></thead>
-        <tbody id="gamesTbl"></tbody>
-      </table>
+    <div id="gamesContainer">
+      <div style="font-size:13px;color:var(--muted);text-align:center;padding:32px">Loading games…</div>
     </div>
   </div>
 
-  <!-- ── PURCHASES ── -->
-  <div class="section">
-    <div class="section-title">🛒 Purchases
-      <span class="refresh-badge"><span class="dot"></span>Live</span>
+  <!-- ── SALES TAB ── -->
+  <div id="tc-sales" class="tab-content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Collected</div>
+        <div class="stat-value" id="sTotalRev">₹0</div>
+        <div class="stat-sub">from approved orders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Amount</div>
+        <div class="stat-value" id="sPendingRev" style="color:var(--warn)">₹0</div>
+        <div class="stat-sub">awaiting approval</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Orders</div>
+        <div class="stat-value" id="sTotalOrders">0</div>
+        <div class="stat-sub">all time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Orders</div>
+        <div class="stat-value" id="sPendingCount" style="color:var(--warn)">0</div>
+        <div class="stat-sub">need approval</div>
+      </div>
     </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Player</th><th>Phone</th><th>Game</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-        <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
-      </table>
+
+    <div class="card">
+      <div class="card-title">📊 Revenue by Game</div>
+      <div class="rev-cards" id="revenueByGame">
+        <div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">Loading…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🛒 All Purchases
+        <span class="card-title-meta"><span class="dot"></span>Live · refreshes every 10s</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Player</th><th>Phone</th><th>Game</th>
+            <th>Qty</th><th>Amount</th><th>Sheets</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
+  <!-- ── SETTINGS TAB ── -->
+  <div id="tc-settings" class="tab-content">
+    <div class="card">
+      <div class="card-title">⚙️ Session</div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Logged in as admin.</p>
+      <button class="btn btn-red" onclick="logout()">🚪 Logout</button>
+    </div>
+    <div class="card">
+      <div class="card-title">ℹ️ About</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8">
+        <strong style="color:#1C1B1F">Tungbola Marketplace Admin Panel</strong><br>
+        Upload sheets, create Tambola games, and manage purchases &amp; approvals.
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toastEl" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
@@ -232,25 +362,36 @@ let pwd = '';
 let allSheets = [], allGames = [], allPurchases = [];
 let purchaseRefreshTimer = null;
 let selectedSheetIds = new Set();
+let gameThumbnailUrl = '';
+let activeTab = 'sheets';
 
 const PRIZES = [
-  { key: 'full_house',    label: '🏆 Full House' },
-  { key: 'second_full',   label: '🥈 Second Full House' },
-  { key: 'third_full',    label: '🥉 Third Full House' },
-  { key: 'upper_line',    label: '⬆️ Upper Line' },
-  { key: 'middle_line',   label: '↔️ Middle Line' },
-  { key: 'bottom_line',   label: '⬇️ Bottom Line' },
-  { key: 'ticket_corners',label: '🔲 Ticket Corners' },
-  { key: 'sheet_corner',  label: '📋 Sheet Corner' },
-  { key: 'early_5',       label: '5️⃣ Early 5' },
-  { key: 'early_6',       label: '6️⃣ Early 6' },
-  { key: 'early_7',       label: '7️⃣ Early 7' },
-  { key: 'jackpot',       label: '💰 Jackpot' },
+  { key:'full_house',    label:'🏆 Full House' },
+  { key:'second_full',   label:'🥈 Second Full House' },
+  { key:'third_full',    label:'🥉 Third Full House' },
+  { key:'upper_line',    label:'⬆️ Upper Line' },
+  { key:'middle_line',   label:'↔️ Middle Line' },
+  { key:'bottom_line',   label:'⬇️ Bottom Line' },
+  { key:'ticket_corners',label:'🔲 Ticket Corners' },
+  { key:'sheet_corner',  label:'📋 Sheet Corner' },
+  { key:'early_5',       label:'5️⃣ Early 5' },
+  { key:'early_6',       label:'6️⃣ Early 6' },
+  { key:'early_7',       label:'7️⃣ Early 7' },
+  { key:'jackpot',       label:'💰 Jackpot' },
 ];
-
-// state per prize: { enabled, kind:'cash'|'thing', amount, description, imageUrl }
 const ps = {};
-PRIZES.forEach(p => { ps[p.key] = { enabled: false, kind: 'cash', amount: '', description: '', imageUrl: '' }; });
+PRIZES.forEach(p => { ps[p.key] = { enabled:false, kind:'cash', amount:'', description:'', imageUrl:'' }; });
+
+/* ── Tab switching ── */
+function showTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tc-' + name).classList.add('active');
+  const btns = document.querySelectorAll('.tab-btn');
+  const order = ['sheets','games','sales','settings'];
+  btns[order.indexOf(name)]?.classList.add('active');
+}
 
 /* ── Auth ── */
 async function unlock() {
@@ -267,7 +408,7 @@ async function unlock() {
     document.getElementById('main').style.display = 'block';
     renderPrizesGrid();
     loadAll();
-    purchaseRefreshTimer = setInterval(loadPurchases, 10000);
+    purchaseRefreshTimer = setInterval(() => { loadPurchases(); }, 10000);
   } catch(e) { errEl.textContent = 'Network error'; }
 }
 
@@ -276,6 +417,7 @@ function logout() {
   document.getElementById('gate').style.display = 'block';
   document.getElementById('main').style.display = 'none';
   document.getElementById('pwdInput').value = '';
+  showTab('sheets');
 }
 
 function loadAll() { loadSheets(); loadGames(); loadPurchases(); }
@@ -294,18 +436,15 @@ function renderPrizesGrid() {
           <label><input type="radio" name="pkind-${p.key}" value="thing" onchange="setKind('${p.key}','thing')"> Thing / Prize</label>
         </div>
         <div class="prize-cash" id="pcash-${p.key}">
-          <input type="number" min="1" placeholder="₹ Amount" id="pamt-${p.key}"
-            oninput="ps['${p.key}'].amount=this.value">
+          <input type="number" min="1" placeholder="₹ Amount" id="pamt-${p.key}" oninput="ps['${p.key}'].amount=this.value">
         </div>
         <div class="prize-thing" id="pthing-${p.key}" style="display:none">
-          <input type="text" placeholder="e.g. iPhone 16, Bullet Bike" maxlength="100" id="pdesc-${p.key}"
-            oninput="ps['${p.key}'].description=this.value">
+          <input type="text" placeholder="e.g. iPhone 16, Bullet Bike" maxlength="100" id="pdesc-${p.key}" oninput="ps['${p.key}'].description=this.value">
           <div class="prize-img-wrap">
             <button class="prize-img-btn" onclick="document.getElementById('pfile-${p.key}').click()">📷 Upload Photo</button>
             <span class="prize-uploading" id="pupl-${p.key}"></span>
             <img class="prize-img-preview" id="pimg-${p.key}" src="">
-            <input type="file" id="pfile-${p.key}" accept="image/*" style="display:none"
-              onchange="uploadPrizeImage('${p.key}', this)">
+            <input type="file" id="pfile-${p.key}" accept="image/*" style="display:none" onchange="uploadPrizeImage('${p.key}',this)">
           </div>
         </div>
       </div>
@@ -326,8 +465,7 @@ function setKind(key, kind) {
 }
 
 async function uploadPrizeImage(key, input) {
-  const file = input.files[0];
-  if (!file) return;
+  const file = input.files[0]; if (!file) return;
   if (file.size > 5 * 1024 * 1024) { toast('Image too large (max 5MB)'); return; }
   const uplEl = document.getElementById(`pupl-${key}`);
   const imgEl = document.getElementById(`pimg-${key}`);
@@ -335,14 +473,14 @@ async function uploadPrizeImage(key, input) {
   try {
     const b64 = await fileToBase64(file);
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'upload-prize-image', password: pwd, data: b64, filename: file.name })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name })
     });
     const data = await r.json();
     if (!r.ok) { uplEl.textContent = data.error || 'Upload failed'; return; }
     ps[key].imageUrl = data.url;
     imgEl.src = data.url; imgEl.style.display = 'block';
-    uplEl.textContent = '✓ Uploaded';
+    uplEl.textContent = '✓';
     setTimeout(() => { uplEl.textContent = ''; }, 2000);
   } catch(e) { uplEl.textContent = 'Network error'; }
 }
@@ -350,7 +488,7 @@ async function uploadPrizeImage(key, input) {
 function collectPrizes() {
   return PRIZES.filter(p => ps[p.key].enabled).map(p => {
     const s = ps[p.key];
-    const prize = { name: p.label.replace(/^\S+\s/, ''), kind: s.kind }; // strip emoji
+    const prize = { name: p.label.replace(/^\S+\s/, ''), kind: s.kind };
     if (s.kind === 'cash') prize.amount = parseInt(s.amount) || 0;
     else { prize.description = s.description; if (s.imageUrl) prize.imageUrl = s.imageUrl; }
     return prize;
@@ -359,7 +497,7 @@ function collectPrizes() {
 
 function resetPrizes() {
   PRIZES.forEach(p => {
-    ps[p.key] = { enabled: false, kind: 'cash', amount: '', description: '', imageUrl: '' };
+    ps[p.key] = { enabled:false, kind:'cash', amount:'', description:'', imageUrl:'' };
     document.getElementById(`pchk-${p.key}`).checked = false;
     document.getElementById(`pbody-${p.key}`).style.display = 'none';
     document.getElementById(`pcard-${p.key}`).classList.remove('active');
@@ -373,14 +511,38 @@ function resetPrizes() {
   });
 }
 
+/* ── Thumbnail upload ── */
+async function uploadThumb(input) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { toast('Image too large (max 5MB)'); return; }
+  const statusEl = document.getElementById('thumbStatus');
+  const previewEl = document.getElementById('thumbPreview');
+  const hintEl = document.getElementById('thumbHint');
+  statusEl.textContent = 'Uploading…';
+  try {
+    const b64 = await fileToBase64(file);
+    const r = await fetch('/api/marketplace', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name })
+    });
+    const data = await r.json();
+    if (!r.ok) { statusEl.textContent = data.error || 'Upload failed'; return; }
+    gameThumbnailUrl = data.url;
+    previewEl.src = data.url; previewEl.style.display = 'block';
+    hintEl.style.display = 'none';
+    statusEl.textContent = '✓ Thumbnail uploaded';
+    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+  } catch(e) { statusEl.textContent = 'Network error'; }
+}
+
 /* ── Sheets ── */
 async function loadSheets() {
   try {
-    const r = await fetch(`/api/sheets?password=${encodeURIComponent(pwd)}&all=true`);
+    const r = await fetch(`/api/sheets?password=${encodeURIComponent(pwd)}`);
     const data = await r.json();
     allSheets = data.sheets || [];
     selectedSheetIds.clear();
-    document.getElementById('sheetCount').textContent = `${allSheets.length} uploaded`;
+    document.getElementById('sheetCountMeta').textContent = `${allSheets.length} uploaded`;
     renderSheets();
   } catch(e) {}
 }
@@ -398,7 +560,7 @@ function renderSheets() {
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.f)}</td>
       <td>${(s.s/1024).toFixed(0)} KB</td>
       <td>${new Date(s.ts).toLocaleDateString()}</td>
-      <td><button class="btn btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteSheet('${s.id}',${s.n})">Del</button></td>
+      <td><button class="btn btn-red btn-sm" onclick="deleteSheet('${s.id}',${s.n})">Del</button></td>
     </tr>`).join('');
   refreshBulkBar();
 }
@@ -432,7 +594,7 @@ function refreshBulkBar() {
   document.getElementById('bulkInfo').textContent = `${n} of ${allSheets.length} selected`;
   const btn = document.getElementById('bulkDeleteBtn');
   btn.disabled = n === 0;
-  btn.textContent = n ? `Delete Selected (${n})` : 'Delete Selected';
+  btn.textContent = n ? `Delete (${n})` : 'Delete Selected';
   const hdr = document.getElementById('selectAllChk');
   if (hdr) { hdr.checked = n === allSheets.length && n > 0; hdr.indeterminate = n > 0 && n < allSheets.length; }
 }
@@ -455,8 +617,8 @@ async function runBulkDelete(ids) {
   btn.disabled = true; btn.textContent = 'Deleting…';
   try {
     const r = await fetch('/api/sheets', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete-bulk', password: pwd, ids })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'delete-bulk', password:pwd, ids })
     });
     const data = await r.json();
     if (!r.ok) toast(data.error || 'Delete failed');
@@ -466,7 +628,7 @@ async function runBulkDelete(ids) {
 }
 
 function parseSheetNum(filename) {
-  const nums = filename.replace(/\.pdf$/i, '').match(/\d+/g);
+  const nums = filename.replace(/\.pdf$/i,'').match(/\d+/g);
   return nums ? parseInt(nums[nums.length - 1]) : null;
 }
 
@@ -474,25 +636,23 @@ function previewSheetFiles() {
   const files = Array.from(document.getElementById('sheetFile').files);
   const listEl = document.getElementById('sheetFileList');
   if (!files.length) { listEl.innerHTML = ''; return; }
-  listEl.innerHTML = `<div style="border:1px solid var(--sv);border-radius:10px;overflow:hidden">` +
+  listEl.innerHTML = `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px">` +
     files.map((f, i) => {
       const isZip = f.name.toLowerCase().endsWith('.zip');
       const size = (f.size / 1024 / 1024).toFixed(1);
-      const border = i > 0 ? 'border-top:1px solid var(--sv)' : '';
+      const border = i > 0 ? 'border-top:1px solid var(--border)' : '';
       if (isZip) return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${border}">
         <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
         <span class="zip-badge">ZIP</span>
-        <span style="font-size:11px;color:var(--on-sv);flex-shrink:0">${size} MB</span>
-        <span style="font-size:11px;color:var(--primary);flex-shrink:0">📦 PDFs extracted on upload</span>
-      </div>`;
+        <span style="font-size:11px;color:var(--muted)">${size} MB</span>
+        <span style="font-size:11px;color:var(--primary)">📦 PDFs extracted on upload</span></div>`;
       const num = parseSheetNum(f.name);
       const ok = num && num >= 1 && num <= 99999;
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${border}">
         <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
-        ${num ? `<span style="font-size:12px;font-weight:700;color:var(--primary);flex-shrink:0">#${num}</span>` : ''}
-        <span style="font-size:11px;color:var(--on-sv);flex-shrink:0">${(f.size/1024).toFixed(0)} KB</span>
-        <span style="font-size:11px;${ok?'color:var(--success)':'color:var(--error)'};flex-shrink:0">${ok?'✓':'⚠️ no number'}</span>
-      </div>`;
+        ${num ? `<span style="font-size:12px;font-weight:700;color:var(--primary)">#${num}</span>` : ''}
+        <span style="font-size:11px;color:var(--muted)">${(f.size/1024).toFixed(0)} KB</span>
+        <span style="font-size:11px;${ok?'color:var(--success)':'color:var(--error)'}">${ok?'✓':'⚠ no #'}</span></div>`;
     }).join('') + `</div>`;
 }
 
@@ -501,11 +661,9 @@ async function uploadSheets() {
   const msgEl = document.getElementById('uploadMsg');
   msgEl.innerHTML = '';
   if (!files.length) { showMsg(msgEl, 'Select PDFs or a ZIP file', 'err'); return; }
-
   const btn = document.getElementById('uploadBtn');
   btn.disabled = true;
 
-  // Load blob uploader
   let blobUploadFn;
   try {
     btn.textContent = 'Loading…';
@@ -513,18 +671,16 @@ async function uploadSheets() {
     blobUploadFn = mod.upload;
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Upload All';
-    showMsg(msgEl, 'Failed to load upload client. Check your connection.', 'err');
-    return;
+    showMsg(msgEl, 'Failed to load upload client. Check your connection.', 'err'); return;
   }
 
-  // Build task list — direct PDFs + PDFs extracted from any ZIPs
   let tasks = [];
   const directPdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
   const zipFiles   = files.filter(f => f.name.toLowerCase().endsWith('.zip'));
 
   directPdfs.forEach(f => {
     const num = parseSheetNum(f.name);
-    if (num && num >= 1 && num <= 99999) tasks.push({ file: f, num });
+    if (num && num >= 1 && num <= 99999) tasks.push({ file:f, num });
   });
 
   for (const zipFile of zipFiles) {
@@ -534,15 +690,12 @@ async function uploadSheets() {
       const entries = [];
       zip.forEach((path, entry) => { if (!entry.dir && path.toLowerCase().endsWith('.pdf')) entries.push({ path, entry }); });
       for (let i = 0; i < entries.length; i++) {
-        if (i % 100 === 0) {
-          btn.textContent = `Extracting… ${i}/${entries.length}`;
-          await new Promise(r => setTimeout(r, 0)); // keep UI responsive
-        }
+        if (i % 100 === 0) { btn.textContent = `Extracting… ${i}/${entries.length}`; await new Promise(r => setTimeout(r, 0)); }
         const filename = entries[i].path.split('/').pop().split('\\').pop();
         const num = parseSheetNum(filename);
         if (!num || num < 1 || num > 99999) continue;
         const ab = await entries[i].entry.async('arraybuffer');
-        tasks.push({ file: new File([ab], filename, { type: 'application/pdf' }), num });
+        tasks.push({ file: new File([ab], filename, { type:'application/pdf' }), num });
       }
     } catch(e) {
       btn.disabled = false; btn.textContent = 'Upload All';
@@ -550,7 +703,6 @@ async function uploadSheets() {
     }
   }
 
-  // Deduplicate by sheet number (keep first occurrence)
   const seen = new Set();
   tasks = tasks.filter(t => { if (seen.has(t.num)) return false; seen.add(t.num); return true; });
 
@@ -559,7 +711,6 @@ async function uploadSheets() {
     showMsg(msgEl, 'No valid PDF sheets found. Files must have a number in the name (e.g. 47.pdf)', 'err'); return;
   }
 
-  // 20 concurrent workers — each grabs the next task until done
   let done = 0, failCount = 0, failed = [];
   const total = tasks.length;
   let cursor = 0;
@@ -572,21 +723,21 @@ async function uploadSheets() {
       const task = tasks[i];
       try {
         const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-        const pathname = `tungbola/sheet-${String(task.num).padStart(5, '0')}-${id}.pdf`;
+        const pathname = `tungbola/sheet-${String(task.num).padStart(5,'0')}-${id}.pdf`;
         const blob = await blobUploadFn(pathname, task.file, {
           access: 'public',
           handleUploadUrl: '/api/sheets',
-          clientPayload: JSON.stringify({ password: pwd, sheetNumber: task.num, filename: task.file.name, id }),
+          clientPayload: JSON.stringify({ password:pwd, sheetNumber:task.num, filename:task.file.name, id }),
         });
         const regRes = await fetch('/api/sheets', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'register', password: pwd, sheetNumber: task.num, filename: task.file.name, url: blob.url, size: task.file.size, id })
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'register', password:pwd, sheetNumber:task.num, filename:task.file.name, url:blob.url, size:task.file.size, id })
         });
         const regData = await regRes.json();
-        if (!regRes.ok) { failed.push(`#${task.num}: ${regData.error || 'failed'}`); failCount++; }
+        if (!regRes.ok) { failed.push(`#${task.num}: ${regData.error||'failed'}`); failCount++; }
         else done++;
-      } catch(e) { failed.push(`#${task.num}: ${e.message || 'error'}`); failCount++; }
-      btn.textContent = `Uploading… ${done + failCount}/${total}`;
+      } catch(e) { failed.push(`#${task.num}: ${e.message||'error'}`); failCount++; }
+      btn.textContent = `Uploading… ${done+failCount}/${total}`;
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
@@ -595,7 +746,7 @@ async function uploadSheets() {
   document.getElementById('sheetFile').value = '';
   document.getElementById('sheetFileList').innerHTML = '';
 
-  const errSample = failed.slice(0, 5).join(', ') + (failed.length > 5 ? ` (+${failed.length-5} more)` : '');
+  const errSample = failed.slice(0,5).join(', ') + (failed.length > 5 ? ` (+${failed.length-5} more)` : '');
   if (failed.length) showMsg(msgEl, `${done} uploaded. Errors: ${errSample}`, 'err');
   else showMsg(msgEl, `${done} sheet${done!==1?'s':''} uploaded!`, 'ok');
   loadSheets();
@@ -605,8 +756,8 @@ async function deleteSheet(id, n) {
   if (!confirm(`Delete sheet #${n}?`)) return;
   selectedSheetIds.delete(id);
   try {
-    const r = await fetch('/api/sheets', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', password: pwd, id }) });
+    const r = await fetch('/api/sheets', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'delete', password:pwd, id }) });
     if (r.ok) { toast(`Sheet #${n} deleted`); loadSheets(); }
     else { const d = await r.json(); toast(d.error || 'Delete failed'); }
   } catch(e) { toast('Network error'); }
@@ -622,37 +773,51 @@ async function loadGames() {
 }
 
 function renderGames() {
-  const wrap = document.getElementById('gamesTblWrap');
-  const tbody = document.getElementById('gamesTbl');
-  wrap.style.display = 'block';
-  if (!allGames.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No games yet.</td></tr>'; return; }
-  tbody.innerHTML = allGames.map(g => {
-    const sheets = g.sheetCount ? `${g.sheetFrom}–${g.sheetTo} (${g.sheetCount})` : '—';
+  const container = document.getElementById('gamesContainer');
+  if (!allGames.length) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:32px">No games yet. Create one above!</div>';
+    return;
+  }
+  container.innerHTML = `<div class="games-grid">` + allGames.map(g => {
+    const sold = g.soldCount || 0;
+    const total = g.sheetCount || 0;
+    const left = Math.max(0, total - sold);
     const prizeCount = (g.prizes || []).length;
-    return `<tr>
-      <td><strong>${esc(g.name)}</strong><br>
-        <span style="font-size:11px;color:var(--on-sv)">${g.gameDate ? esc(g.gameDate) : ''} · ₹${g.pricePerSheet}/sheet</span><br>
-        ${prizeCount ? `<span style="font-size:11px;color:var(--primary)">🎁 ${prizeCount} prize${prizeCount>1?'s':''}</span>` : ''}
-      </td>
-      <td><span class="chip chip-${g.status}">${g.status}</span></td>
-      <td style="font-size:12px">${sheets}</td>
-      <td>${g.soldCount || 0}</td>
-      <td>
-        <div class="assign-row">
-          <div class="form-group"><label>From</label><input type="number" id="af-${g.id}" min="1" placeholder="1" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetFrom||''}"></div>
-          <div class="form-group"><label>To</label><input type="number" id="at-${g.id}" min="1" placeholder="100" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetTo||''}"></div>
-          <button class="btn btn-ghost" style="font-size:11px;padding:7px 10px" onclick="assignSheets('${g.id}')">Assign</button>
+    const thumbHtml = g.thumbnail
+      ? `<img src="${esc(g.thumbnail)}" onerror="this.style.display='none'">`
+      : `<span class="game-thumb-icon">🎮</span>`;
+
+    return `<div class="game-card">
+      <div class="game-thumb-wrap">${thumbHtml}</div>
+      <div class="game-card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div class="game-card-name">${esc(g.name)}</div>
+          <span class="chip chip-${g.status}">${g.status}</span>
         </div>
-      </td>
-      <td>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${g.status!=='listed' ? `<button class="btn btn-green" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','listed')">List</button>` : ''}
-          ${g.status!=='draft'  ? `<button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
-          ${g.status!=='ended'  ? `<button class="btn btn-red" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','ended')">End</button>` : ''}
+        <div class="game-card-meta">
+          ${g.gameDate ? `<span>📅 ${esc(g.gameDate)}</span>` : ''}
+          <span>₹${g.pricePerSheet}/sheet</span>
+          ${prizeCount ? `<span>🎁 ${prizeCount} prize${prizeCount>1?'s':''}</span>` : ''}
         </div>
-      </td>
-    </tr>`;
-  }).join('');
+        ${total ? `<div class="game-stats-row">
+          <div class="game-stat"><div class="game-stat-val">${total}</div><div class="game-stat-lbl">Total</div></div>
+          <div class="game-stat"><div class="game-stat-val" style="color:var(--success)">${sold}</div><div class="game-stat-lbl">Sold</div></div>
+          <div class="game-stat"><div class="game-stat-val" style="color:var(--warn)">${left}</div><div class="game-stat-lbl">Left</div></div>
+        </div>` : `<div style="font-size:12px;color:var(--muted)">No sheets assigned yet</div>`}
+
+        <div class="assign-inline">
+          <div class="assign-pair"><label>From</label><input type="number" id="af-${g.id}" min="1" placeholder="1" style="width:72px;padding:6px 8px;font-size:12px" value="${g.sheetFrom||''}"></div>
+          <div class="assign-pair"><label>To</label><input type="number" id="at-${g.id}" min="1" placeholder="100" style="width:72px;padding:6px 8px;font-size:12px" value="${g.sheetTo||''}"></div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:16px" onclick="assignSheets('${g.id}')">Assign</button>
+        </div>
+      </div>
+      <div class="game-card-actions">
+        ${g.status!=='listed' ? `<button class="btn btn-green btn-sm" onclick="setStatus('${g.id}','listed')">▶ List</button>` : ''}
+        ${g.status!=='draft'  ? `<button class="btn btn-ghost btn-sm" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
+        ${g.status!=='ended'  ? `<button class="btn btn-red btn-sm" onclick="setStatus('${g.id}','ended')">■ End</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 async function createGame() {
@@ -668,15 +833,18 @@ async function createGame() {
 
   try {
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create-game', password: pwd, name, gameDate, pricePerSheet, description, prizes })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, pricePerSheet, description, prizes, thumbnail: gameThumbnailUrl || null })
     });
     const data = await r.json();
     if (!r.ok) { showMsg(msgEl, data.error || 'Failed', 'err'); return; }
-    showMsg(msgEl, `"${name}" created with ${prizes.length} prize${prizes.length!==1?'s':''}!`, 'ok');
+    showMsg(msgEl, `"${name}" created${prizes.length ? ` with ${prizes.length} prize${prizes.length!==1?'s':''}` : ''}!`, 'ok');
     document.getElementById('gameName').value = '';
     document.getElementById('gameDateTime').value = '';
     document.getElementById('gameDesc').value = '';
+    gameThumbnailUrl = '';
+    document.getElementById('thumbPreview').style.display = 'none';
+    document.getElementById('thumbHint').style.display = 'block';
     resetPrizes();
     loadGames();
   } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
@@ -688,8 +856,8 @@ async function assignSheets(gameId) {
   if (!from || !to) { toast('Enter from and to sheet numbers'); return; }
   try {
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'assign-sheets', password: pwd, gameId, sheetFrom: from, sheetTo: to })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'assign-sheets', password:pwd, gameId, sheetFrom:from, sheetTo:to })
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Assign failed'); return; }
@@ -698,12 +866,12 @@ async function assignSheets(gameId) {
 }
 
 async function setStatus(gameId, status) {
-  const labels = { listed: 'list', ended: 'end', draft: 'move to draft' };
+  const labels = { listed:'list', ended:'end', draft:'move to draft' };
   if (!confirm(`${labels[status]} this game?`)) return;
   try {
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set-status', password: pwd, gameId, status })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'set-status', password:pwd, gameId, status })
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Failed'); return; }
@@ -711,36 +879,103 @@ async function setStatus(gameId, status) {
   } catch(e) { toast('Network error'); }
 }
 
-/* ── Purchases ── */
+/* ── Purchases / Sales ── */
 async function loadPurchases() {
   try {
     const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}&type=purchases`);
     allPurchases = (await r.json()).purchases || [];
     renderPurchases();
+    renderSalesStats();
+    updatePendingBadge();
   } catch(e) {}
+}
+
+function updatePendingBadge() {
+  const pending = allPurchases.filter(p => p.status === 'pending').length;
+  const badge = document.getElementById('pendingBadge');
+  badge.style.display = pending ? 'inline-flex' : 'none';
+  badge.textContent = pending;
+}
+
+function renderSalesStats() {
+  const approved = allPurchases.filter(p => p.status === 'approved');
+  const pending  = allPurchases.filter(p => p.status === 'pending');
+  const totalRev = approved.reduce((s, p) => s + (p.amount || 0), 0);
+  const pendingRev = pending.reduce((s, p) => s + (p.amount || 0), 0);
+  document.getElementById('sTotalRev').textContent = `₹${totalRev.toLocaleString('en-IN')}`;
+  document.getElementById('sPendingRev').textContent = `₹${pendingRev.toLocaleString('en-IN')}`;
+  document.getElementById('sTotalOrders').textContent = allPurchases.length;
+  document.getElementById('sPendingCount').textContent = pending.length;
+
+  // Revenue by game
+  const byGame = {};
+  allPurchases.forEach(p => {
+    if (!byGame[p.gameId]) byGame[p.gameId] = { name:p.gameName, collected:0, pendingAmt:0, orders:0, pending:0 };
+    byGame[p.gameId].orders++;
+    if (p.status === 'approved') byGame[p.gameId].collected += p.amount || 0;
+    else { byGame[p.gameId].pendingAmt += p.amount || 0; byGame[p.gameId].pending++; }
+  });
+
+  // Get thumbnails from allGames
+  const thumbMap = {};
+  allGames.forEach(g => { if (g.thumbnail) thumbMap[g.id] = g.thumbnail; });
+
+  const gameEntries = Object.entries(byGame).sort((a,b) => b[1].collected - a[1].collected);
+  const revEl = document.getElementById('revenueByGame');
+  if (!gameEntries.length) {
+    revEl.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">No purchases yet.</div>';
+    return;
+  }
+  revEl.innerHTML = gameEntries.map(([gameId, d]) => {
+    const thumb = thumbMap[gameId];
+    const thumbHtml = thumb
+      ? `<img src="${esc(thumb)}" onerror="this.style.display='none'">`
+      : `<span>🎮</span>`;
+    return `<div class="rev-card">
+      <div class="rev-thumb">${thumbHtml}</div>
+      <div class="rev-info">
+        <div class="rev-name">${esc(d.name)}</div>
+        <div class="rev-stats">
+          <div class="rev-stat"><div class="rev-val">₹${d.collected.toLocaleString('en-IN')}</div><div class="rev-lbl">Collected</div></div>
+          ${d.pendingAmt ? `<div class="rev-stat"><div class="rev-val" style="color:var(--warn)">₹${d.pendingAmt.toLocaleString('en-IN')}</div><div class="rev-lbl">Pending</div></div>` : ''}
+          <div class="rev-stat"><div class="rev-val">${d.orders}</div><div class="rev-lbl">Orders</div></div>
+          ${d.pending ? `<div class="rev-stat"><div class="rev-val" style="color:var(--warn)">${d.pending}</div><div class="rev-lbl">Awaiting</div></div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderPurchases() {
   const tbody = document.getElementById('purchasesTbl');
-  if (!allPurchases.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No purchases yet.</td></tr>'; return; }
-  tbody.innerHTML = allPurchases.map(p => `
-    <tr>
+  if (!allPurchases.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No purchases yet.</td></tr>'; return;
+  }
+  tbody.innerHTML = allPurchases.map(p => {
+    const sheetsCell = p.sheetNums && p.sheetNums.length
+      ? `<span style="font-size:11px;color:var(--muted)">${p.sheetNums.slice(0,5).map(n=>'#'+n).join(', ')}${p.sheetNums.length>5?' …':''}</span>`
+      : `<span style="font-size:11px;color:var(--muted)">—</span>`;
+    return `<tr>
       <td><strong>${esc(p.playerName)}</strong></td>
       <td style="font-size:12px">${esc(p.phone||'—')}</td>
       <td style="font-size:12px">${esc(p.gameName)}</td>
       <td>${p.quantity}</td>
       <td>₹${p.amount}</td>
+      <td>${sheetsCell}</td>
       <td><span class="chip chip-${p.status}">${p.status}</span></td>
-      <td>${p.status==='pending' ? `<button class="btn btn-green" style="font-size:11px;padding:6px 12px" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>` : ''}</td>
-    </tr>`).join('');
+      <td>${p.status==='pending'
+        ? `<button class="btn btn-green btn-sm" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>`
+        : ''}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function approvePurchase(purchaseId, name) {
   if (!confirm(`Approve purchase for ${name}?`)) return;
   try {
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'approve-purchase', password: pwd, purchaseId })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'approve-purchase', password:pwd, purchaseId })
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Approval failed'); return; }
@@ -761,7 +996,7 @@ function fileToBase64(file) {
 
 function showMsg(el, text, type) {
   el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${esc(text)}</div>`;
-  setTimeout(() => { if(el) el.innerHTML=''; }, 4000);
+  setTimeout(() => { if (el) el.innerHTML = ''; }, 4000);
 }
 
 let toastT;
@@ -775,7 +1010,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-document.getElementById('pwdInput').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
+document.getElementById('pwdInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
 </script>
 </body>
 </html>

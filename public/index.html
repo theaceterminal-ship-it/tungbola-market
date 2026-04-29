@@ -4,23 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Tungbola Marketplace</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
-  --bg:#FFFBFE;--surface:#fff;--sv:#E7E0EC;
-  --primary:#6750A4;--primary-c:#EADDFF;
-  --error:#B3261E;--success:#4CAF50;--on-s:#1C1B1F;--on-sv:#49454F;--outline:#79747E;
-  --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-md:0 2px 10px rgba(0,0,0,.12);
+  --bg:#F4F0FB;--surface:#fff;--border:#E7E0EC;
+  --primary:#6750A4;--primary-light:#EADDFF;
+  --error:#B3261E;--success:#2E7D32;--warn:#F57F17;
+  --muted:#49454F;--on-s:#1C1B1F;
+  --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-md:0 4px 16px rgba(0,0,0,.13);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-s);min-height:100vh}
-.off{display:none!important}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--on-s);overscroll-behavior:none}
 
-.mkt-header{background:linear-gradient(135deg,#4527A0 0%,var(--primary) 60%,#7B1FA2 100%);
-  color:#fff;padding:0 16px;height:58px;display:flex;align-items:center;
-  justify-content:space-between;box-shadow:0 2px 12px rgba(103,80,164,.4);position:sticky;top:0;z-index:50}
+/* ── HEADER ── */
+.mkt-header{
+  background:linear-gradient(135deg,#4527A0 0%,var(--primary) 60%,#7B1FA2 100%);
+  color:#fff;padding:0 16px;height:58px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 2px 12px rgba(103,80,164,.4);
+  position:fixed;top:0;left:0;right:0;z-index:100
+}
 .hdr-left{display:flex;align-items:center;gap:10px}
 .hdr-logo{font-size:18px;font-weight:900;letter-spacing:-.5px}
 .hdr-tag{font-size:12px;opacity:.8;background:rgba(255,255,255,.15);padding:3px 9px;border-radius:12px}
@@ -28,110 +34,216 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-s);min-
   padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
   font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 
-.screen{min-height:calc(100vh - 58px);padding:16px}
+/* ── SCREENS ── */
+#app{position:fixed;top:58px;left:0;right:0;bottom:0;overflow:hidden}
+.screen{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:var(--bg);padding:16px;
+  display:none;
+}
+.screen.visible{display:block;animation:scrIn .26s cubic-bezier(.4,0,.2,1) both}
+.screen.back.visible{animation:scrInBack .26s cubic-bezier(.4,0,.2,1) both}
+@keyframes scrIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scrInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:translateX(0)}}
 
-.games-title{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;
-  letter-spacing:.6px;margin-bottom:12px;padding:4px 0}
-.game-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow-md);
-  padding:16px;margin-bottom:12px;cursor:pointer;border:2px solid transparent;transition:border-color .15s,transform .1s}
-.game-card:active{transform:scale(.98);border-color:var(--primary)}
-.game-card-name{font-size:17px;font-weight:700;margin-bottom:6px}
-.game-card-date{font-size:12px;color:var(--on-sv);margin-bottom:10px}
-.game-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
-.chip{display:inline-flex;align-items:center;padding:4px 9px;border-radius:8px;font-size:12px;font-weight:600}
-.chip.price{background:#E8F5E9;color:#2E7D32}
-.chip.avail{background:var(--primary-c);color:var(--primary)}
-.chip.full{background:#FFEBEE;color:var(--error)}
-.chip.sold{background:#FFF8E1;color:#F57F17}
-.game-card-desc{font-size:13px;color:var(--on-sv);line-height:1.5;margin-bottom:12px}
-.prizes-section{margin-bottom:12px}
-.prizes-title{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
-.prize-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--sv)}
+/* ── HOME: GAME CARDS ── */
+.section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.7px;margin-bottom:12px;padding-top:2px}
+.game-card{
+  position:relative;border-radius:20px;overflow:hidden;height:190px;
+  cursor:pointer;margin-bottom:14px;
+  box-shadow:var(--shadow-md);
+  transform:translateY(0);transition:transform .15s;
+  -webkit-user-select:none;user-select:none
+}
+.game-card:active{transform:scale(.98)}
+.game-card-bg{position:absolute;inset:0;background:linear-gradient(135deg,#4527A0,#7B1FA2)}
+.game-card-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.game-card-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.2) 55%,transparent 100%)
+}
+.game-card-content{position:absolute;bottom:0;left:0;right:0;padding:14px 16px}
+.game-card-name{font-size:18px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:4px}
+.game-card-date{font-size:12px;color:rgba(255,255,255,.8);margin-bottom:10px}
+.game-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.game-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.chip.price{background:rgba(255,255,255,.2);color:#fff;backdrop-filter:blur(4px)}
+.chip.avail{background:rgba(46,125,50,.85);color:#fff}
+.chip.full{background:rgba(179,38,30,.85);color:#fff}
+.chip.sold{background:rgba(245,127,23,.85);color:#fff}
+.card-buy-btn{
+  background:#fff;color:var(--primary);
+  border:none;border-radius:20px;padding:8px 16px;
+  font-size:13px;font-weight:800;cursor:pointer;
+  font-family:inherit;flex-shrink:0;white-space:nowrap
+}
+.sold-out-overlay{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;
+  border-radius:20px
+}
+.sold-out-label{font-size:18px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:1px}
+
+.empty-state{text-align:center;padding:60px 20px 40px;color:var(--muted)}
+.empty-ico{font-size:52px;margin-bottom:12px}
+.empty-txt{font-size:16px;font-weight:700;color:var(--on-s)}
+.empty-sub{font-size:13px;margin-top:6px;opacity:.7;line-height:1.5}
+.loading-txt{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
+
+/* ── BUY SCREEN ── */
+#screenBuy{max-width:480px;margin:0 auto;padding-bottom:24px}
+.buy-header{
+  position:relative;border-radius:20px;overflow:hidden;height:140px;
+  margin-bottom:16px;box-shadow:var(--shadow-md)
+}
+.buy-header-bg{position:absolute;inset:0;background:linear-gradient(135deg,#4527A0,#7B1FA2)}
+.buy-header-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.buy-header-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.buy-header-content{
+  position:absolute;bottom:0;left:0;right:0;padding:14px 16px;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:8px
+}
+.buy-game-name{font-size:18px;font-weight:800;color:#fff;line-height:1.2}
+.buy-price-chip{background:rgba(255,255,255,.2);color:#fff;
+  padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;
+  backdrop-filter:blur(4px);white-space:nowrap;flex-shrink:0}
+
+.back-row{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.back-btn{background:none;border:none;color:var(--primary);font-size:14px;font-weight:700;
+  cursor:pointer;font-family:inherit;padding:6px 0;display:flex;align-items:center;gap:4px}
+
+.buy-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+.field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.field-wrap{margin-bottom:14px}
+.field-wrap:last-child{margin-bottom:0}
+.mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
+  font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
+.mkt-field:focus{border-color:var(--primary)}
+
+.qty-row{display:flex;align-items:center;gap:12px}
+.qty-btn{width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:#fff;
+  font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;color:var(--primary);transition:background .15s,border-color .15s}
+.qty-btn:active{background:var(--primary-light);border-color:var(--primary)}
+.qty-val{font-size:24px;font-weight:900;color:var(--primary);min-width:44px;text-align:center}
+.qty-max{font-size:12px;color:var(--muted)}
+
+.amount-display{
+  background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
+  border-radius:16px;padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px
+}
+.amount-label{font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.8px}
+.amount-value{font-size:28px;font-weight:900}
+
+.qr-section{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);
+  padding:18px;text-align:center;margin-bottom:14px}
+.qr-box{display:inline-block;background:#fff;border:2px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px}
+.qr-hint{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.qr-upi{font-size:11px;color:var(--muted);word-break:break-all}
+
+.err-msg{font-size:13px;color:var(--error);font-weight:500;margin-bottom:10px;text-align:center}
+.submit-btn{width:100%;padding:16px;background:var(--primary);color:#fff;border:none;
+  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:opacity .2s}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.submit-btn.green{background:#2E7D32;margin-top:8px}
+
+/* ── SHEET PICKER ── */
+.picker-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.picker-title{font-size:13px;font-weight:700;color:var(--on-s);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.picker-sub{font-size:11px;color:var(--muted);margin-bottom:12px}
+.picker-loading{font-size:13px;color:var(--muted);text-align:center;padding:20px 0}
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;max-height:260px;overflow-y:auto;padding:2px}
+.sheet-chip{
+  height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;cursor:pointer;border:2px solid transparent;
+  transition:background .1s,border-color .1s,color .1s;
+  -webkit-user-select:none;user-select:none
+}
+.sheet-chip.avail{background:#F4F0FB;color:var(--primary);border-color:var(--border)}
+.sheet-chip.avail:active{background:var(--primary-light);border-color:var(--primary)}
+.sheet-chip.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
+.sheet-chip.sold{background:#FFEBEE;color:var(--error);border-color:#FFCDD2;cursor:not-allowed;opacity:.65}
+.picker-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:6px}
+.picker-count{font-size:13px;font-weight:700;color:var(--primary)}
+.picker-clear{background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline}
+
+/* prizes in buy screen */
+.prizes-section{margin-bottom:0}
+.prizes-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.prize-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
 .prize-row:last-child{border-bottom:none}
 .prize-name{font-size:13px;font-weight:600;flex:1}
 .prize-val{font-size:13px;color:var(--primary);font-weight:700;white-space:nowrap}
-.prize-img{width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0}
-.game-buy-btn{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;
-  border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
-.game-buy-btn:disabled{opacity:.45;cursor:not-allowed}
-.empty-state{text-align:center;padding:60px 20px;color:var(--on-sv)}
-.empty-ico{font-size:48px;margin-bottom:12px}
-.empty-txt{font-size:15px;font-weight:500}
-.empty-sub{font-size:13px;margin-top:6px;opacity:.7}
-.loading-txt{text-align:center;padding:60px 20px;color:var(--on-sv);font-size:15px}
+.prize-img{width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0}
 
-#screenBuy{max-width:480px;margin:0 auto}
-.buy-back{display:flex;align-items:center;gap:6px;background:none;border:none;
-  color:var(--primary);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;padding:8px 0;margin-bottom:12px}
-.buy-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow-md);padding:18px;margin-bottom:14px}
-.buy-card-title{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
-.game-name-big{font-size:20px;font-weight:900;color:var(--primary);margin-bottom:6px}
-.field-lbl{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
-.field-wrap{margin-bottom:14px}
-.mkt-field{width:100%;padding:13px 15px;border:2px solid var(--sv);border-radius:12px;
-  font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
-.mkt-field:focus{border-color:var(--primary)}
-.qty-row{display:flex;align-items:center;gap:10px}
-.qty-btn{width:44px;height:44px;border-radius:50%;border:2px solid var(--sv);background:#fff;
-  font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;color:var(--primary)}
-.qty-btn:active{background:var(--primary-c)}
-.qty-val{font-size:22px;font-weight:900;color:var(--primary);min-width:40px;text-align:center}
-.qty-max{font-size:11px;color:var(--on-sv);margin-left:4px}
-.amount-display{background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
-  border-radius:14px;padding:14px 16px;text-align:center;margin-bottom:14px}
-.amount-label{font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
-.amount-value{font-size:30px;font-weight:900}
-.qr-section{text-align:center;padding:16px 0}
-.qr-box{display:inline-block;background:#fff;border:2px solid var(--sv);border-radius:16px;padding:12px;margin-bottom:10px}
-.qr-hint{font-size:13px;color:var(--on-sv);font-weight:500;margin-bottom:6px}
-.qr-upi{font-size:12px;color:var(--outline);word-break:break-all}
-.err-msg{font-size:13px;color:var(--error);font-weight:500;margin-top:8px;text-align:center;display:none}
-.submit-btn{width:100%;padding:15px;background:var(--primary);color:#fff;border:none;
-  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px}
-.submit-btn:disabled{opacity:.5;cursor:not-allowed}
-
-#screenWait{text-align:center;padding:60px 24px;max-width:380px;margin:0 auto}
-.wait-spinner{width:56px;height:56px;border-radius:50%;border:4px solid var(--primary-c);
+/* ── WAIT SCREEN ── */
+#screenWait{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 24px}
+.wait-card{background:var(--surface);border-radius:24px;box-shadow:var(--shadow-md);padding:36px 28px;max-width:340px;width:100%}
+.wait-spinner{width:52px;height:52px;border-radius:50%;border:4px solid var(--primary-light);
   border-top-color:var(--primary);animation:spin .8s linear infinite;margin:0 auto 20px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.wait-title{font-size:18px;font-weight:700;margin-bottom:8px}
-.wait-info{font-size:14px;color:var(--on-sv);margin-bottom:24px;line-height:1.6}
-.wait-cancel{background:transparent;border:2px solid var(--sv);color:var(--on-sv);
-  padding:10px 24px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.wait-title{font-size:18px;font-weight:800;margin-bottom:8px}
+.wait-info{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.7}
+.wait-cancel{background:transparent;border:2px solid var(--border);color:var(--muted);
+  padding:10px 28px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 
-#screenDownloads{max-width:480px;margin:0 auto}
-.dl-header{background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
-  border-radius:18px;padding:18px;text-align:center;margin-bottom:16px}
-.dl-header-ico{font-size:36px;margin-bottom:8px}
-.dl-header-title{font-size:18px;font-weight:700;margin-bottom:4px}
-.dl-header-sub{font-size:13px;opacity:.85;line-height:1.5}
-.dl-notice{background:#E8F5E9;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#2E7D32;line-height:1.6}
-.dl-list{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-md);overflow:hidden;margin-bottom:14px}
-.dl-item{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--sv)}
+/* ── DOWNLOADS SCREEN ── */
+#screenDownloads{max-width:480px;margin:0 auto;padding-bottom:32px}
+.dl-hero{
+  background:linear-gradient(135deg,var(--primary),#7C3AED);
+  color:#fff;border-radius:22px;padding:24px 20px;text-align:center;margin-bottom:16px;
+  box-shadow:var(--shadow-md)
+}
+.dl-hero-ico{font-size:44px;margin-bottom:10px}
+.dl-hero-title{font-size:20px;font-weight:800;margin-bottom:4px}
+.dl-hero-sub{font-size:13px;opacity:.85;line-height:1.5}
+
+.dl-all-btn{
+  width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;
+  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;
+  transition:opacity .2s
+}
+.dl-all-btn:disabled{opacity:.6;cursor:not-allowed}
+.dl-notice{background:#E8F5E9;border-radius:12px;padding:12px 14px;margin-bottom:14px;
+  font-size:13px;color:#2E7D32;line-height:1.6}
+.dl-list{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+.dl-item{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)}
 .dl-item:last-child{border-bottom:none}
-.dl-num{width:38px;height:38px;border-radius:50%;background:var(--primary-c);color:var(--primary);
-  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
-.dl-name{flex:1;font-size:14px;font-weight:500}
+.dl-num{width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.dl-name{flex:1;font-size:14px;font-weight:600}
 .dl-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;
   padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
   white-space:nowrap;flex-shrink:0;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .dl-btn.done{background:#E8F5E9;color:#2E7D32}
-.open-app-btn{width:100%;padding:15px;background:var(--primary);color:#fff;border:none;
+.open-app-btn{
+  width:100%;padding:15px;background:var(--primary);color:#fff;border:none;
   border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
-  text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
-.muted-note{font-size:12px;color:var(--on-sv);text-align:center;line-height:1.6}
-.dl-all-btn{width:100%;padding:15px;background:#2E7D32;color:#fff;border:none;
-  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
-  display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}
-.dl-all-btn:disabled{opacity:.6;cursor:not-allowed}
+  text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px
+}
+.muted-note{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;padding:0 8px}
 
+/* ── TOAST ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
   background:#1C1B1F;color:#fff;padding:12px 20px;border-radius:24px;
-  font-size:13px;font-weight:500;z-index:200;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
+  font-size:13px;font-weight:600;z-index:200;transition:transform .25s;
+  white-space:nowrap;max-width:90vw;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
-@media(max-width:480px){.screen{padding:12px}}
+@media(max-width:360px){
+  .game-card{height:175px}
+  .game-card-name{font-size:16px}
+  .buy-game-name{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -144,88 +256,126 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-s);min-
   <a id="backBtn" href="#" class="hdr-back">← App</a>
 </div>
 
-<div class="screen" id="screenHome">
-  <div class="loading-txt" id="homeLoading">Loading games…</div>
-  <div id="gamesContainer" class="off"></div>
-</div>
+<div id="app">
 
-<div class="screen off" id="screenBuy">
-  <button class="buy-back" onclick="goHome()">← Back to games</button>
-  <div class="buy-card">
-    <div class="buy-card-title">Game</div>
-    <div class="game-name-big" id="buyGameName"></div>
-    <div id="buyGameDate" style="font-size:13px;color:var(--on-sv);margin-bottom:8px"></div>
-    <div id="buyGameDesc" style="font-size:13px;color:var(--on-sv);line-height:1.5"></div>
+  <!-- HOME -->
+  <div class="screen visible" id="screenHome">
+    <div class="loading-txt" id="homeLoading">Loading games…</div>
+    <div id="gamesContainer" style="display:none"></div>
   </div>
-  <div class="buy-card">
-    <div class="field-wrap">
-      <div class="field-lbl">Your Name</div>
-      <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50">
+
+  <!-- BUY -->
+  <div class="screen" id="screenBuy">
+    <div class="back-row">
+      <button class="back-btn" onclick="goHome()">← Back to games</button>
     </div>
-    <div class="field-wrap">
-      <div class="field-lbl">Phone (optional)</div>
-      <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
+    <div class="buy-header" id="buyHeader">
+      <div class="buy-header-bg" id="buyHeaderBg"></div>
+      <div class="buy-header-overlay"></div>
+      <div class="buy-header-content">
+        <div class="buy-game-name" id="buyGameName"></div>
+        <div class="buy-price-chip" id="buyPriceChip"></div>
+      </div>
     </div>
-    <div class="field-wrap">
+    <div id="buyGameInfo" style="margin-bottom:14px"></div>
+
+    <!-- Sheet Picker (shown when available sheets loaded) -->
+    <div class="picker-card" id="pickerCard" style="display:none">
+      <div class="picker-title">
+        <span>🎟 Pick Your Sheet Numbers</span>
+        <span style="font-size:11px;font-weight:400;color:var(--muted)" id="pickerAvailCount"></span>
+      </div>
+      <div class="picker-sub">Tap to select. <span style="color:var(--primary);font-weight:600">Purple</span> = picked · <span style="color:var(--error);font-weight:600">Red</span> = sold</div>
+      <div id="pickerLoading" class="picker-loading">Loading available sheets…</div>
+      <div id="sheetGrid" class="sheet-grid" style="display:none"></div>
+      <div class="picker-footer" id="pickerFooter" style="display:none">
+        <span class="picker-count" id="pickerCount">0 selected</span>
+        <button class="picker-clear" onclick="clearPicker()">Clear all</button>
+      </div>
+    </div>
+
+    <!-- Fallback qty stepper (large games or load fail) -->
+    <div class="buy-card" id="qtyStepper" style="display:none">
       <div class="field-lbl">Number of Sheets</div>
-      <div class="qty-row">
+      <div class="qty-row" style="margin-top:6px">
         <button class="qty-btn" onclick="changeQty(-1)">−</button>
         <div class="qty-val" id="buyQtyVal">1</div>
         <button class="qty-btn" onclick="changeQty(1)">+</button>
         <span class="qty-max" id="buyQtyMax"></span>
       </div>
     </div>
+
+    <div class="buy-card">
+      <div class="field-wrap">
+        <div class="field-lbl">Your Name</div>
+        <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50" autocomplete="name">
+      </div>
+      <div class="field-wrap" style="margin-bottom:0">
+        <div class="field-lbl">Phone (optional)</div>
+        <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
+      </div>
+    </div>
+
+    <div class="amount-display">
+      <div>
+        <div class="amount-label">Total Amount</div>
+        <div class="amount-value" id="buyAmount">₹5</div>
+      </div>
+      <div style="font-size:28px">💳</div>
+    </div>
+
+    <div id="qrSection" style="display:none">
+      <div class="qr-section">
+        <div class="qr-box"><div id="qrContainer"></div></div>
+        <div class="qr-hint" id="qrHint"></div>
+        <div class="qr-upi" id="qrUpi"></div>
+      </div>
+    </div>
+
+    <div class="err-msg" id="buyErr" style="display:none"></div>
+    <button class="submit-btn" id="buyPayBtn" onclick="showQR()">Show Payment QR →</button>
+    <button class="submit-btn green" id="buySubmitBtn" onclick="submitPurchase()" style="display:none">
+      ✓ I've Paid — Request Sheets →
+    </button>
   </div>
-  <div class="amount-display">
-    <div class="amount-label">Total Amount</div>
-    <div class="amount-value" id="buyAmount">₹5</div>
-  </div>
-  <div class="buy-card" id="qrSection" style="display:none">
-    <div class="qr-section">
-      <div class="qr-box"><div id="qrContainer"></div></div>
-      <div class="qr-hint" id="qrHint"></div>
-      <div class="qr-upi" id="qrUpi"></div>
+
+  <!-- WAIT -->
+  <div class="screen" id="screenWait">
+    <div class="wait-card">
+      <div class="wait-spinner"></div>
+      <div class="wait-title">Waiting for approval</div>
+      <div class="wait-info" id="waitInfo">Your payment is being verified. Sheets will be ready shortly.</div>
+      <button class="wait-cancel" onclick="cancelPurchase()">Cancel</button>
     </div>
   </div>
-  <div class="err-msg" id="buyErr"></div>
-  <button class="submit-btn" id="buyPayBtn" onclick="showQR()">Show Payment QR →</button>
-  <button class="submit-btn off" id="buySubmitBtn" onclick="submitPurchase()" style="background:#2E7D32;margin-top:8px">
-    ✓ I've Paid — Request Sheets →
-  </button>
-</div>
 
-<div class="screen off" id="screenWait">
-  <div class="wait-spinner"></div>
-  <div class="wait-title">Waiting for approval</div>
-  <div class="wait-info" id="waitInfo">Your payment is being verified. Sheets will be ready shortly.</div>
-  <button class="wait-cancel" onclick="cancelPurchase()">Cancel</button>
-</div>
+  <!-- DOWNLOADS -->
+  <div class="screen" id="screenDownloads">
+    <div class="dl-hero">
+      <div class="dl-hero-ico">🎉</div>
+      <div class="dl-hero-title">Sheets Ready!</div>
+      <div class="dl-hero-sub" id="dlSubtitle"></div>
+    </div>
+    <button class="dl-all-btn" id="dlAllBtn" onclick="downloadAll()">⬇ Download All Sheets (ZIP)</button>
+    <div class="dl-notice">📥 Tap "Download All" to get all sheets in one ZIP, or save them one by one below.</div>
+    <div class="dl-list" id="dlList"></div>
+    <a id="openAppBtn" href="#" class="open-app-btn">↗ Open Tungbola App</a>
+    <div class="muted-note">Download links are valid for 48 hours. Save the PDFs to your device.</div>
+  </div>
 
-<div class="screen off" id="screenDownloads">
-  <div class="dl-header">
-    <div class="dl-header-ico">🎉</div>
-    <div class="dl-header-title">Sheets Ready!</div>
-    <div class="dl-header-sub" id="dlSubtitle"></div>
-  </div>
-  <div class="dl-notice">
-    📥 Tap "Download All" to get all your sheets in one ZIP file, or download them one by one below.
-  </div>
-  <button class="dl-all-btn" id="dlAllBtn" onclick="downloadAll()">⬇ Download All Sheets</button>
-  <div class="dl-list" id="dlList"></div>
-  <a id="openAppBtn" href="#" class="open-app-btn">↗ Open Tungbola App</a>
-  <div class="muted-note">Download links are valid for 48 hours. Save the PDFs to your device.</div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── UPDATE THIS after deploying the Tungbola main app ──
 const TUNGBOLA_URL = 'https://tungbola.vercel.app';
-
 document.getElementById('backBtn').href = TUNGBOLA_URL;
 document.getElementById('openAppBtn').href = TUNGBOLA_URL;
 
 let cfg = {}, games = [], currentGame = null, buyQty = 1, purchaseId = null, pollTimer = null, currentSheets = [];
+let selectedSheetNums = new Set(); // for picker mode
+let pickerMode = false; // true = picker, false = stepper
+const PICKER_LIMIT = 400; // max sheets to show as chips; fallback to stepper above this
 
 async function init() {
   try {
@@ -241,8 +391,9 @@ async function init() {
 function renderGames() {
   const loading = document.getElementById('homeLoading');
   const container = document.getElementById('gamesContainer');
-  loading.classList.add('off');
-  container.classList.remove('off');
+  loading.style.display = 'none';
+  container.style.display = 'block';
+
   if (!games.length) {
     container.innerHTML = `<div class="empty-state">
       <div class="empty-ico">🎯</div>
@@ -251,23 +402,31 @@ function renderGames() {
     </div>`;
     return;
   }
-  container.innerHTML = `<div class="games-title">Available Games (${games.length})</div>` +
+
+  container.innerHTML = `<div class="section-label">Available Games (${games.length})</div>` +
     games.map(g => {
-      const avail = g.sheetCount - (g.soldCount || 0);
+      const avail = (g.sheetCount || 0) - (g.soldCount || 0);
       const full = avail <= 0;
+      const bg = g.thumbnail
+        ? `<div class="game-card-bg"><img src="${esc(g.thumbnail)}" onerror="this.style.display='none'"></div>`
+        : `<div class="game-card-bg"></div>`;
+
       return `<div class="game-card" onclick="selectGame('${g.id}')">
-        <div class="game-card-name">${esc(g.name)}</div>
-        ${g.gameDate ? `<div class="game-card-date">📅 ${esc(g.gameDate)}</div>` : ''}
-        <div class="game-chips">
-          <span class="chip price">₹${g.pricePerSheet}/sheet</span>
-          <span class="chip ${full ? 'full' : 'avail'}">${full ? 'Sold Out' : `${avail} available`}</span>
-          ${g.soldCount ? `<span class="chip sold">${g.soldCount} sold</span>` : ''}
+        ${bg}
+        <div class="game-card-overlay"></div>
+        <div class="game-card-content">
+          <div class="game-card-name">${esc(g.name)}</div>
+          ${g.gameDate ? `<div class="game-card-date">📅 ${esc(g.gameDate)}</div>` : ''}
+          <div class="game-card-bottom">
+            <div class="game-chips">
+              <span class="chip price">₹${g.pricePerSheet}/sheet</span>
+              <span class="chip ${full?'full':'avail'}">${full?'Sold Out':`${avail} available`}</span>
+              ${g.soldCount ? `<span class="chip sold">${g.soldCount} sold</span>` : ''}
+            </div>
+            ${!full ? `<button class="card-buy-btn" onclick="event.stopPropagation();selectGame('${g.id}')">Buy →</button>` : ''}
+          </div>
         </div>
-        ${g.description ? `<div class="game-card-desc">${esc(g.description)}</div>` : ''}
-        ${renderPrizes(g.prizes)}
-        <button class="game-buy-btn" ${full ? 'disabled' : ''} onclick="event.stopPropagation();selectGame('${g.id}')">
-          ${full ? 'Sold Out' : '🛒 Buy Sheets'}
-        </button>
+        ${full ? `<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>` : ''}
       </div>`;
     }).join('');
 }
@@ -275,38 +434,161 @@ function renderGames() {
 function selectGame(id) {
   currentGame = games.find(g => g.id === id);
   if (!currentGame) return;
-  const avail = currentGame.sheetCount - (currentGame.soldCount || 0);
+  const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
   if (avail <= 0) { toast('This game is sold out.'); return; }
+
   buyQty = 1;
+  selectedSheetNums = new Set();
+  pickerMode = false;
+
+  // Header background
+  const bgEl = document.getElementById('buyHeaderBg');
+  bgEl.innerHTML = currentGame.thumbnail
+    ? `<img src="${esc(currentGame.thumbnail)}" onerror="this.style.display='none'">`
+    : '';
+
   document.getElementById('buyGameName').textContent = currentGame.name;
-  document.getElementById('buyGameDate').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : '';
-  document.getElementById('buyGameDesc').textContent = currentGame.description || '';
+  document.getElementById('buyPriceChip').textContent = `₹${currentGame.pricePerSheet}/sheet`;
   document.getElementById('buyQtyMax').textContent = `max ${avail}`;
+
+  // Game info (date + prizes)
+  let info = '';
+  if (currentGame.gameDate || currentGame.description) {
+    info += `<div class="buy-card" style="padding:14px 18px">`;
+    if (currentGame.gameDate) info += `<div style="font-size:13px;color:var(--muted);margin-bottom:${currentGame.description?'8px':'0'}">📅 ${esc(currentGame.gameDate)}</div>`;
+    if (currentGame.description) info += `<div style="font-size:13px;color:var(--muted);line-height:1.55">${esc(currentGame.description)}</div>`;
+    info += `</div>`;
+  }
+  if (currentGame.prizes && currentGame.prizes.length) {
+    info += `<div class="buy-card"><div class="prizes-section">
+      <div class="prizes-title">🎁 Prizes</div>
+      ${currentGame.prizes.map(p => `
+        <div class="prize-row">
+          <span class="prize-name">${esc(p.name)}</span>
+          ${p.imageUrl ? `<img class="prize-img" src="${esc(p.imageUrl)}" alt="">` : ''}
+          <span class="prize-val">${p.kind==='cash'?`₹${(p.amount||0).toLocaleString('en-IN')}`:esc(p.description||'')}</span>
+        </div>`).join('')}
+    </div></div>`;
+  }
+  document.getElementById('buyGameInfo').innerHTML = info;
+
+  // Reset form state
   document.getElementById('buyErr').style.display = 'none';
   document.getElementById('qrSection').style.display = 'none';
-  document.getElementById('buyPayBtn').classList.remove('off');
-  document.getElementById('buySubmitBtn').classList.add('off');
+  document.getElementById('buyPayBtn').style.display = '';
+  document.getElementById('buySubmitBtn').style.display = 'none';
   document.getElementById('buyName').value = '';
   document.getElementById('buyPhone').value = '';
+
+  // Show picker loading state; hide stepper until we know which mode
+  document.getElementById('pickerCard').style.display = '';
+  document.getElementById('qtyStepper').style.display = 'none';
+  document.getElementById('pickerLoading').style.display = '';
+  document.getElementById('sheetGrid').style.display = 'none';
+  document.getElementById('pickerFooter').style.display = 'none';
+  document.getElementById('pickerAvailCount').textContent = '';
+
   updateQtyDisplay();
   show('screenBuy');
+  loadSheetPicker(currentGame.id);
 }
 
-function goHome() { show('screenHome'); stopPolling(); purchaseId = null; }
+function goHome() { show('screenHome', true); stopPolling(); purchaseId = null; }
+
+/* ── Sheet Picker ── */
+async function loadSheetPicker(gameId) {
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'available-sheets', gameId })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+
+    const allNums = [...data.available, ...data.sold].sort((a, b) => a - b);
+    document.getElementById('pickerLoading').style.display = 'none';
+
+    if (allNums.length > PICKER_LIMIT) {
+      // Too many chips — use stepper
+      pickerMode = false;
+      document.getElementById('pickerCard').style.display = 'none';
+      document.getElementById('qtyStepper').style.display = '';
+      const avail = data.available.length;
+      document.getElementById('buyQtyMax').textContent = `max ${avail}`;
+    } else {
+      // Render chip grid
+      pickerMode = true;
+      const soldSet = new Set(data.sold);
+      document.getElementById('pickerAvailCount').textContent = `${data.available.length} available`;
+      const grid = document.getElementById('sheetGrid');
+      grid.innerHTML = allNums.map(n =>
+        `<div class="sheet-chip ${soldSet.has(n) ? 'sold' : 'avail'}" id="chip-${n}" data-n="${n}"
+          onclick="toggleChip(${n},${soldSet.has(n)})">${n}</div>`
+      ).join('');
+      grid.style.display = 'grid';
+      document.getElementById('pickerFooter').style.display = 'flex';
+      updatePickerCount();
+    }
+  } catch(e) {
+    // On error: hide picker, show stepper
+    pickerMode = false;
+    document.getElementById('pickerCard').style.display = 'none';
+    document.getElementById('qtyStepper').style.display = '';
+    const avail = (currentGame?.sheetCount || 0) - (currentGame?.soldCount || 0);
+    document.getElementById('buyQtyMax').textContent = `max ${avail}`;
+  }
+}
+
+function toggleChip(n, isSold) {
+  if (isSold) return;
+  const chip = document.getElementById(`chip-${n}`);
+  if (!chip) return;
+  const wasSelected = selectedSheetNums.has(n);
+  if (wasSelected) {
+    selectedSheetNums.delete(n);
+    chip.className = 'sheet-chip avail';
+  } else {
+    selectedSheetNums.add(n);
+    chip.className = 'sheet-chip picked';
+  }
+  buyQty = Math.max(1, selectedSheetNums.size);
+  updatePickerCount();
+  updateQtyDisplay();
+  // Reset payment flow if qty changed
+  document.getElementById('qrSection').style.display = 'none';
+  document.getElementById('buyPayBtn').style.display = '';
+  document.getElementById('buySubmitBtn').style.display = 'none';
+}
+
+function clearPicker() {
+  selectedSheetNums.clear();
+  document.querySelectorAll('.sheet-chip.picked').forEach(el => el.className = 'sheet-chip avail');
+  buyQty = 1;
+  updatePickerCount();
+  updateQtyDisplay();
+}
+
+function updatePickerCount() {
+  const n = selectedSheetNums.size;
+  const el = document.getElementById('pickerCount');
+  if (el) el.textContent = n === 0 ? 'None selected (random will be assigned)' : `${n} sheet${n !== 1 ? 's' : ''} selected`;
+}
 
 function changeQty(delta) {
   if (!currentGame) return;
-  const avail = currentGame.sheetCount - (currentGame.soldCount || 0);
+  const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
   buyQty = Math.max(1, Math.min(avail, buyQty + delta));
   updateQtyDisplay();
   document.getElementById('qrSection').style.display = 'none';
-  document.getElementById('buyPayBtn').classList.remove('off');
-  document.getElementById('buySubmitBtn').classList.add('off');
+  document.getElementById('buyPayBtn').style.display = '';
+  document.getElementById('buySubmitBtn').style.display = 'none';
 }
 
 function updateQtyDisplay() {
-  document.getElementById('buyQtyVal').textContent = buyQty;
-  document.getElementById('buyAmount').textContent = `₹${(currentGame?.pricePerSheet || 5) * buyQty}`;
+  const qtyEl = document.getElementById('buyQtyVal');
+  if (qtyEl) qtyEl.textContent = buyQty;
+  const price = (currentGame?.pricePerSheet || 5) * buyQty;
+  document.getElementById('buyAmount').textContent = `₹${price}`;
 }
 
 function showQR() {
@@ -314,7 +596,8 @@ function showQR() {
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
   if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
-  const amount = (currentGame?.pricePerSheet || 5) * buyQty;
+  const effectiveQty = pickerMode && selectedSheetNums.size > 0 ? selectedSheetNums.size : buyQty;
+  const amount = (currentGame?.pricePerSheet || 5) * effectiveQty;
   const upiId = cfg.upiId || '';
   const qrContainer = document.getElementById('qrContainer');
   qrContainer.innerHTML = '';
@@ -324,11 +607,12 @@ function showQR() {
     document.getElementById('qrHint').textContent = `Pay ₹${amount}`;
     document.getElementById('qrUpi').textContent = `UPI: ${upiId}`;
   } else {
-    qrContainer.innerHTML = `<div style="padding:20px;font-size:13px;color:var(--on-sv)">UPI not configured. Contact admin.</div>`;
+    qrContainer.innerHTML = `<div style="padding:20px;font-size:13px;color:var(--muted)">UPI not configured. Contact admin.</div>`;
   }
   document.getElementById('qrSection').style.display = '';
-  document.getElementById('buyPayBtn').classList.add('off');
-  document.getElementById('buySubmitBtn').classList.remove('off');
+  document.getElementById('buyPayBtn').style.display = 'none';
+  document.getElementById('buySubmitBtn').style.display = '';
+  document.getElementById('screenBuy').scrollTo({ top: document.getElementById('screenBuy').scrollHeight, behavior: 'smooth' });
 }
 
 async function submitPurchase() {
@@ -340,19 +624,23 @@ async function submitPurchase() {
   if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
+    const reqNums = pickerMode && selectedSheetNums.size > 0 ? Array.from(selectedSheetNums) : null;
+    const purchaseQty = pickerMode && reqNums ? reqNums.length : buyQty;
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'purchase', playerName: name, phone, gameId: currentGame.id, quantity: buyQty })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'purchase', playerName:name, phone, gameId:currentGame.id, quantity:purchaseQty, requestedSheetNums:reqNums })
     });
     const data = await r.json();
-    if (!r.ok) { errEl.textContent = data.error || 'Failed'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Request Sheets →'; return; }
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Failed'; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Request Sheets →'; return;
+    }
     purchaseId = data.purchaseId;
-    document.getElementById('waitInfo').textContent = `${name} · ${buyQty} sheet${buyQty > 1 ? 's' : ''} · ₹${data.amount} · ${data.gameName}`;
+    document.getElementById('waitInfo').textContent = `${name} · ${purchaseQty} sheet${purchaseQty>1?'s':''} · ₹${data.amount} · ${data.gameName}`;
     show('screenWait');
     startPolling();
   } catch(e) {
-    errEl.textContent = 'Network error. Try again.';
-    errEl.style.display = 'block';
+    errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Request Sheets →';
   }
 }
@@ -364,8 +652,8 @@ async function poll() {
   if (!purchaseId) return;
   try {
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'check-purchase', purchaseId })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'check-purchase', purchaseId })
     });
     if (r.status === 404) { stopPolling(); toast('Purchase expired. Try again.'); goHome(); return; }
     const data = await r.json();
@@ -378,16 +666,16 @@ function cancelPurchase() { stopPolling(); purchaseId = null; goHome(); }
 async function loadDownloads(token) {
   try {
     const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'get-downloads', downloadToken: token })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'get-downloads', downloadToken:token })
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Failed to load downloads'); return; }
     currentSheets = data.sheets;
     const count = currentSheets.length;
-    document.getElementById('dlSubtitle').textContent = `${count} sheet${count !== 1 ? 's' : ''} · ${data.gameName}`;
+    document.getElementById('dlSubtitle').textContent = `${count} sheet${count!==1?'s':''} · ${data.gameName}`;
     const dlAllBtn = document.getElementById('dlAllBtn');
-    dlAllBtn.textContent = `⬇ Download All ${count} Sheet${count !== 1 ? 's' : ''} (ZIP)`;
+    dlAllBtn.textContent = `⬇ Download All ${count} Sheet${count!==1?'s':''} (ZIP)`;
     dlAllBtn.disabled = false;
     document.getElementById('dlList').innerHTML = currentSheets.map((s, i) => `
       <div class="dl-item" id="dli-${i}">
@@ -416,19 +704,18 @@ async function downloadAll() {
       btn.textContent = `Fetching… ${fetched}/${total}`;
     }));
     btn.textContent = 'Building ZIP…';
-    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const blob = await zip.generateAsync({ type:'blob', compression:'STORE' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'tambola-sheets.zip';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     btn.textContent = '✓ Download started!';
-    setTimeout(() => { btn.disabled = false; btn.textContent = `⬇ Download All ${total} Sheet${total !== 1 ? 's' : ''} (ZIP)`; }, 4000);
+    setTimeout(() => { btn.disabled = false; btn.textContent = `⬇ Download All ${total} Sheet${total!==1?'s':''} (ZIP)`; }, 4000);
   } catch(e) {
     toast(e.message || 'Download failed — use individual buttons below.');
     btn.disabled = false;
-    btn.textContent = `⬇ Download All ${total} Sheet${total !== 1 ? 's' : ''} (ZIP)`;
+    btn.textContent = `⬇ Download All ${total} Sheet${total!==1?'s':''} (ZIP)`;
   }
 }
 
@@ -437,29 +724,26 @@ function markDownloaded(idx) {
   if (btn) { btn.className = 'dl-btn done'; btn.textContent = '✓ Saved'; }
 }
 
-function show(id) {
-  ['screenHome','screenBuy','screenWait','screenDownloads'].forEach(s =>
-    document.getElementById(s).classList.toggle('off', s !== id));
+/* ── Screen transitions ── */
+const SCREENS = ['screenHome','screenBuy','screenWait','screenDownloads'];
+
+function show(id, back = false) {
+  SCREENS.forEach(s => {
+    const el = document.getElementById(s);
+    el.classList.remove('visible', 'back');
+  });
+  const el = document.getElementById(id);
+  if (back) el.classList.add('back');
+  el.classList.add('visible');
+  el.scrollTop = 0;
 }
 
+/* ── Helpers ── */
 let toastT;
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800);
-}
-
-function renderPrizes(prizes) {
-  if (!prizes || !prizes.length) return '';
-  return `<div class="prizes-section">
-    <div class="prizes-title">🎁 Prizes</div>
-    ${prizes.map(p => `
-      <div class="prize-row">
-        <span class="prize-name">${esc(p.name)}</span>
-        ${p.imageUrl ? `<img class="prize-img" src="${esc(p.imageUrl)}" alt="${esc(p.name)}">` : ''}
-        <span class="prize-val">${p.kind === 'cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '')}</span>
-      </div>`).join('')}
-  </div>`;
 }
 
 function esc(s) {
