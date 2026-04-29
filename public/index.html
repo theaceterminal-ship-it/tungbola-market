@@ -184,8 +184,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .prize-img{width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0}
 
 /* ── WAIT SCREEN ── */
-#screenWait{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;padding:40px 24px}
+#screenWait{text-align:center;padding:40px 24px}
 .wait-card{background:var(--surface);border-radius:24px;box-shadow:var(--shadow-md);padding:36px 28px;max-width:340px;width:100%}
 .wait-spinner{width:52px;height:52px;border-radius:50%;border:4px solid var(--primary-light);
   border-top-color:var(--primary);animation:spin .8s linear infinite;margin:0 auto 20px}
@@ -341,11 +340,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
   <!-- WAIT -->
   <div class="screen" id="screenWait">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%">
     <div class="wait-card">
       <div class="wait-spinner"></div>
       <div class="wait-title">Waiting for approval</div>
       <div class="wait-info" id="waitInfo">Your payment is being verified. Sheets will be ready shortly.</div>
       <button class="wait-cancel" onclick="cancelPurchase()">Cancel</button>
+    </div>
     </div>
   </div>
 
