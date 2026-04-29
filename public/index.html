@@ -43,6 +43,13 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-s);min-
 .chip.full{background:#FFEBEE;color:var(--error)}
 .chip.sold{background:#FFF8E1;color:#F57F17}
 .game-card-desc{font-size:13px;color:var(--on-sv);line-height:1.5;margin-bottom:12px}
+.prizes-section{margin-bottom:12px}
+.prizes-title{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.prize-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--sv)}
+.prize-row:last-child{border-bottom:none}
+.prize-name{font-size:13px;font-weight:600;flex:1}
+.prize-val{font-size:13px;color:var(--primary);font-weight:700;white-space:nowrap}
+.prize-img{width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0}
 .game-buy-btn{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;
   border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
 .game-buy-btn:disabled{opacity:.45;cursor:not-allowed}
@@ -251,6 +258,7 @@ function renderGames() {
           ${g.soldCount ? `<span class="chip sold">${g.soldCount} sold</span>` : ''}
         </div>
         ${g.description ? `<div class="game-card-desc">${esc(g.description)}</div>` : ''}
+        ${renderPrizes(g.prizes)}
         <button class="game-buy-btn" ${full ? 'disabled' : ''} onclick="event.stopPropagation();selectGame('${g.id}')">
           ${full ? 'Sold Out' : '🛒 Buy Sheets'}
         </button>
@@ -395,6 +403,19 @@ function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+function renderPrizes(prizes) {
+  if (!prizes || !prizes.length) return '';
+  return `<div class="prizes-section">
+    <div class="prizes-title">🎁 Prizes</div>
+    ${prizes.map(p => `
+      <div class="prize-row">
+        <span class="prize-name">${esc(p.name)}</span>
+        ${p.imageUrl ? `<img class="prize-img" src="${esc(p.imageUrl)}" alt="${esc(p.name)}">` : ''}
+        <span class="prize-val">${p.kind === 'cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '')}</span>
+      </div>`).join('')}
+  </div>`;
 }
 
 function esc(s) {

@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{--primary:#6750A4;--primary-c:#EADDFF;--bg:#F4F0FB;--surface:#fff;--sv:#E7E0EC;
-  --on-sv:#49454F;--error:#B3261E;--success:#2E7D32;--outline:#79747E;}
+  --on-sv:#49454F;--error:#B3261E;--success:#2E7D32;}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Roboto',sans-serif;background:var(--bg);color:#1C1B1F;min-height:100vh}
 header{background:linear-gradient(135deg,#4527A0,var(--primary));color:#fff;padding:14px 20px;
@@ -27,35 +27,28 @@ header h1{font-size:17px;font-weight:700}
   border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
 .gate-err{font-size:13px;color:var(--error);margin-top:10px}
 
-#main{display:none;max-width:900px;margin:0 auto;padding:20px}
-
-.section{background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;
-  box-shadow:0 1px 6px rgba(0,0,0,.08)}
+#main{display:none;max-width:920px;margin:0 auto;padding:20px}
+.section{background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.08)}
 .section-title{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:16px;
   padding-bottom:10px;border-bottom:2px solid var(--sv);display:flex;align-items:center;gap:8px}
 
-/* forms */
 .form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px}
 .form-group label{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px}
-input[type=text],input[type=number],input[type=password],textarea,select{
+input[type=text],input[type=number],input[type=password],input[type=datetime-local],textarea,select{
   padding:10px 12px;border:2px solid var(--sv);border-radius:10px;font-size:14px;
   font-family:inherit;outline:none;width:100%;background:#fff}
 input:focus,textarea:focus,select:focus{border-color:var(--primary)}
 textarea{resize:vertical;min-height:60px}
 
-/* buttons */
-.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;
-  cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-green{background:#2E7D32;color:#fff}
 .btn-green:disabled{opacity:.5;cursor:not-allowed}
-.btn-orange{background:#E65100;color:#fff}
 .btn-red{background:var(--error);color:#fff}
 .btn-ghost{background:var(--sv);color:#1C1B1F}
 
-/* tables */
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;
   letter-spacing:.4px;color:var(--on-sv);border-bottom:2px solid var(--sv);background:var(--bg)}
@@ -63,7 +56,6 @@ td{padding:10px;border-bottom:1px solid var(--sv);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 .tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--sv);margin-top:14px}
 
-/* chips */
 .chip{display:inline-block;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700}
 .chip-draft{background:#F3E5F5;color:#6A1B9A}
 .chip-listed{background:#E8F5E9;color:var(--success)}
@@ -71,29 +63,43 @@ tr:last-child td{border-bottom:none}
 .chip-pending{background:#FFF8E1;color:#F57F17}
 .chip-approved{background:#E8F5E9;color:var(--success)}
 
-/* upload progress */
 .upload-bar{height:6px;background:var(--sv);border-radius:3px;margin-top:8px;overflow:hidden;display:none}
 .upload-bar-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .3s}
-
-/* refresh badge */
 .refresh-badge{font-size:11px;color:var(--on-sv);font-weight:400;margin-left:auto}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;
-  animation:pulse 2s infinite}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
 .msg{font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px}
 .msg-ok{background:#E8F5E9;color:var(--success)}
 .msg-err{background:#FFEBEE;color:var(--error)}
-
 .empty-row td{text-align:center;color:var(--on-sv);padding:24px;font-size:13px}
-
 .assign-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px}
 .assign-row .form-group{min-width:80px}
+
+/* ── Prizes ── */
+.prizes-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.prize-card{border:2px solid var(--sv);border-radius:12px;overflow:hidden;transition:border-color .15s}
+.prize-card.active{border-color:var(--primary)}
+.prize-hdr{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;background:#fff;user-select:none}
+.prize-hdr input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
+.prize-hdr-label{font-size:14px;font-weight:600;flex:1}
+.prize-body{padding:12px 13px;background:#FAFAFA;border-top:1px solid var(--sv);display:none}
+.prize-kind-row{display:flex;gap:16px;margin-bottom:10px}
+.prize-kind-row label{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
+.prize-kind-row input[type=radio]{accent-color:var(--primary)}
+.prize-cash input{padding:8px 10px;font-size:14px}
+.prize-thing{display:flex;flex-direction:column;gap:8px}
+.prize-thing input[type=text]{padding:8px 10px;font-size:13px}
+.prize-img-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.prize-img-btn{padding:7px 12px;font-size:12px;background:var(--sv);border:none;border-radius:8px;
+  cursor:pointer;font-family:inherit;font-weight:600}
+.prize-img-preview{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--sv);display:none}
+.prize-uploading{font-size:11px;color:var(--on-sv)}
 
 @media(max-width:600px){
   #main{padding:12px}
   .form-row{flex-direction:column}
   .btn{padding:9px 14px;font-size:12px}
+  .prizes-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -104,17 +110,14 @@ tr:last-child td{border-bottom:none}
   <button class="logout-btn" onclick="logout()">Logout</button>
 </header>
 
-<!-- Gate -->
 <div id="gate">
   <h2>Admin Login</h2>
   <p>Enter your admin password to manage the marketplace.</p>
-  <input class="gate-input" id="pwdInput" type="password" placeholder="Admin password"
-    onkeydown="if(event.key==='Enter')unlock()">
+  <input class="gate-input" id="pwdInput" type="password" placeholder="Admin password">
   <button class="gate-btn" onclick="unlock()">Unlock</button>
   <div class="gate-err" id="gateErr"></div>
 </div>
 
-<!-- Main -->
 <div id="main">
 
   <!-- ── SHEETS ── -->
@@ -122,7 +125,6 @@ tr:last-child td{border-bottom:none}
     <div class="section-title">📄 Sheets
       <span class="refresh-badge" id="sheetCount"></span>
     </div>
-
     <div class="form-row">
       <div class="form-group" style="max-width:120px">
         <label>Sheet #</label>
@@ -139,7 +141,6 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="upload-bar" id="uploadBar"><div class="upload-bar-fill" id="uploadBarFill" style="width:0%"></div></div>
     <div id="uploadMsg"></div>
-
     <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
       <table>
         <thead><tr><th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
@@ -157,9 +158,9 @@ tr:last-child td{border-bottom:none}
         <label>Game Name</label>
         <input type="text" id="gameName" placeholder="e.g. Sunday Special" maxlength="80">
       </div>
-      <div class="form-group" style="max-width:160px">
-        <label>Date / Time</label>
-        <input type="text" id="gameDate" placeholder="e.g. 2 May, 6pm" maxlength="30">
+      <div class="form-group" style="max-width:220px">
+        <label>Date &amp; Time</label>
+        <input type="datetime-local" id="gameDateTime">
       </div>
       <div class="form-group" style="max-width:100px">
         <label>₹ / Sheet</label>
@@ -169,9 +170,18 @@ tr:last-child td{border-bottom:none}
     <div class="form-row">
       <div class="form-group">
         <label>Description (optional)</label>
-        <textarea id="gameDesc" placeholder="Prizes, rules, etc." maxlength="200"></textarea>
+        <textarea id="gameDesc" placeholder="Extra info about the game" maxlength="200"></textarea>
       </div>
     </div>
+
+    <!-- Prizes -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+        Prizes — tick the ones you want to offer
+      </div>
+      <div class="prizes-grid" id="prizesGrid"></div>
+    </div>
+
     <button class="btn btn-primary" onclick="createGame()">+ Create Game</button>
     <div id="createGameMsg"></div>
 
@@ -207,6 +217,25 @@ let pwd = '';
 let allSheets = [], allGames = [], allPurchases = [];
 let purchaseRefreshTimer = null;
 
+const PRIZES = [
+  { key: 'full_house',    label: '🏆 Full House' },
+  { key: 'second_full',   label: '🥈 Second Full House' },
+  { key: 'third_full',    label: '🥉 Third Full House' },
+  { key: 'upper_line',    label: '⬆️ Upper Line' },
+  { key: 'middle_line',   label: '↔️ Middle Line' },
+  { key: 'bottom_line',   label: '⬇️ Bottom Line' },
+  { key: 'ticket_corners',label: '🔲 Ticket Corners' },
+  { key: 'sheet_corner',  label: '📋 Sheet Corner' },
+  { key: 'early_5',       label: '5️⃣ Early 5' },
+  { key: 'early_6',       label: '6️⃣ Early 6' },
+  { key: 'early_7',       label: '7️⃣ Early 7' },
+  { key: 'jackpot',       label: '💰 Jackpot' },
+];
+
+// state per prize: { enabled, kind:'cash'|'thing', amount, description, imageUrl }
+const ps = {};
+PRIZES.forEach(p => { ps[p.key] = { enabled: false, kind: 'cash', amount: '', description: '', imageUrl: '' }; });
+
 /* ── Auth ── */
 async function unlock() {
   const p = document.getElementById('pwdInput').value.trim();
@@ -220,6 +249,7 @@ async function unlock() {
     pwd = p;
     document.getElementById('gate').style.display = 'none';
     document.getElementById('main').style.display = 'block';
+    renderPrizesGrid();
     loadAll();
     purchaseRefreshTimer = setInterval(loadPurchases, 10000);
   } catch(e) { errEl.textContent = 'Network error'; }
@@ -233,6 +263,99 @@ function logout() {
 }
 
 function loadAll() { loadSheets(); loadGames(); loadPurchases(); }
+
+/* ── Prizes Grid ── */
+function renderPrizesGrid() {
+  document.getElementById('prizesGrid').innerHTML = PRIZES.map(p => `
+    <div class="prize-card" id="pcard-${p.key}">
+      <div class="prize-hdr" onclick="togglePrize('${p.key}')">
+        <input type="checkbox" id="pchk-${p.key}" onclick="event.stopPropagation();togglePrize('${p.key}')">
+        <span class="prize-hdr-label">${p.label}</span>
+      </div>
+      <div class="prize-body" id="pbody-${p.key}">
+        <div class="prize-kind-row">
+          <label><input type="radio" name="pkind-${p.key}" value="cash" checked onchange="setKind('${p.key}','cash')"> Cash</label>
+          <label><input type="radio" name="pkind-${p.key}" value="thing" onchange="setKind('${p.key}','thing')"> Thing / Prize</label>
+        </div>
+        <div class="prize-cash" id="pcash-${p.key}">
+          <input type="number" min="1" placeholder="₹ Amount" id="pamt-${p.key}"
+            oninput="ps['${p.key}'].amount=this.value">
+        </div>
+        <div class="prize-thing" id="pthing-${p.key}" style="display:none">
+          <input type="text" placeholder="e.g. iPhone 16, Bullet Bike" maxlength="100" id="pdesc-${p.key}"
+            oninput="ps['${p.key}'].description=this.value">
+          <div class="prize-img-wrap">
+            <button class="prize-img-btn" onclick="document.getElementById('pfile-${p.key}').click()">📷 Upload Photo</button>
+            <span class="prize-uploading" id="pupl-${p.key}"></span>
+            <img class="prize-img-preview" id="pimg-${p.key}" src="">
+            <input type="file" id="pfile-${p.key}" accept="image/*" style="display:none"
+              onchange="uploadPrizeImage('${p.key}', this)">
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function togglePrize(key) {
+  ps[key].enabled = !ps[key].enabled;
+  document.getElementById(`pchk-${key}`).checked = ps[key].enabled;
+  document.getElementById(`pbody-${key}`).style.display = ps[key].enabled ? 'block' : 'none';
+  document.getElementById(`pcard-${key}`).classList.toggle('active', ps[key].enabled);
+}
+
+function setKind(key, kind) {
+  ps[key].kind = kind;
+  document.getElementById(`pcash-${key}`).style.display = kind === 'cash' ? 'block' : 'none';
+  document.getElementById(`pthing-${key}`).style.display = kind === 'thing' ? 'flex' : 'none';
+}
+
+async function uploadPrizeImage(key, input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { toast('Image too large (max 5MB)'); return; }
+  const uplEl = document.getElementById(`pupl-${key}`);
+  const imgEl = document.getElementById(`pimg-${key}`);
+  uplEl.textContent = 'Uploading…';
+  try {
+    const b64 = await fileToBase64(file);
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'upload-prize-image', password: pwd, data: b64, filename: file.name })
+    });
+    const data = await r.json();
+    if (!r.ok) { uplEl.textContent = data.error || 'Upload failed'; return; }
+    ps[key].imageUrl = data.url;
+    imgEl.src = data.url; imgEl.style.display = 'block';
+    uplEl.textContent = '✓ Uploaded';
+    setTimeout(() => { uplEl.textContent = ''; }, 2000);
+  } catch(e) { uplEl.textContent = 'Network error'; }
+}
+
+function collectPrizes() {
+  return PRIZES.filter(p => ps[p.key].enabled).map(p => {
+    const s = ps[p.key];
+    const prize = { name: p.label.replace(/^\S+\s/, ''), kind: s.kind }; // strip emoji
+    if (s.kind === 'cash') prize.amount = parseInt(s.amount) || 0;
+    else { prize.description = s.description; if (s.imageUrl) prize.imageUrl = s.imageUrl; }
+    return prize;
+  });
+}
+
+function resetPrizes() {
+  PRIZES.forEach(p => {
+    ps[p.key] = { enabled: false, kind: 'cash', amount: '', description: '', imageUrl: '' };
+    document.getElementById(`pchk-${p.key}`).checked = false;
+    document.getElementById(`pbody-${p.key}`).style.display = 'none';
+    document.getElementById(`pcard-${p.key}`).classList.remove('active');
+    document.getElementById(`pamt-${p.key}`).value = '';
+    document.getElementById(`pdesc-${p.key}`).value = '';
+    document.getElementById(`pimg-${p.key}`).src = '';
+    document.getElementById(`pimg-${p.key}`).style.display = 'none';
+    document.querySelectorAll(`input[name="pkind-${p.key}"]`).forEach(r => { r.checked = r.value === 'cash'; });
+    document.getElementById(`pcash-${p.key}`).style.display = 'block';
+    document.getElementById(`pthing-${p.key}`).style.display = 'none';
+  });
+}
 
 /* ── Sheets ── */
 async function loadSheets() {
@@ -270,15 +393,12 @@ async function uploadSheet() {
   if (!num || num < 1) { showMsg(msgEl, 'Enter a valid sheet number', 'err'); return; }
   if (!file) { showMsg(msgEl, 'Select a PDF file', 'err'); return; }
   if (file.size > 4 * 1024 * 1024) { showMsg(msgEl, 'File too large (max 4MB)', 'err'); return; }
-
   const btn = document.getElementById('uploadBtn');
   btn.disabled = true; btn.textContent = 'Reading…';
   bar.style.display = 'block'; barFill.style.width = '30%';
-
   try {
     const b64 = await fileToBase64(file);
-    barFill.style.width = '60%';
-    btn.textContent = 'Uploading…';
+    barFill.style.width = '60%'; btn.textContent = 'Uploading…';
     const r = await fetch('/api/sheets', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'upload', password: pwd, filename: file.name, sheetNumber: num, data: b64 })
@@ -286,32 +406,16 @@ async function uploadSheet() {
     barFill.style.width = '100%';
     const data = await r.json();
     if (!r.ok) { showMsg(msgEl, data.error || 'Upload failed', 'err'); }
-    else {
-      showMsg(msgEl, `Sheet #${num} uploaded!`, 'ok');
-      document.getElementById('sheetNum').value = '';
-      document.getElementById('sheetFile').value = '';
-      loadSheets();
-    }
+    else { showMsg(msgEl, `Sheet #${num} uploaded!`, 'ok'); document.getElementById('sheetNum').value = ''; document.getElementById('sheetFile').value = ''; loadSheets(); }
   } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
-  finally { btn.disabled = false; btn.textContent = 'Upload'; setTimeout(() => { bar.style.display = 'none'; barFill.style.width = '0%'; }, 800); }
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result.split(',')[1]);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
+  finally { btn.disabled = false; btn.textContent = 'Upload'; setTimeout(() => { bar.style.display='none'; barFill.style.width='0%'; }, 800); }
 }
 
 async function deleteSheet(id, n) {
-  if (!confirm(`Delete sheet #${n}? This cannot be undone.`)) return;
+  if (!confirm(`Delete sheet #${n}?`)) return;
   try {
-    const r = await fetch('/api/sheets', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', password: pwd, id })
-    });
+    const r = await fetch('/api/sheets', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', password: pwd, id }) });
     if (r.ok) { toast(`Sheet #${n} deleted`); loadSheets(); }
     else { const d = await r.json(); toast(d.error || 'Delete failed'); }
   } catch(e) { toast('Network error'); }
@@ -321,8 +425,7 @@ async function deleteSheet(id, n) {
 async function loadGames() {
   try {
     const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}`);
-    const data = await r.json();
-    allGames = data.games || [];
+    allGames = (await r.json()).games || [];
     renderGames();
   } catch(e) {}
 }
@@ -331,30 +434,30 @@ function renderGames() {
   const wrap = document.getElementById('gamesTblWrap');
   const tbody = document.getElementById('gamesTbl');
   wrap.style.display = 'block';
-  if (!allGames.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No games yet. Create one above.</td></tr>';
-    return;
-  }
+  if (!allGames.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No games yet.</td></tr>'; return; }
   tbody.innerHTML = allGames.map(g => {
-    const statusChip = `<span class="chip chip-${g.status}">${g.status}</span>`;
     const sheets = g.sheetCount ? `${g.sheetFrom}–${g.sheetTo} (${g.sheetCount})` : '—';
+    const prizeCount = (g.prizes || []).length;
     return `<tr>
-      <td><strong>${esc(g.name)}</strong><br><span style="font-size:11px;color:var(--on-sv)">${g.gameDate ? esc(g.gameDate) : ''} · ₹${g.pricePerSheet}/sheet</span></td>
-      <td>${statusChip}</td>
+      <td><strong>${esc(g.name)}</strong><br>
+        <span style="font-size:11px;color:var(--on-sv)">${g.gameDate ? esc(g.gameDate) : ''} · ₹${g.pricePerSheet}/sheet</span><br>
+        ${prizeCount ? `<span style="font-size:11px;color:var(--primary)">🎁 ${prizeCount} prize${prizeCount>1?'s':''}</span>` : ''}
+      </td>
+      <td><span class="chip chip-${g.status}">${g.status}</span></td>
       <td style="font-size:12px">${sheets}</td>
       <td>${g.soldCount || 0}</td>
       <td>
         <div class="assign-row">
-          <div class="form-group"><label>From</label><input type="number" id="af-${g.id}" min="1" placeholder="1" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetFrom || ''}"></div>
-          <div class="form-group"><label>To</label><input type="number" id="at-${g.id}" min="1" placeholder="100" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetTo || ''}"></div>
+          <div class="form-group"><label>From</label><input type="number" id="af-${g.id}" min="1" placeholder="1" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetFrom||''}"></div>
+          <div class="form-group"><label>To</label><input type="number" id="at-${g.id}" min="1" placeholder="100" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetTo||''}"></div>
           <button class="btn btn-ghost" style="font-size:11px;padding:7px 10px" onclick="assignSheets('${g.id}')">Assign</button>
         </div>
       </td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${g.status !== 'listed' ? `<button class="btn btn-green" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','listed')">List</button>` : ''}
-          ${g.status !== 'draft'  ? `<button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
-          ${g.status !== 'ended'  ? `<button class="btn btn-red" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','ended')">End</button>` : ''}
+          ${g.status!=='listed' ? `<button class="btn btn-green" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','listed')">List</button>` : ''}
+          ${g.status!=='draft'  ? `<button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
+          ${g.status!=='ended'  ? `<button class="btn btn-red" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','ended')">End</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -363,22 +466,27 @@ function renderGames() {
 
 async function createGame() {
   const name = document.getElementById('gameName').value.trim();
-  const gameDate = document.getElementById('gameDate').value.trim();
+  const dt = document.getElementById('gameDateTime').value;
   const pricePerSheet = parseInt(document.getElementById('gamePrice').value) || 5;
   const description = document.getElementById('gameDesc').value.trim();
+  const prizes = collectPrizes();
   const msgEl = document.getElementById('createGameMsg');
   if (!name) { showMsg(msgEl, 'Game name required', 'err'); return; }
+
+  const gameDate = dt ? new Date(dt).toLocaleString('en-IN', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+
   try {
     const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create-game', password: pwd, name, gameDate, pricePerSheet, description })
+      body: JSON.stringify({ action: 'create-game', password: pwd, name, gameDate, pricePerSheet, description, prizes })
     });
     const data = await r.json();
     if (!r.ok) { showMsg(msgEl, data.error || 'Failed', 'err'); return; }
-    showMsg(msgEl, `Game "${name}" created!`, 'ok');
+    showMsg(msgEl, `"${name}" created with ${prizes.length} prize${prizes.length!==1?'s':''}!`, 'ok');
     document.getElementById('gameName').value = '';
-    document.getElementById('gameDate').value = '';
+    document.getElementById('gameDateTime').value = '';
     document.getElementById('gameDesc').value = '';
+    resetPrizes();
     loadGames();
   } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
 }
@@ -386,7 +494,7 @@ async function createGame() {
 async function assignSheets(gameId) {
   const from = document.getElementById(`af-${gameId}`).value;
   const to = document.getElementById(`at-${gameId}`).value;
-  if (!from || !to) { toast('Enter sheet range (from and to)'); return; }
+  if (!from || !to) { toast('Enter from and to sheet numbers'); return; }
   try {
     const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -394,14 +502,13 @@ async function assignSheets(gameId) {
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Assign failed'); return; }
-    toast(`Assigned ${data.sheetsFound} sheets`);
-    loadGames();
+    toast(`Assigned ${data.sheetsFound} sheets`); loadGames();
   } catch(e) { toast('Network error'); }
 }
 
 async function setStatus(gameId, status) {
   const labels = { listed: 'list', ended: 'end', draft: 'move to draft' };
-  if (!confirm(`Are you sure you want to ${labels[status]} this game?`)) return;
+  if (!confirm(`${labels[status]} this game?`)) return;
   try {
     const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -409,8 +516,7 @@ async function setStatus(gameId, status) {
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Failed'); return; }
-    toast(`Game status → ${status}`);
-    loadGames();
+    toast(`Status → ${status}`); loadGames();
   } catch(e) { toast('Network error'); }
 }
 
@@ -418,29 +524,23 @@ async function setStatus(gameId, status) {
 async function loadPurchases() {
   try {
     const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}&type=purchases`);
-    const data = await r.json();
-    allPurchases = data.purchases || [];
+    allPurchases = (await r.json()).purchases || [];
     renderPurchases();
   } catch(e) {}
 }
 
 function renderPurchases() {
   const tbody = document.getElementById('purchasesTbl');
-  if (!allPurchases.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No purchases yet.</td></tr>';
-    return;
-  }
+  if (!allPurchases.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No purchases yet.</td></tr>'; return; }
   tbody.innerHTML = allPurchases.map(p => `
     <tr>
       <td><strong>${esc(p.playerName)}</strong></td>
-      <td style="font-size:12px">${esc(p.phone || '—')}</td>
+      <td style="font-size:12px">${esc(p.phone||'—')}</td>
       <td style="font-size:12px">${esc(p.gameName)}</td>
       <td>${p.quantity}</td>
       <td>₹${p.amount}</td>
       <td><span class="chip chip-${p.status}">${p.status}</span></td>
-      <td>${p.status === 'pending'
-        ? `<button class="btn btn-green" style="font-size:11px;padding:6px 12px" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>`
-        : ''}</td>
+      <td>${p.status==='pending' ? `<button class="btn btn-green" style="font-size:11px;padding:6px 12px" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>` : ''}</td>
     </tr>`).join('');
 }
 
@@ -459,9 +559,18 @@ async function approvePurchase(purchaseId, name) {
 }
 
 /* ── Helpers ── */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
 function showMsg(el, text, type) {
-  el.innerHTML = `<div class="msg msg-${type === 'ok' ? 'ok' : 'err'}">${esc(text)}</div>`;
-  setTimeout(() => { if (el) el.innerHTML = ''; }, 4000);
+  el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${esc(text)}</div>`;
+  setTimeout(() => { if(el) el.innerHTML=''; }, 4000);
 }
 
 let toastT;
@@ -475,7 +584,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-document.getElementById('pwdInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+document.getElementById('pwdInput').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
 </script>
 </body>
 </html>

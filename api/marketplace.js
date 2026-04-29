@@ -1,4 +1,5 @@
 const { Redis } = require('@upstash/redis');
+const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const kv = Redis.fromEnv();
 
@@ -21,8 +22,7 @@ module.exports = async function(req, res) {
 
     if (!password) {
       const games = await kv.get('tb:mkt:games') || [];
-      const listed = games.filter(g => g.status === 'listed');
-      return res.json({ games: listed });
+      return res.json({ games: games.filter(g => g.status === 'listed') });
     }
 
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
@@ -32,29 +32,56 @@ module.exports = async function(req, res) {
       const purchases = await kv.get('tb:mkt:purchases') || [];
       return res.json({ purchases });
     }
-    const games = await kv.get('tb:mkt:games') || [];
-    return res.json({ games });
+    return res.json({ games: await kv.get('tb:mkt:games') || [] });
   }
 
   if (req.method !== 'POST') return res.status(405).end();
   const body = req.body || {};
   const { action } = body;
 
+  /* ── Admin: upload prize image ── */
+  if (action === 'upload-prize-image') {
+    if (await rateLimit(req, 'prizeimg', 60, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, data, filename } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!data) return res.status(400).json({ error: 'data required' });
+
+    let buffer;
+    try { buffer = Buffer.from(data, 'base64'); }
+    catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
+    if (buffer.length > 5 * 1024 * 1024)
+      return res.status(400).json({ error: 'Image too large (max 5MB)' });
+
+    const ext = String(filename || 'image.jpg').split('.').pop().toLowerCase();
+    const ct = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    try {
+      const blob = await put(`tungbola/prize-${Date.now()}.${ext}`, buffer, { access: 'public', contentType: ct });
+      return res.json({ ok: true, url: blob.url });
+    } catch(e) {
+      console.error('Prize image upload error:', e);
+      return res.status(500).json({ error: 'Upload failed. Check BLOB_READ_WRITE_TOKEN.' });
+    }
+  }
+
   /* ── Admin: create a game ── */
   if (action === 'create-game') {
     if (await rateLimit(req, 'creategame', 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, name, gameDate, pricePerSheet, description } = body;
+    const { password, name, gameDate, pricePerSheet, description, prizes } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!name) return res.status(400).json({ error: 'Game name required' });
 
     const id = genId();
     const game = {
-      id, name: String(name).trim().slice(0, 80),
-      gameDate: gameDate ? String(gameDate).trim().slice(0, 30) : null,
+      id,
+      name: String(name).trim().slice(0, 80),
+      gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
       pricePerSheet: Math.max(1, Number(pricePerSheet) || 5),
       description: String(description || '').trim().slice(0, 200),
+      prizes: Array.isArray(prizes) ? prizes.slice(0, 12) : [],
       status: 'draft',
       sheetFrom: 0, sheetTo: 0, sheetCount: 0, soldCount: 0,
       createdAt: Date.now()
@@ -66,11 +93,11 @@ module.exports = async function(req, res) {
     return res.json({ ok: true, game });
   }
 
-  /* ── Admin: assign sheet range + optionally list ── */
+  /* ── Admin: assign sheet range ── */
   if (action === 'assign-sheets') {
     if (await rateLimit(req, 'assignsheets', 60, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, gameId, sheetFrom, sheetTo, activate } = body;
+    const { password, gameId, sheetFrom, sheetTo } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!gameId || !sheetFrom || !sheetTo)
@@ -83,31 +110,25 @@ module.exports = async function(req, res) {
     if (!game) return res.status(404).json({ error: 'Game not found' });
     if (game.status === 'ended') return res.status(409).json({ error: 'Game has ended' });
 
-    // Count available sheets in range
     const allSheets = await kv.get('tb:mkt:sheets') || [];
     const inRange = allSheets.filter(s => s.n >= from && s.n <= to);
-    if (!inRange.length) return res.status(400).json({ error: `No uploaded sheets found in range ${from}–${to}` });
+    if (!inRange.length) return res.status(400).json({ error: `No uploaded sheets in range ${from}–${to}` });
 
-    game.sheetFrom = from;
-    game.sheetTo = to;
-    game.sheetCount = inRange.length;
-    game.soldCount = 0;
-    game.soldSheetNums = [];
-    if (activate) game.status = 'listed';
+    game.sheetFrom = from; game.sheetTo = to;
+    game.sheetCount = inRange.length; game.soldCount = 0; game.soldSheetNums = [];
 
     await kv.set(`tb:mkt:game:${gameId}`, game);
     const games = await kv.get('tb:mkt:games') || [];
     const idx = games.findIndex(g => g.id === gameId);
     const compact = { id: game.id, name: game.name, gameDate: game.gameDate,
-      pricePerSheet: game.pricePerSheet, description: game.description,
+      pricePerSheet: game.pricePerSheet, description: game.description, prizes: game.prizes,
       status: game.status, sheetCount: game.sheetCount, soldCount: game.soldCount, createdAt: game.createdAt };
     if (idx >= 0) games[idx] = compact; else games.unshift(compact);
     await kv.set('tb:mkt:games', games.slice(0, 200));
-
     return res.json({ ok: true, game, sheetsFound: inRange.length });
   }
 
-  /* ── Admin: activate / end a game ── */
+  /* ── Admin: set game status ── */
   if (action === 'set-status') {
     const { password, gameId, status } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
@@ -117,7 +138,7 @@ module.exports = async function(req, res) {
 
     const game = await kv.get(`tb:mkt:game:${gameId}`);
     if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (status === 'listed' && (!game.sheetCount))
+    if (status === 'listed' && !game.sheetCount)
       return res.status(400).json({ error: 'Assign sheets before listing the game' });
 
     game.status = status;
@@ -151,13 +172,12 @@ module.exports = async function(req, res) {
     const purchase = {
       purchaseId, playerName: String(playerName).trim().slice(0, 50),
       phone: String(phone || '').trim().slice(0, 20),
-      gameId, gameName: gameMeta.name,
-      quantity: qty, amount, status: 'pending', createdAt: Date.now()
+      gameId, gameName: gameMeta.name, quantity: qty, amount, status: 'pending', createdAt: Date.now()
     };
     await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 86400 });
     const purchases = await kv.get('tb:mkt:purchases') || [];
     purchases.unshift(purchase);
-    await kv.set('tb:mkt:purchases', purchases.slice(0, 200));
+    await kv.set('tb:mkt:purchases', purchases.slice(0, 500));
     return res.json({ ok: true, purchaseId, amount, playerName: purchase.playerName, gameName: gameMeta.name });
   }
 
@@ -201,7 +221,6 @@ module.exports = async function(req, res) {
     const game = await kv.get(`tb:mkt:game:${purchase.gameId}`);
     if (!game) return res.status(404).json({ error: 'Game not found' });
 
-    // Find available sheets in game's range
     const allSheets = await kv.get('tb:mkt:sheets') || [];
     const soldNums = new Set(game.soldSheetNums || []);
     const available = allSheets.filter(s => s.n >= game.sheetFrom && s.n <= game.sheetTo && !soldNums.has(s.n));
@@ -211,25 +230,18 @@ module.exports = async function(req, res) {
     const assigned = available.slice(0, purchase.quantity);
     const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
 
-    // Generate download token (48h)
     const dlToken = genToken();
     await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: sheetList, gameName: game.name, purchaseId }, { ex: 172800 });
 
-    // Mark sheets as sold
     const newSold = [...(game.soldSheetNums || []), ...assigned.map(s => s.n)];
-    game.soldSheetNums = newSold;
-    game.soldCount = newSold.length;
+    game.soldSheetNums = newSold; game.soldCount = newSold.length;
     await kv.set(`tb:mkt:game:${purchase.gameId}`, game);
 
-    // Sync sold count to games list
     const games = await kv.get('tb:mkt:games') || [];
     const gIdx = games.findIndex(g => g.id === purchase.gameId);
     if (gIdx >= 0) { games[gIdx].soldCount = game.soldCount; await kv.set('tb:mkt:games', games); }
 
-    // Update purchase record
-    purchase.status = 'approved';
-    purchase.downloadToken = dlToken;
-    purchase.approvedAt = Date.now();
+    purchase.status = 'approved'; purchase.downloadToken = dlToken; purchase.approvedAt = Date.now();
     await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 172800 });
 
     const plist = await kv.get('tb:mkt:purchases') || [];
