@@ -35,13 +35,14 @@ module.exports = async function(req, res) {
 
     let all = await getAllSheets();
 
-    // One-time migration: if hash is empty but old list exists, migrate it
+    // One-time migration: if hash is empty but old list exists, migrate it then delete the old list
     if (all.length === 0) {
       const oldList = await kv.get('tb:mkt:sheets');
       if (Array.isArray(oldList) && oldList.length) {
         const pipeline = kv.pipeline();
         for (const s of oldList) pipeline.hsetnx(HASH, String(s.n), JSON.stringify(s));
         await pipeline.exec();
+        await kv.del('tb:mkt:sheets'); // prevent this from re-running after sheets are deleted
         all = await getAllSheets();
       }
     }
