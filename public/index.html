@@ -6,6 +6,7 @@
 <title>Tungbola Marketplace</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
   --bg:#FFFBFE;--surface:#fff;--sv:#E7E0EC;
@@ -120,6 +121,10 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-s);min-
   border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
   text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
 .muted-note{font-size:12px;color:var(--on-sv);text-align:center;line-height:1.6}
+.dl-all-btn{width:100%;padding:15px;background:#2E7D32;color:#fff;border:none;
+  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}
+.dl-all-btn:disabled{opacity:.6;cursor:not-allowed}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
   background:#1C1B1F;color:#fff;padding:12px 20px;border-radius:24px;
@@ -203,8 +208,9 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-s);min-
     <div class="dl-header-sub" id="dlSubtitle"></div>
   </div>
   <div class="dl-notice">
-    📥 Download each sheet PDF and save it to your phone. Then open the Tungbola app and load them to play.
+    📥 Tap "Download All" to get all your sheets in one ZIP file, or download them one by one below.
   </div>
+  <button class="dl-all-btn" id="dlAllBtn" onclick="downloadAll()">⬇ Download All Sheets</button>
   <div class="dl-list" id="dlList"></div>
   <a id="openAppBtn" href="#" class="open-app-btn">↗ Open Tungbola App</a>
   <div class="muted-note">Download links are valid for 48 hours. Save the PDFs to your device.</div>
@@ -219,7 +225,7 @@ const TUNGBOLA_URL = 'https://tungbola.vercel.app';
 document.getElementById('backBtn').href = TUNGBOLA_URL;
 document.getElementById('openAppBtn').href = TUNGBOLA_URL;
 
-let cfg = {}, games = [], currentGame = null, buyQty = 1, purchaseId = null, pollTimer = null;
+let cfg = {}, games = [], currentGame = null, buyQty = 1, purchaseId = null, pollTimer = null, currentSheets = [];
 
 async function init() {
   try {
@@ -377,8 +383,13 @@ async function loadDownloads(token) {
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Failed to load downloads'); return; }
-    document.getElementById('dlSubtitle').textContent = `${data.sheets.length} sheet${data.sheets.length !== 1 ? 's' : ''} · ${data.gameName}`;
-    document.getElementById('dlList').innerHTML = data.sheets.map((s, i) => `
+    currentSheets = data.sheets;
+    const count = currentSheets.length;
+    document.getElementById('dlSubtitle').textContent = `${count} sheet${count !== 1 ? 's' : ''} · ${data.gameName}`;
+    const dlAllBtn = document.getElementById('dlAllBtn');
+    dlAllBtn.textContent = `⬇ Download All ${count} Sheet${count !== 1 ? 's' : ''} (ZIP)`;
+    dlAllBtn.disabled = false;
+    document.getElementById('dlList').innerHTML = currentSheets.map((s, i) => `
       <div class="dl-item" id="dli-${i}">
         <div class="dl-num">#${s.n}</div>
         <div class="dl-name">Sheet ${s.n}</div>
@@ -386,6 +397,39 @@ async function loadDownloads(token) {
       </div>`).join('');
     show('screenDownloads');
   } catch(e) { toast('Could not load downloads. Try refreshing.'); }
+}
+
+async function downloadAll() {
+  if (!currentSheets.length) return;
+  const btn = document.getElementById('dlAllBtn');
+  btn.disabled = true;
+  const total = currentSheets.length;
+  try {
+    const zip = new JSZip();
+    let fetched = 0;
+    btn.textContent = `Fetching sheets…`;
+    await Promise.all(currentSheets.map(async (s) => {
+      const r = await fetch(s.url);
+      if (!r.ok) throw new Error(`Sheet #${s.n} not available`);
+      zip.file(`sheet-${s.n}.pdf`, await r.arrayBuffer());
+      fetched++;
+      btn.textContent = `Fetching… ${fetched}/${total}`;
+    }));
+    btn.textContent = 'Building ZIP…';
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'tambola-sheets.zip';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    btn.textContent = '✓ Download started!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = `⬇ Download All ${total} Sheet${total !== 1 ? 's' : ''} (ZIP)`; }, 4000);
+  } catch(e) {
+    toast(e.message || 'Download failed — use individual buttons below.');
+    btn.disabled = false;
+    btn.textContent = `⬇ Download All ${total} Sheet${total !== 1 ? 's' : ''} (ZIP)`;
+  }
 }
 
 function markDownloaded(idx) {

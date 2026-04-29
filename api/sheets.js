@@ -33,7 +33,7 @@ module.exports = async function(req, res) {
   /* Vercel Blob client upload protocol — called internally by @vercel/blob/client in the browser */
   if (body.type === 'blob.generate-client-token' || body.type === 'blob.upload-completed') {
     if (body.type === 'blob.generate-client-token') {
-      if (await rateLimit(req, 'uploadsheet', 200, 3600))
+      if (await rateLimit(req, 'uploadsheet', 15000, 3600))
         return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
     }
 
@@ -74,7 +74,7 @@ module.exports = async function(req, res) {
 
   /* Step 2: Browser upload is done — save URL + metadata to Redis */
   if (action === 'register') {
-    if (await rateLimit(req, 'uploadsheet', 200, 3600))
+    if (await rateLimit(req, 'uploadsheet', 15000, 3600))
       return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
     const { password, sheetNumber, filename, url, size, id } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))

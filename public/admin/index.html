@@ -434,32 +434,37 @@ async function uploadSheets() {
     return;
   }
 
-  let done = 0, failed = [];
-  for (const task of tasks) {
-    btn.textContent = `Uploading ${done+1}/${tasks.length}…`;
-    try {
-      // Generate a unique ID client-side so we can pass it through the whole flow
-      const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-      const pathname = `tungbola/sheet-${String(task.num).padStart(5, '0')}-${id}.pdf`;
+  let done = 0, failCount = 0, failed = [];
+  const total = tasks.length;
+  let cursor = 0;
 
-      // Step 1+2 in one call: the upload() function asks our server for a token, then
-      // PUTs the raw file directly to Vercel Blob — no base64, no serverless timeout
-      const blob = await blobUploadFn(pathname, task.file, {
-        access: 'public',
-        handleUploadUrl: '/api/sheets',
-        clientPayload: JSON.stringify({ password: pwd, sheetNumber: task.num, filename: task.file.name, id }),
-      });
-
-      // Step 3: tell the server the URL so it can save metadata to Redis
-      const regRes = await fetch('/api/sheets', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', password: pwd, sheetNumber: task.num, filename: task.file.name, url: blob.url, size: task.file.size, id })
-      });
-      const regData = await regRes.json();
-      if (!regRes.ok) failed.push(`#${task.num}: ${regData.error || 'register failed'}`);
-      else done++;
-    } catch(e) { failed.push(`#${task.num}: ${e.message || 'error'}`); }
+  // 20 workers run in parallel — each grabs the next task until all are done
+  const CONCURRENCY = 20;
+  async function worker() {
+    while (true) {
+      const i = cursor++;
+      if (i >= total) break;
+      const task = tasks[i];
+      try {
+        const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+        const pathname = `tungbola/sheet-${String(task.num).padStart(5, '0')}-${id}.pdf`;
+        const blob = await blobUploadFn(pathname, task.file, {
+          access: 'public',
+          handleUploadUrl: '/api/sheets',
+          clientPayload: JSON.stringify({ password: pwd, sheetNumber: task.num, filename: task.file.name, id }),
+        });
+        const regRes = await fetch('/api/sheets', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'register', password: pwd, sheetNumber: task.num, filename: task.file.name, url: blob.url, size: task.file.size, id })
+        });
+        const regData = await regRes.json();
+        if (!regRes.ok) { failed.push(`#${task.num}: ${regData.error || 'failed'}`); failCount++; }
+        else done++;
+      } catch(e) { failed.push(`#${task.num}: ${e.message || 'error'}`); failCount++; }
+      btn.textContent = `Uploading… ${done + failCount}/${total}`;
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
 
   btn.disabled = false; btn.textContent = 'Upload All';
   document.getElementById('sheetFile').value = '';
