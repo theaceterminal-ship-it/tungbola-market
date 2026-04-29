@@ -126,20 +126,19 @@ tr:last-child td{border-bottom:none}
       <span class="refresh-badge" id="sheetCount"></span>
     </div>
     <div class="form-row">
-      <div class="form-group" style="max-width:120px">
-        <label>Sheet #</label>
-        <input type="number" id="sheetNum" min="1" max="99999" placeholder="e.g. 1">
-      </div>
       <div class="form-group">
-        <label>PDF File</label>
-        <input type="file" id="sheetFile" accept=".pdf">
+        <label>PDF Files (select one or many)</label>
+        <input type="file" id="sheetFile" accept=".pdf" multiple onchange="previewSheetFiles()">
       </div>
       <div class="form-group" style="justify-content:flex-end;min-width:auto">
         <label>&nbsp;</label>
-        <button class="btn btn-primary" id="uploadBtn" onclick="uploadSheet()">Upload</button>
+        <button class="btn btn-primary" id="uploadBtn" onclick="uploadSheets()">Upload All</button>
       </div>
     </div>
-    <div class="upload-bar" id="uploadBar"><div class="upload-bar-fill" id="uploadBarFill" style="width:0%"></div></div>
+    <div style="font-size:12px;color:var(--on-sv);margin-bottom:8px">
+      💡 Name your files like <strong>47.pdf</strong> or <strong>sheet-47.pdf</strong> — sheet number is auto-detected from the filename.
+    </div>
+    <div id="sheetFileList" style="margin-bottom:8px"></div>
     <div id="uploadMsg"></div>
     <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
       <table>
@@ -383,32 +382,70 @@ function renderSheets() {
     </tr>`).join('');
 }
 
-async function uploadSheet() {
-  const num = parseInt(document.getElementById('sheetNum').value);
-  const file = document.getElementById('sheetFile').files[0];
+function parseSheetNum(filename) {
+  const nums = filename.replace(/\.pdf$/i, '').match(/\d+/g);
+  return nums ? parseInt(nums[nums.length - 1]) : null;
+}
+
+function previewSheetFiles() {
+  const files = Array.from(document.getElementById('sheetFile').files);
+  const listEl = document.getElementById('sheetFileList');
+  if (!files.length) { listEl.innerHTML = ''; return; }
+  listEl.innerHTML = `<div style="border:1px solid var(--sv);border-radius:10px;overflow:hidden">` +
+    files.map((f, i) => {
+      const num = parseSheetNum(f.name);
+      const size = (f.size / 1024).toFixed(0);
+      const ok = num && num >= 1 && num <= 99999 && f.size <= 4*1024*1024;
+      const warn = !num ? '⚠️ No number in filename' : f.size > 4*1024*1024 ? '⚠️ Too large (max 4MB)' : '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${i>0?'border-top:1px solid var(--sv)':''}">
+        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
+        ${num ? `<span style="font-size:12px;font-weight:700;color:var(--primary);flex-shrink:0">#${num}</span>` : ''}
+        <span style="font-size:11px;color:var(--on-sv);flex-shrink:0">${size} KB</span>
+        <span style="font-size:11px;${ok?'color:var(--success)':'color:var(--error)'};flex-shrink:0">${warn || '✓'}</span>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+async function uploadSheets() {
+  const files = Array.from(document.getElementById('sheetFile').files);
   const msgEl = document.getElementById('uploadMsg');
-  const bar = document.getElementById('uploadBar');
-  const barFill = document.getElementById('uploadBarFill');
   msgEl.innerHTML = '';
-  if (!num || num < 1) { showMsg(msgEl, 'Enter a valid sheet number', 'err'); return; }
-  if (!file) { showMsg(msgEl, 'Select a PDF file', 'err'); return; }
-  if (file.size > 4 * 1024 * 1024) { showMsg(msgEl, 'File too large (max 4MB)', 'err'); return; }
+  if (!files.length) { showMsg(msgEl, 'Select at least one PDF', 'err'); return; }
+
+  const tasks = files.map(f => ({ file: f, num: parseSheetNum(f.name) }));
+  const invalid = tasks.filter(t => !t.num || t.num < 1 || t.num > 99999);
+  if (invalid.length) {
+    showMsg(msgEl, `Can't detect sheet number for: ${invalid.map(t => t.file.name).join(', ')}. Rename files to include the sheet number (e.g. sheet-47.pdf)`, 'err');
+    return;
+  }
+  const tooBig = tasks.filter(t => t.file.size > 4*1024*1024);
+  if (tooBig.length) { showMsg(msgEl, `Files too large (max 4MB): ${tooBig.map(t => t.file.name).join(', ')}`, 'err'); return; }
+
   const btn = document.getElementById('uploadBtn');
-  btn.disabled = true; btn.textContent = 'Reading…';
-  bar.style.display = 'block'; barFill.style.width = '30%';
-  try {
-    const b64 = await fileToBase64(file);
-    barFill.style.width = '60%'; btn.textContent = 'Uploading…';
-    const r = await fetch('/api/sheets', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'upload', password: pwd, filename: file.name, sheetNumber: num, data: b64 })
-    });
-    barFill.style.width = '100%';
-    const data = await r.json();
-    if (!r.ok) { showMsg(msgEl, data.error || 'Upload failed', 'err'); }
-    else { showMsg(msgEl, `Sheet #${num} uploaded!`, 'ok'); document.getElementById('sheetNum').value = ''; document.getElementById('sheetFile').value = ''; loadSheets(); }
-  } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
-  finally { btn.disabled = false; btn.textContent = 'Upload'; setTimeout(() => { bar.style.display='none'; barFill.style.width='0%'; }, 800); }
+  btn.disabled = true;
+
+  let done = 0, failed = [];
+  for (const task of tasks) {
+    btn.textContent = `Uploading ${done+1}/${tasks.length}…`;
+    try {
+      const b64 = await fileToBase64(task.file);
+      const r = await fetch('/api/sheets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upload', password: pwd, filename: task.file.name, sheetNumber: task.num, data: b64 })
+      });
+      const data = await r.json();
+      if (!r.ok) failed.push(`#${task.num}: ${data.error || 'failed'}`);
+      else done++;
+    } catch(e) { failed.push(`#${task.num}: network error`); }
+  }
+
+  btn.disabled = false; btn.textContent = 'Upload All';
+  document.getElementById('sheetFile').value = '';
+  document.getElementById('sheetFileList').innerHTML = '';
+
+  if (failed.length) showMsg(msgEl, `${done} uploaded. Errors: ${failed.join(', ')}`, 'err');
+  else showMsg(msgEl, `${done} sheet${done!==1?'s':''} uploaded!`, 'ok');
+  loadSheets();
 }
 
 async function deleteSheet(id, n) {
