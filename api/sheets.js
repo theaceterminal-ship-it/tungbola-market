@@ -1,6 +1,6 @@
 const { Redis } = require('@upstash/redis');
 const { del: blobDel } = require('@vercel/blob');
-const { generateClientTokenFromReadWriteToken } = require('@vercel/blob/client');
+const { handleUpload } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const kv = Redis.fromEnv();
 
@@ -29,41 +29,50 @@ module.exports = async function(req, res) {
 
   if (req.method !== 'POST') return res.status(405).end();
   const body = req.body || {};
-  const { action } = body;
 
-  /* Step 1: Generate a short-lived client upload token — no PDF data touches the server */
-  if (action === 'generate-upload-token') {
-    if (await rateLimit(req, 'uploadsheet', 200, 3600))
-      return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
-    const { password, sheetNumber, filename } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!filename || !sheetNumber)
-      return res.status(400).json({ error: 'filename and sheetNumber required' });
-
-    const num = parseInt(sheetNumber);
-    if (!num || num < 1 || num > 99999)
-      return res.status(400).json({ error: 'sheetNumber must be 1–99999' });
-
-    const all = await kv.get('tb:mkt:sheets') || [];
-    if (all.find(s => s.n === num))
-      return res.status(409).json({ error: `Sheet #${num} already uploaded` });
-
-    const id = genId();
-    const pathname = `tungbola/sheet-${String(num).padStart(5, '0')}-${id}.pdf`;
-
-    let token;
-    try {
-      token = await generateClientTokenFromReadWriteToken({ pathname });
-    } catch(e) {
-      console.error('Token generation error:', e);
-      return res.status(500).json({ error: 'Failed to generate upload token. Check BLOB_READ_WRITE_TOKEN.' });
+  /* Vercel Blob client upload protocol — called internally by @vercel/blob/client in the browser */
+  if (body.type === 'blob.generate-client-token' || body.type === 'blob.upload-completed') {
+    if (body.type === 'blob.generate-client-token') {
+      if (await rateLimit(req, 'uploadsheet', 200, 3600))
+        return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
     }
 
-    return res.json({ token, pathname, id });
+    // Wrap Node.js headers so handleUpload can call headers.get()
+    const headers = { get: name => req.headers[name.toLowerCase()] || null };
+
+    try {
+      const response = await handleUpload({
+        body,
+        request: { headers },
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          let payload;
+          try { payload = JSON.parse(clientPayload || '{}'); }
+          catch(e) { throw new Error('Invalid payload'); }
+
+          if (!checkPassword(payload.password, process.env.ADMIN_PASSWORD))
+            throw new Error('Wrong password');
+
+          const num = parseInt(payload.sheetNumber);
+          if (!num || num < 1 || num > 99999)
+            throw new Error('sheetNumber must be 1–99999');
+
+          const all = await kv.get('tb:mkt:sheets') || [];
+          if (all.find(s => s.n === num))
+            throw new Error(`Sheet #${num} already uploaded`);
+
+          return { allowedContentTypes: ['application/pdf'] };
+        },
+        onUploadCompleted: async () => {},
+      });
+      return res.json(response);
+    } catch(e) {
+      return res.status(400).json({ error: e.message || 'Token generation failed' });
+    }
   }
 
-  /* Step 3: Browser upload is done — save URL + metadata to Redis */
+  const { action } = body;
+
+  /* Step 2: Browser upload is done — save URL + metadata to Redis */
   if (action === 'register') {
     if (await rateLimit(req, 'uploadsheet', 200, 3600))
       return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
