@@ -61,7 +61,7 @@ module.exports = async function(req, res) {
       return res.json({ ok: true, url: blob.url });
     } catch(e) {
       console.error('Prize image upload error:', e);
-      return res.status(500).json({ error: 'Upload failed. Check BLOB_READ_WRITE_TOKEN.' });
+      return res.status(500).json({ error: `Upload failed: ${e.message || String(e)}` });
     }
   }
 
