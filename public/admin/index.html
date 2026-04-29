@@ -815,6 +815,7 @@ function renderGames() {
         ${g.status!=='listed' ? `<button class="btn btn-green btn-sm" onclick="setStatus('${g.id}','listed')">▶ List</button>` : ''}
         ${g.status!=='draft'  ? `<button class="btn btn-ghost btn-sm" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
         ${g.status!=='ended'  ? `<button class="btn btn-red btn-sm" onclick="setStatus('${g.id}','ended')">■ End</button>` : ''}
+        <button class="btn btn-red btn-sm" style="margin-left:auto;background:#7B1C1C" onclick="deleteGame('${g.id}','${esc(g.name)}')">🗑 Delete</button>
       </div>
     </div>`;
   }).join('') + `</div>`;
@@ -862,6 +863,19 @@ async function assignSheets(gameId) {
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Assign failed'); return; }
     toast(`Assigned ${data.sheetsFound} sheets`); loadGames();
+  } catch(e) { toast('Network error'); }
+}
+
+async function deleteGame(gameId, name) {
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'delete-game', password:pwd, gameId })
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.error || 'Delete failed'); return; }
+    toast(`"${name}" deleted`); loadGames();
   } catch(e) { toast('Network error'); }
 }
 

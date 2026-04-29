@@ -295,5 +295,19 @@ module.exports = async function(req, res) {
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
 
+  /* ── Admin: delete a game ── */
+  if (action === 'delete-game') {
+    const { password, gameId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+
+    await kv.del(`tb:mkt:game:${gameId}`);
+    const games = await kv.get('tb:mkt:games') || [];
+    const filtered = games.filter(g => g.id !== gameId);
+    await kv.set('tb:mkt:games', filtered);
+    return res.json({ ok: true });
+  }
+
   return res.status(400).json({ error: 'Unknown action' });
 };
