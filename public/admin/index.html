@@ -395,8 +395,8 @@ function previewSheetFiles() {
     files.map((f, i) => {
       const num = parseSheetNum(f.name);
       const size = (f.size / 1024).toFixed(0);
-      const ok = num && num >= 1 && num <= 99999 && f.size <= 4*1024*1024;
-      const warn = !num ? '⚠️ No number in filename' : f.size > 4*1024*1024 ? '⚠️ Too large (max 4MB)' : '';
+      const ok = num && num >= 1 && num <= 99999;
+      const warn = !num ? '⚠️ No number in filename' : '';
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${i>0?'border-top:1px solid var(--sv)':''}">
         <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
         ${num ? `<span style="font-size:12px;font-weight:700;color:var(--primary);flex-shrink:0">#${num}</span>` : ''}
@@ -418,25 +418,49 @@ async function uploadSheets() {
     showMsg(msgEl, `Can't detect sheet number for: ${invalid.map(t => t.file.name).join(', ')}. Rename files to include the sheet number (e.g. sheet-47.pdf)`, 'err');
     return;
   }
-  const tooBig = tasks.filter(t => t.file.size > 4*1024*1024);
-  if (tooBig.length) { showMsg(msgEl, `Files too large (max 4MB): ${tooBig.map(t => t.file.name).join(', ')}`, 'err'); return; }
 
   const btn = document.getElementById('uploadBtn');
   btn.disabled = true;
+
+  // Load @vercel/blob client uploader once before the loop
+  let blobUploadFn;
+  try {
+    btn.textContent = 'Loading uploader…';
+    const mod = await import('https://esm.sh/@vercel/blob@0.27.0/client');
+    blobUploadFn = mod.upload;
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Upload All';
+    showMsg(msgEl, 'Failed to load upload client. Check your connection.', 'err');
+    return;
+  }
 
   let done = 0, failed = [];
   for (const task of tasks) {
     btn.textContent = `Uploading ${done+1}/${tasks.length}…`;
     try {
-      const b64 = await fileToBase64(task.file);
-      const r = await fetch('/api/sheets', {
+      // Step 1: get a short-lived upload token from the server (no PDF data sent here)
+      const tokenRes = await fetch('/api/sheets', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'upload', password: pwd, filename: task.file.name, sheetNumber: task.num, data: b64 })
+        body: JSON.stringify({ action: 'generate-upload-token', password: pwd, sheetNumber: task.num, filename: task.file.name })
       });
-      const data = await r.json();
-      if (!r.ok) failed.push(`#${task.num}: ${data.error || 'failed'}`);
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) { failed.push(`#${task.num}: ${tokenData.error || 'token failed'}`); continue; }
+
+      // Step 2: upload the PDF directly from the browser to Vercel Blob (no serverless timeout risk)
+      const blob = await blobUploadFn(tokenData.pathname, task.file, {
+        access: 'public',
+        clientUploadToken: tokenData.token,
+      });
+
+      // Step 3: tell the server the upload is done so it can save the URL to Redis
+      const regRes = await fetch('/api/sheets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'register', password: pwd, sheetNumber: task.num, filename: task.file.name, url: blob.url, size: task.file.size, id: tokenData.id })
+      });
+      const regData = await regRes.json();
+      if (!regRes.ok) failed.push(`#${task.num}: ${regData.error || 'register failed'}`);
       else done++;
-    } catch(e) { failed.push(`#${task.num}: network error`); }
+    } catch(e) { failed.push(`#${task.num}: ${e.message || 'error'}`); }
   }
 
   btn.disabled = false; btn.textContent = 'Upload All';

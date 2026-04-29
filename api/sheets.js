@@ -1,5 +1,6 @@
 const { Redis } = require('@upstash/redis');
-const { put, del: blobDel } = require('@vercel/blob');
+const { del: blobDel } = require('@vercel/blob');
+const { generateClientTokenFromReadWriteToken } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const kv = Redis.fromEnv();
 
@@ -30,48 +31,57 @@ module.exports = async function(req, res) {
   const body = req.body || {};
   const { action } = body;
 
-  /* Admin: upload a sheet PDF */
-  if (action === 'upload') {
+  /* Step 1: Generate a short-lived client upload token — no PDF data touches the server */
+  if (action === 'generate-upload-token') {
     if (await rateLimit(req, 'uploadsheet', 200, 3600))
       return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
-    const { password, filename, sheetNumber, data } = body;
+    const { password, sheetNumber, filename } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
-    if (!data || !filename || !sheetNumber)
-      return res.status(400).json({ error: 'filename, sheetNumber and data required' });
+    if (!filename || !sheetNumber)
+      return res.status(400).json({ error: 'filename and sheetNumber required' });
 
     const num = parseInt(sheetNumber);
     if (!num || num < 1 || num > 99999)
       return res.status(400).json({ error: 'sheetNumber must be 1–99999' });
 
-    // Check for duplicate sheet number
     const all = await kv.get('tb:mkt:sheets') || [];
     if (all.find(s => s.n === num))
       return res.status(409).json({ error: `Sheet #${num} already uploaded` });
 
-    // Decode base64 PDF and upload to Vercel Blob
-    let buffer;
-    try {
-      buffer = Buffer.from(data, 'base64');
-    } catch(e) {
-      return res.status(400).json({ error: 'Invalid base64 data' });
-    }
-    if (buffer.length > 4 * 1024 * 1024)
-      return res.status(400).json({ error: 'File too large (max 4MB)' });
-
     const id = genId();
-    const blobName = `tungbola/sheet-${String(num).padStart(5, '0')}-${id}.pdf`;
+    const pathname = `tungbola/sheet-${String(num).padStart(5, '0')}-${id}.pdf`;
 
-    let blobUrl;
+    let token;
     try {
-      const blob = await put(blobName, buffer, { access: 'public', contentType: 'application/pdf' });
-      blobUrl = blob.url;
+      token = await generateClientTokenFromReadWriteToken({ pathname });
     } catch(e) {
-      console.error('Blob upload error:', e);
-      return res.status(500).json({ error: 'Storage upload failed. Check BLOB_READ_WRITE_TOKEN.' });
+      console.error('Token generation error:', e);
+      return res.status(500).json({ error: 'Failed to generate upload token. Check BLOB_READ_WRITE_TOKEN.' });
     }
 
-    const sheet = { id, n: num, f: String(filename).trim().slice(0, 80), u: blobUrl, s: buffer.length, ts: Date.now() };
+    return res.json({ token, pathname, id });
+  }
+
+  /* Step 3: Browser upload is done — save URL + metadata to Redis */
+  if (action === 'register') {
+    if (await rateLimit(req, 'uploadsheet', 200, 3600))
+      return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
+    const { password, sheetNumber, filename, url, size, id } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!url || !sheetNumber || !filename || !id)
+      return res.status(400).json({ error: 'url, sheetNumber, filename and id required' });
+
+    const num = parseInt(sheetNumber);
+    if (!num || num < 1 || num > 99999)
+      return res.status(400).json({ error: 'sheetNumber must be 1–99999' });
+
+    const all = await kv.get('tb:mkt:sheets') || [];
+    if (all.find(s => s.n === num))
+      return res.status(409).json({ error: `Sheet #${num} already uploaded` });
+
+    const sheet = { id, n: num, f: String(filename).trim().slice(0, 80), u: url, s: parseInt(size) || 0, ts: Date.now() };
     await kv.set(`tb:mkt:sheet:${id}`, sheet);
     all.push(sheet);
     all.sort((a, b) => a.n - b.n);
