@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Marketplace Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{--primary:#6750A4;--primary-c:#EADDFF;--bg:#F4F0FB;--surface:#fff;--sv:#E7E0EC;
   --on-sv:#49454F;--error:#B3261E;--success:#2E7D32;}
@@ -74,6 +75,11 @@ tr:last-child td{border-bottom:none}
 .empty-row td{text-align:center;color:var(--on-sv);padding:24px;font-size:13px}
 .assign-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px}
 .assign-row .form-group{min-width:80px}
+.bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;
+  background:var(--bg);border:1px solid var(--sv);border-radius:10px;margin-top:12px}
+.bulk-info{font-size:12px;color:var(--on-sv);flex:1;white-space:nowrap}
+.tbl-chk{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+.zip-badge{font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 7px;border-radius:6px;font-weight:700}
 
 /* ── Prizes ── */
 .prizes-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
@@ -127,8 +133,8 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>PDF Files (select one or many)</label>
-        <input type="file" id="sheetFile" accept=".pdf" multiple onchange="previewSheetFiles()">
+        <label>PDFs or a ZIP of PDFs</label>
+        <input type="file" id="sheetFile" accept=".pdf,.zip" multiple onchange="previewSheetFiles()">
       </div>
       <div class="form-group" style="justify-content:flex-end;min-width:auto">
         <label>&nbsp;</label>
@@ -136,13 +142,23 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
     <div style="font-size:12px;color:var(--on-sv);margin-bottom:8px">
-      💡 Name your files like <strong>47.pdf</strong> or <strong>sheet-47.pdf</strong> — sheet number is auto-detected from the filename.
+      💡 Select individual PDFs <em>or</em> a single ZIP containing them all. Name files like <strong>47.pdf</strong> — sheet number is auto-detected.
     </div>
     <div id="sheetFileList" style="margin-bottom:8px"></div>
     <div id="uploadMsg"></div>
+    <div class="bulk-bar" id="bulkBar" style="display:none">
+      <span class="bulk-info" id="bulkInfo">0 selected</span>
+      <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="selectAllSheets()">Select All</button>
+      <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="deselectAllSheets()">None</button>
+      <button class="btn btn-red" id="bulkDeleteBtn" style="font-size:11px;padding:6px 10px" onclick="deleteSelected()" disabled>Delete Selected</button>
+      <button class="btn btn-red" style="font-size:11px;padding:6px 10px;background:#7B1C1C" onclick="deleteAllSheets()">🗑 Delete All</button>
+    </div>
     <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
       <table>
-        <thead><tr><th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
+        <thead><tr>
+          <th><input type="checkbox" class="tbl-chk" id="selectAllChk" onchange="toggleSelectAll(this.checked)"></th>
+          <th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th>
+        </tr></thead>
         <tbody id="sheetsTbl"></tbody>
       </table>
     </div>
@@ -215,6 +231,7 @@ tr:last-child td{border-bottom:none}
 let pwd = '';
 let allSheets = [], allGames = [], allPurchases = [];
 let purchaseRefreshTimer = null;
+let selectedSheetIds = new Set();
 
 const PRIZES = [
   { key: 'full_house',    label: '🏆 Full House' },
@@ -359,9 +376,10 @@ function resetPrizes() {
 /* ── Sheets ── */
 async function loadSheets() {
   try {
-    const r = await fetch(`/api/sheets?password=${encodeURIComponent(pwd)}`);
+    const r = await fetch(`/api/sheets?password=${encodeURIComponent(pwd)}&all=true`);
     const data = await r.json();
     allSheets = data.sheets || [];
+    selectedSheetIds.clear();
     document.getElementById('sheetCount').textContent = `${allSheets.length} uploaded`;
     renderSheets();
   } catch(e) {}
@@ -369,17 +387,82 @@ async function loadSheets() {
 
 function renderSheets() {
   const wrap = document.getElementById('sheetsTblWrap');
+  const bulkBar = document.getElementById('bulkBar');
   const tbody = document.getElementById('sheetsTbl');
-  if (!allSheets.length) { wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
+  if (!allSheets.length) { wrap.style.display = 'none'; bulkBar.style.display = 'none'; return; }
+  wrap.style.display = 'block'; bulkBar.style.display = 'flex';
   tbody.innerHTML = allSheets.map(s => `
     <tr>
+      <td><input type="checkbox" class="tbl-chk" ${selectedSheetIds.has(s.id)?'checked':''} onchange="toggleSheetSelect('${s.id}',this.checked)"></td>
       <td><strong>#${s.n}</strong></td>
-      <td>${esc(s.f)}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.f)}</td>
       <td>${(s.s/1024).toFixed(0)} KB</td>
       <td>${new Date(s.ts).toLocaleDateString()}</td>
-      <td><button class="btn btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteSheet('${s.id}',${s.n})">Delete</button></td>
+      <td><button class="btn btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteSheet('${s.id}',${s.n})">Del</button></td>
     </tr>`).join('');
+  refreshBulkBar();
+}
+
+function toggleSheetSelect(id, checked) {
+  if (checked) selectedSheetIds.add(id); else selectedSheetIds.delete(id);
+  refreshBulkBar();
+}
+
+function toggleSelectAll(checked) {
+  if (checked) allSheets.forEach(s => selectedSheetIds.add(s.id));
+  else selectedSheetIds.clear();
+  document.querySelectorAll('.tbl-chk:not(#selectAllChk)').forEach(cb => cb.checked = checked);
+  refreshBulkBar();
+}
+
+function selectAllSheets() {
+  allSheets.forEach(s => selectedSheetIds.add(s.id));
+  document.querySelectorAll('.tbl-chk').forEach(cb => cb.checked = true);
+  refreshBulkBar();
+}
+
+function deselectAllSheets() {
+  selectedSheetIds.clear();
+  document.querySelectorAll('.tbl-chk').forEach(cb => cb.checked = false);
+  refreshBulkBar();
+}
+
+function refreshBulkBar() {
+  const n = selectedSheetIds.size;
+  document.getElementById('bulkInfo').textContent = `${n} of ${allSheets.length} selected`;
+  const btn = document.getElementById('bulkDeleteBtn');
+  btn.disabled = n === 0;
+  btn.textContent = n ? `Delete Selected (${n})` : 'Delete Selected';
+  const hdr = document.getElementById('selectAllChk');
+  if (hdr) { hdr.checked = n === allSheets.length && n > 0; hdr.indeterminate = n > 0 && n < allSheets.length; }
+}
+
+async function deleteSelected() {
+  const ids = Array.from(selectedSheetIds);
+  if (!ids.length) return;
+  if (!confirm(`Permanently delete ${ids.length} selected sheet${ids.length!==1?'s':''}?`)) return;
+  await runBulkDelete(ids);
+}
+
+async function deleteAllSheets() {
+  if (!allSheets.length) { toast('No sheets to delete'); return; }
+  if (!confirm(`Permanently delete ALL ${allSheets.length} sheets? This cannot be undone.`)) return;
+  await runBulkDelete(allSheets.map(s => s.id));
+}
+
+async function runBulkDelete(ids) {
+  const btn = document.getElementById('bulkDeleteBtn');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    const r = await fetch('/api/sheets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-bulk', password: pwd, ids })
+    });
+    const data = await r.json();
+    if (!r.ok) toast(data.error || 'Delete failed');
+    else { toast(`${data.deleted} sheet${data.deleted!==1?'s':''} deleted`); loadSheets(); }
+  } catch(e) { toast('Network error'); }
+  btn.disabled = false;
 }
 
 function parseSheetNum(filename) {
@@ -393,15 +476,22 @@ function previewSheetFiles() {
   if (!files.length) { listEl.innerHTML = ''; return; }
   listEl.innerHTML = `<div style="border:1px solid var(--sv);border-radius:10px;overflow:hidden">` +
     files.map((f, i) => {
+      const isZip = f.name.toLowerCase().endsWith('.zip');
+      const size = (f.size / 1024 / 1024).toFixed(1);
+      const border = i > 0 ? 'border-top:1px solid var(--sv)' : '';
+      if (isZip) return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${border}">
+        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
+        <span class="zip-badge">ZIP</span>
+        <span style="font-size:11px;color:var(--on-sv);flex-shrink:0">${size} MB</span>
+        <span style="font-size:11px;color:var(--primary);flex-shrink:0">📦 PDFs extracted on upload</span>
+      </div>`;
       const num = parseSheetNum(f.name);
-      const size = (f.size / 1024).toFixed(0);
       const ok = num && num >= 1 && num <= 99999;
-      const warn = !num ? '⚠️ No number in filename' : '';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${i>0?'border-top:1px solid var(--sv)':''}">
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${border}">
         <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
         ${num ? `<span style="font-size:12px;font-weight:700;color:var(--primary);flex-shrink:0">#${num}</span>` : ''}
-        <span style="font-size:11px;color:var(--on-sv);flex-shrink:0">${size} KB</span>
-        <span style="font-size:11px;${ok?'color:var(--success)':'color:var(--error)'};flex-shrink:0">${warn || '✓'}</span>
+        <span style="font-size:11px;color:var(--on-sv);flex-shrink:0">${(f.size/1024).toFixed(0)} KB</span>
+        <span style="font-size:11px;${ok?'color:var(--success)':'color:var(--error)'};flex-shrink:0">${ok?'✓':'⚠️ no number'}</span>
       </div>`;
     }).join('') + `</div>`;
 }
@@ -410,22 +500,15 @@ async function uploadSheets() {
   const files = Array.from(document.getElementById('sheetFile').files);
   const msgEl = document.getElementById('uploadMsg');
   msgEl.innerHTML = '';
-  if (!files.length) { showMsg(msgEl, 'Select at least one PDF', 'err'); return; }
-
-  const tasks = files.map(f => ({ file: f, num: parseSheetNum(f.name) }));
-  const invalid = tasks.filter(t => !t.num || t.num < 1 || t.num > 99999);
-  if (invalid.length) {
-    showMsg(msgEl, `Can't detect sheet number for: ${invalid.map(t => t.file.name).join(', ')}. Rename files to include the sheet number (e.g. sheet-47.pdf)`, 'err');
-    return;
-  }
+  if (!files.length) { showMsg(msgEl, 'Select PDFs or a ZIP file', 'err'); return; }
 
   const btn = document.getElementById('uploadBtn');
   btn.disabled = true;
 
-  // Load @vercel/blob client uploader once before the loop
+  // Load blob uploader
   let blobUploadFn;
   try {
-    btn.textContent = 'Loading uploader…';
+    btn.textContent = 'Loading…';
     const mod = await import('https://esm.sh/@vercel/blob@0.27.0/client');
     blobUploadFn = mod.upload;
   } catch(e) {
@@ -434,12 +517,54 @@ async function uploadSheets() {
     return;
   }
 
+  // Build task list — direct PDFs + PDFs extracted from any ZIPs
+  let tasks = [];
+  const directPdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  const zipFiles   = files.filter(f => f.name.toLowerCase().endsWith('.zip'));
+
+  directPdfs.forEach(f => {
+    const num = parseSheetNum(f.name);
+    if (num && num >= 1 && num <= 99999) tasks.push({ file: f, num });
+  });
+
+  for (const zipFile of zipFiles) {
+    btn.textContent = `Extracting ${zipFile.name}…`;
+    try {
+      const zip = await JSZip.loadAsync(await zipFile.arrayBuffer());
+      const entries = [];
+      zip.forEach((path, entry) => { if (!entry.dir && path.toLowerCase().endsWith('.pdf')) entries.push({ path, entry }); });
+      for (let i = 0; i < entries.length; i++) {
+        if (i % 100 === 0) {
+          btn.textContent = `Extracting… ${i}/${entries.length}`;
+          await new Promise(r => setTimeout(r, 0)); // keep UI responsive
+        }
+        const filename = entries[i].path.split('/').pop().split('\\').pop();
+        const num = parseSheetNum(filename);
+        if (!num || num < 1 || num > 99999) continue;
+        const ab = await entries[i].entry.async('arraybuffer');
+        tasks.push({ file: new File([ab], filename, { type: 'application/pdf' }), num });
+      }
+    } catch(e) {
+      btn.disabled = false; btn.textContent = 'Upload All';
+      showMsg(msgEl, `Failed to read ZIP "${zipFile.name}": ${e.message}`, 'err'); return;
+    }
+  }
+
+  // Deduplicate by sheet number (keep first occurrence)
+  const seen = new Set();
+  tasks = tasks.filter(t => { if (seen.has(t.num)) return false; seen.add(t.num); return true; });
+
+  if (!tasks.length) {
+    btn.disabled = false; btn.textContent = 'Upload All';
+    showMsg(msgEl, 'No valid PDF sheets found. Files must have a number in the name (e.g. 47.pdf)', 'err'); return;
+  }
+
+  // 20 concurrent workers — each grabs the next task until done
   let done = 0, failCount = 0, failed = [];
   const total = tasks.length;
   let cursor = 0;
-
-  // 20 workers run in parallel — each grabs the next task until all are done
   const CONCURRENCY = 20;
+
   async function worker() {
     while (true) {
       const i = cursor++;
@@ -470,13 +595,15 @@ async function uploadSheets() {
   document.getElementById('sheetFile').value = '';
   document.getElementById('sheetFileList').innerHTML = '';
 
-  if (failed.length) showMsg(msgEl, `${done} uploaded. Errors: ${failed.join(', ')}`, 'err');
+  const errSample = failed.slice(0, 5).join(', ') + (failed.length > 5 ? ` (+${failed.length-5} more)` : '');
+  if (failed.length) showMsg(msgEl, `${done} uploaded. Errors: ${errSample}`, 'err');
   else showMsg(msgEl, `${done} sheet${done!==1?'s':''} uploaded!`, 'ok');
   loadSheets();
 }
 
 async function deleteSheet(id, n) {
   if (!confirm(`Delete sheet #${n}?`)) return;
+  selectedSheetIds.delete(id);
   try {
     const r = await fetch('/api/sheets', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', password: pwd, id }) });

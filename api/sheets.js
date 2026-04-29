@@ -21,6 +21,7 @@ module.exports = async function(req, res) {
       return res.status(401).json({ error: 'Wrong password' });
 
     const all = await kv.get('tb:mkt:sheets') || [];
+    if (req.query.all === 'true') return res.json({ sheets: all, total: all.length });
     const PAGE = 100;
     const p = Math.max(0, parseInt(page) || 0);
     const slice = all.slice(p * PAGE, (p + 1) * PAGE);
@@ -97,6 +98,36 @@ module.exports = async function(req, res) {
     await kv.set('tb:mkt:sheets', all.slice(0, 5500));
 
     return res.json({ ok: true, sheet });
+  }
+
+  /* Admin: bulk delete sheets by ID array */
+  if (action === 'delete-bulk') {
+    if (await rateLimit(req, 'deletesheet', 500, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, ids } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!Array.isArray(ids) || !ids.length)
+      return res.status(400).json({ error: 'ids array required' });
+
+    const all = await kv.get('tb:mkt:sheets') || [];
+    const idSet = new Set(ids);
+    const toDelete = all.filter(s => idSet.has(s.id));
+    const remaining = all.filter(s => !idSet.has(s.id));
+
+    const blobUrls = toDelete.map(s => s.u).filter(Boolean);
+    if (blobUrls.length) {
+      try { await blobDel(blobUrls); } catch(e) {}
+    }
+
+    if (toDelete.length) {
+      const pipeline = kv.pipeline();
+      toDelete.forEach(s => pipeline.del(`tb:mkt:sheet:${s.id}`));
+      await pipeline.exec();
+    }
+
+    await kv.set('tb:mkt:sheets', remaining);
+    return res.json({ ok: true, deleted: toDelete.length });
   }
 
   /* Admin: delete a sheet */
