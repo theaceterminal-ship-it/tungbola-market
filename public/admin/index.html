@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marketplace Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--primary:#6750A4;--primary-c:#EADDFF;--bg:#F4F0FB;--surface:#fff;--sv:#E7E0EC;
+  --on-sv:#49454F;--error:#B3261E;--success:#2E7D32;--outline:#79747E;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Roboto',sans-serif;background:var(--bg);color:#1C1B1F;min-height:100vh}
+header{background:linear-gradient(135deg,#4527A0,var(--primary));color:#fff;padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:17px;font-weight:700}
+.logout-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;
+  padding:6px 14px;border-radius:16px;font-size:13px;cursor:pointer;font-family:inherit}
+
+#gate{max-width:360px;margin:80px auto;background:var(--surface);border-radius:20px;
+  padding:32px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center}
+#gate h2{font-size:20px;font-weight:700;margin-bottom:8px;color:var(--primary)}
+#gate p{font-size:13px;color:var(--on-sv);margin-bottom:24px}
+.gate-input{width:100%;padding:13px 15px;border:2px solid var(--sv);border-radius:12px;
+  font-size:15px;font-family:inherit;outline:none;margin-bottom:12px}
+.gate-input:focus{border-color:var(--primary)}
+.gate-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;
+  border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.gate-err{font-size:13px;color:var(--error);margin-top:10px}
+
+#main{display:none;max-width:900px;margin:0 auto;padding:20px}
+
+.section{background:var(--surface);border-radius:16px;padding:20px;margin-bottom:20px;
+  box-shadow:0 1px 6px rgba(0,0,0,.08)}
+.section-title{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:16px;
+  padding-bottom:10px;border-bottom:2px solid var(--sv);display:flex;align-items:center;gap:8px}
+
+/* forms */
+.form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px}
+.form-group label{font-size:11px;font-weight:700;color:var(--on-sv);text-transform:uppercase;letter-spacing:.5px}
+input[type=text],input[type=number],input[type=password],textarea,select{
+  padding:10px 12px;border:2px solid var(--sv);border-radius:10px;font-size:14px;
+  font-family:inherit;outline:none;width:100%;background:#fff}
+input:focus,textarea:focus,select:focus{border-color:var(--primary)}
+textarea{resize:vertical;min-height:60px}
+
+/* buttons */
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-green{background:#2E7D32;color:#fff}
+.btn-green:disabled{opacity:.5;cursor:not-allowed}
+.btn-orange{background:#E65100;color:#fff}
+.btn-red{background:var(--error);color:#fff}
+.btn-ghost{background:var(--sv);color:#1C1B1F}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--on-sv);border-bottom:2px solid var(--sv);background:var(--bg)}
+td{padding:10px;border-bottom:1px solid var(--sv);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--sv);margin-top:14px}
+
+/* chips */
+.chip{display:inline-block;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700}
+.chip-draft{background:#F3E5F5;color:#6A1B9A}
+.chip-listed{background:#E8F5E9;color:var(--success)}
+.chip-ended{background:#FFEBEE;color:var(--error)}
+.chip-pending{background:#FFF8E1;color:#F57F17}
+.chip-approved{background:#E8F5E9;color:var(--success)}
+
+/* upload progress */
+.upload-bar{height:6px;background:var(--sv);border-radius:3px;margin-top:8px;overflow:hidden;display:none}
+.upload-bar-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .3s}
+
+/* refresh badge */
+.refresh-badge{font-size:11px;color:var(--on-sv);font-weight:400;margin-left:auto}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;
+  animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.msg{font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px}
+.msg-ok{background:#E8F5E9;color:var(--success)}
+.msg-err{background:#FFEBEE;color:var(--error)}
+
+.empty-row td{text-align:center;color:var(--on-sv);padding:24px;font-size:13px}
+
+.assign-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px}
+.assign-row .form-group{min-width:80px}
+
+@media(max-width:600px){
+  #main{padding:12px}
+  .form-row{flex-direction:column}
+  .btn{padding:9px 14px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Marketplace Admin</h1>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</header>
+
+<!-- Gate -->
+<div id="gate">
+  <h2>Admin Login</h2>
+  <p>Enter your admin password to manage the marketplace.</p>
+  <input class="gate-input" id="pwdInput" type="password" placeholder="Admin password"
+    onkeydown="if(event.key==='Enter')unlock()">
+  <button class="gate-btn" onclick="unlock()">Unlock</button>
+  <div class="gate-err" id="gateErr"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- ── SHEETS ── -->
+  <div class="section">
+    <div class="section-title">📄 Sheets
+      <span class="refresh-badge" id="sheetCount"></span>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="max-width:120px">
+        <label>Sheet #</label>
+        <input type="number" id="sheetNum" min="1" max="99999" placeholder="e.g. 1">
+      </div>
+      <div class="form-group">
+        <label>PDF File</label>
+        <input type="file" id="sheetFile" accept=".pdf">
+      </div>
+      <div class="form-group" style="justify-content:flex-end;min-width:auto">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" id="uploadBtn" onclick="uploadSheet()">Upload</button>
+      </div>
+    </div>
+    <div class="upload-bar" id="uploadBar"><div class="upload-bar-fill" id="uploadBarFill" style="width:0%"></div></div>
+    <div id="uploadMsg"></div>
+
+    <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
+      <table>
+        <thead><tr><th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody id="sheetsTbl"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── GAMES ── -->
+  <div class="section">
+    <div class="section-title">🎮 Games</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Game Name</label>
+        <input type="text" id="gameName" placeholder="e.g. Sunday Special" maxlength="80">
+      </div>
+      <div class="form-group" style="max-width:160px">
+        <label>Date / Time</label>
+        <input type="text" id="gameDate" placeholder="e.g. 2 May, 6pm" maxlength="30">
+      </div>
+      <div class="form-group" style="max-width:100px">
+        <label>₹ / Sheet</label>
+        <input type="number" id="gamePrice" min="1" value="5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="gameDesc" placeholder="Prizes, rules, etc." maxlength="200"></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="createGame()">+ Create Game</button>
+    <div id="createGameMsg"></div>
+
+    <div class="tbl-wrap" id="gamesTblWrap" style="display:none">
+      <table>
+        <thead><tr><th>Name</th><th>Status</th><th>Sheets</th><th>Sold</th><th>Assign Range</th><th>Actions</th></tr></thead>
+        <tbody id="gamesTbl"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PURCHASES ── -->
+  <div class="section">
+    <div class="section-title">🛒 Purchases
+      <span class="refresh-badge"><span class="dot"></span>Live</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Player</th><th>Phone</th><th>Game</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div id="toastEl" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1C1B1F;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;
+  z-index:999;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center"></div>
+
+<script>
+let pwd = '';
+let allSheets = [], allGames = [], allPurchases = [];
+let purchaseRefreshTimer = null;
+
+/* ── Auth ── */
+async function unlock() {
+  const p = document.getElementById('pwdInput').value.trim();
+  if (!p) return;
+  const errEl = document.getElementById('gateErr');
+  errEl.textContent = '';
+  try {
+    const r = await fetch(`/api/marketplace?password=${encodeURIComponent(p)}`);
+    if (r.status === 401) { errEl.textContent = 'Wrong password'; return; }
+    if (!r.ok) { errEl.textContent = 'Server error'; return; }
+    pwd = p;
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    loadAll();
+    purchaseRefreshTimer = setInterval(loadPurchases, 10000);
+  } catch(e) { errEl.textContent = 'Network error'; }
+}
+
+function logout() {
+  pwd = ''; clearInterval(purchaseRefreshTimer);
+  document.getElementById('gate').style.display = 'block';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('pwdInput').value = '';
+}
+
+function loadAll() { loadSheets(); loadGames(); loadPurchases(); }
+
+/* ── Sheets ── */
+async function loadSheets() {
+  try {
+    const r = await fetch(`/api/sheets?password=${encodeURIComponent(pwd)}`);
+    const data = await r.json();
+    allSheets = data.sheets || [];
+    document.getElementById('sheetCount').textContent = `${allSheets.length} uploaded`;
+    renderSheets();
+  } catch(e) {}
+}
+
+function renderSheets() {
+  const wrap = document.getElementById('sheetsTblWrap');
+  const tbody = document.getElementById('sheetsTbl');
+  if (!allSheets.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  tbody.innerHTML = allSheets.map(s => `
+    <tr>
+      <td><strong>#${s.n}</strong></td>
+      <td>${esc(s.f)}</td>
+      <td>${(s.s/1024).toFixed(0)} KB</td>
+      <td>${new Date(s.ts).toLocaleDateString()}</td>
+      <td><button class="btn btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteSheet('${s.id}',${s.n})">Delete</button></td>
+    </tr>`).join('');
+}
+
+async function uploadSheet() {
+  const num = parseInt(document.getElementById('sheetNum').value);
+  const file = document.getElementById('sheetFile').files[0];
+  const msgEl = document.getElementById('uploadMsg');
+  const bar = document.getElementById('uploadBar');
+  const barFill = document.getElementById('uploadBarFill');
+  msgEl.innerHTML = '';
+  if (!num || num < 1) { showMsg(msgEl, 'Enter a valid sheet number', 'err'); return; }
+  if (!file) { showMsg(msgEl, 'Select a PDF file', 'err'); return; }
+  if (file.size > 4 * 1024 * 1024) { showMsg(msgEl, 'File too large (max 4MB)', 'err'); return; }
+
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.textContent = 'Reading…';
+  bar.style.display = 'block'; barFill.style.width = '30%';
+
+  try {
+    const b64 = await fileToBase64(file);
+    barFill.style.width = '60%';
+    btn.textContent = 'Uploading…';
+    const r = await fetch('/api/sheets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'upload', password: pwd, filename: file.name, sheetNumber: num, data: b64 })
+    });
+    barFill.style.width = '100%';
+    const data = await r.json();
+    if (!r.ok) { showMsg(msgEl, data.error || 'Upload failed', 'err'); }
+    else {
+      showMsg(msgEl, `Sheet #${num} uploaded!`, 'ok');
+      document.getElementById('sheetNum').value = '';
+      document.getElementById('sheetFile').value = '';
+      loadSheets();
+    }
+  } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
+  finally { btn.disabled = false; btn.textContent = 'Upload'; setTimeout(() => { bar.style.display = 'none'; barFill.style.width = '0%'; }, 800); }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function deleteSheet(id, n) {
+  if (!confirm(`Delete sheet #${n}? This cannot be undone.`)) return;
+  try {
+    const r = await fetch('/api/sheets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', password: pwd, id })
+    });
+    if (r.ok) { toast(`Sheet #${n} deleted`); loadSheets(); }
+    else { const d = await r.json(); toast(d.error || 'Delete failed'); }
+  } catch(e) { toast('Network error'); }
+}
+
+/* ── Games ── */
+async function loadGames() {
+  try {
+    const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}`);
+    const data = await r.json();
+    allGames = data.games || [];
+    renderGames();
+  } catch(e) {}
+}
+
+function renderGames() {
+  const wrap = document.getElementById('gamesTblWrap');
+  const tbody = document.getElementById('gamesTbl');
+  wrap.style.display = 'block';
+  if (!allGames.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No games yet. Create one above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allGames.map(g => {
+    const statusChip = `<span class="chip chip-${g.status}">${g.status}</span>`;
+    const sheets = g.sheetCount ? `${g.sheetFrom}–${g.sheetTo} (${g.sheetCount})` : '—';
+    return `<tr>
+      <td><strong>${esc(g.name)}</strong><br><span style="font-size:11px;color:var(--on-sv)">${g.gameDate ? esc(g.gameDate) : ''} · ₹${g.pricePerSheet}/sheet</span></td>
+      <td>${statusChip}</td>
+      <td style="font-size:12px">${sheets}</td>
+      <td>${g.soldCount || 0}</td>
+      <td>
+        <div class="assign-row">
+          <div class="form-group"><label>From</label><input type="number" id="af-${g.id}" min="1" placeholder="1" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetFrom || ''}"></div>
+          <div class="form-group"><label>To</label><input type="number" id="at-${g.id}" min="1" placeholder="100" style="width:70px;padding:6px 8px;font-size:12px" value="${g.sheetTo || ''}"></div>
+          <button class="btn btn-ghost" style="font-size:11px;padding:7px 10px" onclick="assignSheets('${g.id}')">Assign</button>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${g.status !== 'listed' ? `<button class="btn btn-green" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','listed')">List</button>` : ''}
+          ${g.status !== 'draft'  ? `<button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
+          ${g.status !== 'ended'  ? `<button class="btn btn-red" style="font-size:11px;padding:6px 10px" onclick="setStatus('${g.id}','ended')">End</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function createGame() {
+  const name = document.getElementById('gameName').value.trim();
+  const gameDate = document.getElementById('gameDate').value.trim();
+  const pricePerSheet = parseInt(document.getElementById('gamePrice').value) || 5;
+  const description = document.getElementById('gameDesc').value.trim();
+  const msgEl = document.getElementById('createGameMsg');
+  if (!name) { showMsg(msgEl, 'Game name required', 'err'); return; }
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create-game', password: pwd, name, gameDate, pricePerSheet, description })
+    });
+    const data = await r.json();
+    if (!r.ok) { showMsg(msgEl, data.error || 'Failed', 'err'); return; }
+    showMsg(msgEl, `Game "${name}" created!`, 'ok');
+    document.getElementById('gameName').value = '';
+    document.getElementById('gameDate').value = '';
+    document.getElementById('gameDesc').value = '';
+    loadGames();
+  } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
+}
+
+async function assignSheets(gameId) {
+  const from = document.getElementById(`af-${gameId}`).value;
+  const to = document.getElementById(`at-${gameId}`).value;
+  if (!from || !to) { toast('Enter sheet range (from and to)'); return; }
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'assign-sheets', password: pwd, gameId, sheetFrom: from, sheetTo: to })
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.error || 'Assign failed'); return; }
+    toast(`Assigned ${data.sheetsFound} sheets`);
+    loadGames();
+  } catch(e) { toast('Network error'); }
+}
+
+async function setStatus(gameId, status) {
+  const labels = { listed: 'list', ended: 'end', draft: 'move to draft' };
+  if (!confirm(`Are you sure you want to ${labels[status]} this game?`)) return;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set-status', password: pwd, gameId, status })
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.error || 'Failed'); return; }
+    toast(`Game status → ${status}`);
+    loadGames();
+  } catch(e) { toast('Network error'); }
+}
+
+/* ── Purchases ── */
+async function loadPurchases() {
+  try {
+    const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}&type=purchases`);
+    const data = await r.json();
+    allPurchases = data.purchases || [];
+    renderPurchases();
+  } catch(e) {}
+}
+
+function renderPurchases() {
+  const tbody = document.getElementById('purchasesTbl');
+  if (!allPurchases.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No purchases yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allPurchases.map(p => `
+    <tr>
+      <td><strong>${esc(p.playerName)}</strong></td>
+      <td style="font-size:12px">${esc(p.phone || '—')}</td>
+      <td style="font-size:12px">${esc(p.gameName)}</td>
+      <td>${p.quantity}</td>
+      <td>₹${p.amount}</td>
+      <td><span class="chip chip-${p.status}">${p.status}</span></td>
+      <td>${p.status === 'pending'
+        ? `<button class="btn btn-green" style="font-size:11px;padding:6px 12px" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>`
+        : ''}</td>
+    </tr>`).join('');
+}
+
+async function approvePurchase(purchaseId, name) {
+  if (!confirm(`Approve purchase for ${name}?`)) return;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve-purchase', password: pwd, purchaseId })
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.error || 'Approval failed'); return; }
+    toast(`Approved — ${data.sheetsAssigned} sheet(s) sent to ${name}`);
+    loadPurchases(); loadGames();
+  } catch(e) { toast('Network error'); }
+}
+
+/* ── Helpers ── */
+function showMsg(el, text, type) {
+  el.innerHTML = `<div class="msg msg-${type === 'ok' ? 'ok' : 'err'}">${esc(text)}</div>`;
+  setTimeout(() => { if (el) el.innerHTML = ''; }, 4000);
+}
+
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg; el.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(toastT); toastT = setTimeout(() => { el.style.transform = 'translateX(-50%) translateY(80px)'; }, 2800);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('pwdInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+</script>
+</body>
+</html>
