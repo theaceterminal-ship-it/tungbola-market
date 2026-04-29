@@ -110,7 +110,8 @@ module.exports = async function(req, res) {
     if (!game) return res.status(404).json({ error: 'Game not found' });
     if (game.status === 'ended') return res.status(409).json({ error: 'Game has ended' });
 
-    const allSheets = await kv.get('tb:mkt:sheets') || [];
+    const sheetsData = await kv.hgetall('tb:mkt:sheets:hash') || {};
+    const allSheets = Object.values(sheetsData).map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } }).filter(Boolean);
     const inRange = allSheets.filter(s => s.n >= from && s.n <= to);
     if (!inRange.length) return res.status(400).json({ error: `No uploaded sheets in range ${from}–${to}` });
 
@@ -221,7 +222,8 @@ module.exports = async function(req, res) {
     const game = await kv.get(`tb:mkt:game:${purchase.gameId}`);
     if (!game) return res.status(404).json({ error: 'Game not found' });
 
-    const allSheets = await kv.get('tb:mkt:sheets') || [];
+    const sheetsData2 = await kv.hgetall('tb:mkt:sheets:hash') || {};
+    const allSheets = Object.values(sheetsData2).map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } }).filter(Boolean);
     const soldNums = new Set(game.soldSheetNums || []);
     const available = allSheets.filter(s => s.n >= game.sheetFrom && s.n <= game.sheetTo && !soldNums.has(s.n));
     if (available.length < purchase.quantity)
