@@ -1,7 +1,12 @@
 const { Redis } = require('@upstash/redis');
 const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
+const crypto = require('crypto');
 const kv = Redis.fromEnv();
+
+function genApiKey() {
+  return crypto.randomBytes(20).toString('hex');
+}
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -391,6 +396,61 @@ module.exports = async function(req, res) {
     await kv.set('tb:mkt:purchases', remaining);
     await Promise.all(toDelete.map(p => kv.del(`tb:mkt:purchase:${p.purchaseId}`)));
 
+    return res.json({ ok: true });
+  }
+
+  /* ── Public: get live game called numbers (polled by Tungbola) ── */
+  if (action === 'get-live-game') {
+    if (await rateLimit(req, 'getlive', 300, 60))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { gameId } = body;
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+    const state = await kv.get(`tb:live:${gameId}`) || { calledNumbers: [], lastNumber: null };
+    return res.json({ ok: true, calledNumbers: state.calledNumbers, lastNumber: state.lastNumber, lastCalledAt: state.lastCalledAt });
+  }
+
+  /* ── Admin: create an operator account ── */
+  if (action === 'create-operator') {
+    const { password, name, email, phone, plan } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!name || !plan) return res.status(400).json({ error: 'name and plan required' });
+    if (!['own-sheets', 'generate'].includes(plan))
+      return res.status(400).json({ error: 'plan must be own-sheets or generate' });
+
+    const id = 'op_' + genId();
+    const apiKey = genApiKey();
+    const operator = {
+      id, name: String(name).trim().slice(0, 80),
+      email: String(email || '').trim().slice(0, 100),
+      phone: String(phone || '').trim().slice(0, 20),
+      plan, apiKey, createdAt: Date.now(), active: true
+    };
+    await kv.set(`tb:op:${id}`, operator);
+    const ops = await kv.get('tb:ops') || [];
+    ops.unshift({ id, name: operator.name, plan, apiKey, createdAt: operator.createdAt });
+    await kv.set('tb:ops', ops);
+    return res.json({ ok: true, operator });
+  }
+
+  /* ── Admin: list operators ── */
+  if (action === 'list-operators') {
+    const { password } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    const ops = await kv.get('tb:ops') || [];
+    return res.json({ ok: true, operators: ops });
+  }
+
+  /* ── Admin: delete operator ── */
+  if (action === 'delete-operator') {
+    const { password, operatorId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!operatorId) return res.status(400).json({ error: 'operatorId required' });
+    await kv.del(`tb:op:${operatorId}`);
+    const ops = await kv.get('tb:ops') || [];
+    await kv.set('tb:ops', ops.filter(o => o.id !== operatorId));
     return res.json({ ok: true });
   }
 

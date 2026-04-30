@@ -391,6 +391,10 @@ tr:last-child td{border-bottom:none}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
     </button>
+    <button class="tab-btn" onclick="showTab('operators')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Operators <span class="tab-badge" id="opsBadge" style="display:none"></span>
+    </button>
   </nav>
 
   <!-- ══════════════════════════════════════════════ SHEETS ══ -->
@@ -593,6 +597,55 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════ OPERATORS ══ -->
+  <div class="tab-content" id="tc-operators">
+    <div style="padding:20px;max-width:860px;width:100%">
+
+      <!-- Create operator form -->
+      <div class="set-card" style="margin-bottom:20px">
+        <div class="set-card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          Add New Operator
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="set-field"><label class="lbl">Operator Name *</label><input type="text" id="opName" placeholder="e.g. Ravi Sunday Club" maxlength="80"></div>
+          <div class="set-field"><label class="lbl">Phone</label><input type="tel" id="opPhone" placeholder="+91 98765 43210" maxlength="20"></div>
+          <div class="set-field"><label class="lbl">Email</label><input type="email" id="opEmail" placeholder="operator@email.com" maxlength="100"></div>
+          <div class="set-field">
+            <label class="lbl">Plan *</label>
+            <select id="opPlan" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;background:#fff">
+              <option value="own-sheets">Plan A — Own Sheets (reusable library)</option>
+              <option value="generate">Plan B — Generate per Game</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="createOperator()" style="display:inline-flex;align-items:center;gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create Operator &amp; Generate API Key
+        </button>
+        <div id="opCreateMsg" style="margin-top:10px;font-size:13px"></div>
+        <!-- API key reveal box -->
+        <div id="opKeyBox" style="display:none;margin-top:14px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:14px">
+          <div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">API Key (share with operator — shown only once)</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <code id="opKeyVal" style="font-size:14px;font-weight:700;color:#166534;word-break:break-all;flex:1;font-family:monospace"></code>
+            <button class="btn btn-ghost btn-xs" onclick="copyApiKey()" style="flex-shrink:0">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operators list -->
+      <div class="set-card">
+        <div class="set-card-title" style="margin-bottom:14px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Active Operators
+        </div>
+        <div id="operatorsList"><div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div></div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <!-- toast -->
@@ -691,7 +744,7 @@ function showTab(name) {
   document.querySelectorAll('.tab-btn')[order.indexOf(name)]?.classList.add('active');
 }
 
-function loadAll() { loadSheets(); loadGames(); loadPurchases(); loadSettings(); }
+function loadAll() { loadSheets(); loadGames(); loadPurchases(); loadSettings(); loadOperators(); }
 
 /* ══ SHEETS ══════════════════════════════════════════════════════ */
 async function loadSheets() {
@@ -1518,6 +1571,84 @@ function esc(s) {
 }
 
 document.getElementById('pwdInput').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
+
+/* ══ OPERATORS ═══════════════════════════════════════════════════ */
+let allOperators = [];
+
+async function loadOperators() {
+  try {
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'list-operators', password:pwd }) });
+    const data = await r.json();
+    if (r.ok) {
+      allOperators = data.operators || [];
+      const badge = document.getElementById('opsBadge');
+      if (allOperators.length) { badge.textContent = allOperators.length; badge.style.display='inline-flex'; }
+      else badge.style.display='none';
+      renderOperators();
+    }
+  } catch(e) {}
+}
+
+function renderOperators() {
+  const el = document.getElementById('operatorsList');
+  if (!allOperators.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No operators yet. Add one above.</div>'; return; }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:2px solid var(--border)">
+      <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Name</th>
+      <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Plan</th>
+      <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">API Key</th>
+      <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Added</th>
+      <th style="padding:8px 10px"></th>
+    </tr></thead>
+    <tbody>${allOperators.map(op => `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px;font-weight:600;font-size:13px">${esc(op.name)}</td>
+      <td style="padding:10px"><span style="background:${op.plan==='own-sheets'?'#EDE9FE':'#E0F2FE'};color:${op.plan==='own-sheets'?'#5B21B6':'#0369A1'};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">${op.plan==='own-sheets'?'Plan A — Own Sheets':'Plan B — Generate'}</span></td>
+      <td style="padding:10px"><code style="font-size:11px;color:var(--muted);font-family:monospace;word-break:break-all">${esc((op.apiKey||'').slice(0,12))}…</code>
+        <button class="btn btn-ghost btn-xs" style="margin-left:6px" onclick="navigator.clipboard.writeText('${esc(op.apiKey||'')}').then(()=>toast('API key copied'))">Copy</button>
+      </td>
+      <td style="padding:10px;font-size:11px;color:var(--muted)">${new Date(op.createdAt).toLocaleDateString()}</td>
+      <td style="padding:10px"><button class="btn btn-red btn-xs" onclick="deleteOperator('${esc(op.id)}','${esc(op.name)}')" style="display:inline-flex;align-items:center;gap:3px">${ico('trash')}</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function createOperator() {
+  const name = document.getElementById('opName').value.trim();
+  const phone = document.getElementById('opPhone').value.trim();
+  const email = document.getElementById('opEmail').value.trim();
+  const plan = document.getElementById('opPlan').value;
+  const msgEl = document.getElementById('opCreateMsg');
+  const keyBox = document.getElementById('opKeyBox');
+  if (!name) { msgEl.innerHTML = '<span style="color:var(--danger)">Operator name required</span>'; return; }
+  msgEl.textContent = 'Creating…';
+  try {
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'create-operator', password:pwd, name, phone, email, plan }) });
+    const data = await r.json();
+    if (!r.ok) { msgEl.innerHTML = `<span style="color:var(--danger)">${esc(data.error)}</span>`; return; }
+    msgEl.innerHTML = `<span style="color:var(--ok)">Operator created!</span>`;
+    document.getElementById('opKeyVal').textContent = data.operator.apiKey;
+    keyBox.style.display = 'block';
+    document.getElementById('opName').value = '';
+    document.getElementById('opPhone').value = '';
+    document.getElementById('opEmail').value = '';
+    loadOperators();
+  } catch(e) { msgEl.innerHTML = '<span style="color:var(--danger)">Network error</span>'; }
+}
+
+function copyApiKey() {
+  const key = document.getElementById('opKeyVal').textContent;
+  navigator.clipboard.writeText(key).then(() => toast('API key copied'));
+}
+
+async function deleteOperator(id, name) {
+  if (!confirm(`Remove operator "${name}"? Their games will remain but they won't be able to create new ones.`)) return;
+  const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'delete-operator', password:pwd, operatorId:id }) });
+  if (r.ok) { toast(`${name} removed`); loadOperators(); }
+  else { const d = await r.json(); toast(d.error || 'Error'); }
+}
 </script>
 </body>
 </html>
