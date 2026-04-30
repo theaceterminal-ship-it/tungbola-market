@@ -56,21 +56,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .game-card{
   position:relative;border-radius:24px;overflow:hidden;
   cursor:pointer;margin-bottom:18px;
-  box-shadow:0 6px 24px rgba(103,80,164,.22);
-  transform:translateY(0);transition:transform .15s,box-shadow .15s;
-  -webkit-user-select:none;user-select:none
+  box-shadow:0 8px 28px rgba(103,80,164,.3),0 0 0 1px rgba(103,80,164,.08);
+  transform:translateY(0);transition:transform .18s,box-shadow .18s;
+  -webkit-user-select:none;user-select:none;
+  background:#1a0533
 }
-.game-card:active{transform:scale(.98);box-shadow:var(--shadow-md)}
+.game-card:active{transform:scale(.975);box-shadow:0 4px 14px rgba(103,80,164,.2)}
 .game-card-thumb{
-  width:100%;height:200px;object-fit:cover;display:block;
-  background:linear-gradient(135deg,#4527A0,#7B1FA2)
+  width:100%;height:220px;object-fit:cover;display:block;opacity:.92;
+  transition:opacity .2s
 }
+.game-card:active .game-card-thumb{opacity:.8}
 .game-card-thumb-placeholder{
-  height:200px;background:linear-gradient(135deg,#4527A0 0%,#6750A4 50%,#7B1FA2 100%)
+  height:220px;
+  background:linear-gradient(135deg,#2D0A6E 0%,#4527A0 40%,#7B1FA2 80%,#9C27B0 100%)
 }
 .game-card-overlay{
-  position:absolute;top:0;left:0;right:0;height:200px;
-  background:linear-gradient(to bottom,rgba(0,0,0,.08) 0%,rgba(0,0,0,.55) 60%,rgba(0,0,0,.85) 100%)
+  position:absolute;top:0;left:0;right:0;height:220px;
+  background:linear-gradient(to bottom,rgba(10,2,30,.1) 0%,rgba(10,2,30,.45) 45%,rgba(10,2,30,.92) 100%)
 }
 .game-card-top-badges{
   position:absolute;top:12px;left:12px;right:12px;
@@ -99,13 +102,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 /* full house highlight on card */
 .card-fullhouse{
-  background:linear-gradient(90deg,#F59E0B,#EF4444);
-  border-radius:12px;padding:8px 12px;margin-bottom:10px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px
+  background:linear-gradient(90deg,rgba(180,83,9,.9),rgba(220,38,38,.85));
+  border-radius:14px;padding:9px 13px;margin-bottom:8px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border:1px solid rgba(253,230,138,.3);
+  backdrop-filter:blur(4px)
 }
-.card-fullhouse-label{font-size:10px;font-weight:800;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.8px}
-.card-fullhouse-val{font-size:18px;font-weight:900;color:#fff}
-.card-more-prizes{font-size:11px;color:rgba(255,255,255,.65);margin-bottom:10px}
+.card-fullhouse-label{font-size:10px;font-weight:800;color:rgba(253,230,138,.9);text-transform:uppercase;letter-spacing:.9px}
+.card-fullhouse-val{font-size:19px;font-weight:900;color:#FDE68A;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.card-more-prizes{
+  font-size:11px;color:rgba(255,255,255,.6);margin-bottom:8px;
+  display:flex;flex-wrap:wrap;gap:5px
+}
+.card-other-prize-chip{
+  background:rgba(255,255,255,.12);border-radius:20px;padding:3px 9px;
+  font-size:11px;font-weight:600;color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.15)
+}
 
 .game-card-bottom{
   background:rgba(0,0,0,.35);backdrop-filter:blur(4px);
@@ -141,81 +153,70 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .loading-txt{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
 
 /* ── BUY SCREEN ── */
-#screenBuy{padding:0;padding-bottom:120px}
+#screenBuy{padding:0;padding-bottom:100px}
 
 .buy-hero{
-  position:relative;height:280px;overflow:hidden;flex-shrink:0
+  position:relative;overflow:hidden;flex-shrink:0;
+  min-height:360px
 }
 .buy-hero-bg{
   position:absolute;inset:-20px;
-  background:linear-gradient(135deg,#4527A0,#7B1FA2);
-  filter:blur(0)
+  background:linear-gradient(135deg,#2D0A6E,#7B1FA2)
 }
 .buy-hero-bg img{
   width:calc(100% + 40px);height:calc(100% + 40px);
-  object-fit:cover;display:block;filter:blur(2px);
-  transform:scale(1.05)
+  object-fit:cover;display:block;filter:blur(3px);
+  transform:scale(1.06)
 }
 .buy-hero-overlay{
   position:absolute;inset:0;
-  background:linear-gradient(to bottom,rgba(0,0,0,.25) 0%,rgba(0,0,0,.7) 100%)
+  background:linear-gradient(to bottom,rgba(10,2,30,.2) 0%,rgba(10,2,30,.65) 55%,rgba(10,2,30,.97) 100%)
 }
 .buy-hero-content{
-  position:absolute;inset:0;padding:16px;
-  display:flex;flex-direction:column;justify-content:space-between
+  position:relative;z-index:1;padding:16px;
+  display:flex;flex-direction:column;gap:0
 }
 .buy-back-btn{
-  background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.3);color:#fff;
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.28);color:#fff;
   padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-  font-family:inherit;display:inline-flex;align-items:center;gap:5px;align-self:flex-start
+  font-family:inherit;display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
+  margin-bottom:16px
 }
-.buy-hero-bottom{}
 .buy-hero-countdown{
   display:inline-flex;align-items:center;gap:6px;
   background:rgba(0,0,0,.45);backdrop-filter:blur(6px);
   border-radius:20px;padding:5px 12px;margin-bottom:8px;
-  font-size:12px;font-weight:700;color:#fff
+  font-size:12px;font-weight:700;color:#fff;align-self:flex-start
 }
-.buy-hero-name{font-size:24px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px}
-.buy-hero-date{font-size:13px;color:rgba(255,255,255,.8)}
+.buy-hero-name{font-size:26px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px}
+.buy-hero-date{font-size:13px;color:rgba(255,255,255,.75);margin-bottom:14px}
 
-.buy-body{padding:16px;max-width:520px;margin:0 auto}
+/* Hero prize strip */
+.hero-prize-strip{margin-bottom:4px}
+.hero-fh-block{
+  background:linear-gradient(90deg,rgba(146,64,14,.9),rgba(185,28,28,.85));
+  border-radius:16px;padding:12px 14px;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border:1px solid rgba(253,230,138,.35)
+}
+.hero-fh-left{}
+.hero-fh-eyebrow{font-size:10px;font-weight:800;color:rgba(253,230,138,.85);text-transform:uppercase;letter-spacing:.9px;margin-bottom:2px}
+.hero-fh-name{font-size:15px;font-weight:800;color:#fff}
+.hero-fh-val{font-size:24px;font-weight:900;color:#FDE68A;text-shadow:0 1px 6px rgba(0,0,0,.4)}
+.hero-fh-crown{font-size:26px;flex-shrink:0}
 
-/* Prizes section */
-.prizes-card{
-  background:var(--surface);border-radius:20px;box-shadow:var(--shadow-md);
-  overflow:hidden;margin-bottom:14px
+.hero-other-prizes{
+  display:flex;flex-wrap:wrap;gap:6px;padding-bottom:16px
 }
-.prizes-card-header{
-  padding:14px 16px 10px;display:flex;align-items:center;gap:8px;
-  border-bottom:1px solid var(--border)
+.hero-other-chip{
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);
+  border-radius:20px;padding:5px 12px;
+  font-size:12px;font-weight:600;color:#fff;
+  display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px)
 }
-.prizes-card-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.hero-other-chip-val{font-weight:800;color:#C4B5FD}
 
-.fullhouse-row{
-  background:linear-gradient(90deg,#78350F,#B45309);
-  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px
-}
-.fullhouse-left{}
-.fullhouse-label{font-size:10px;font-weight:800;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
-.fullhouse-name{font-size:16px;font-weight:900;color:#fff}
-.fullhouse-val{font-size:22px;font-weight:900;color:#FDE68A}
-.fullhouse-crown{font-size:28px;flex-shrink:0}
-
-.other-prize-row{
-  display:flex;align-items:center;gap:10px;
-  padding:11px 16px;border-bottom:1px solid var(--border)
-}
-.other-prize-row:last-child{border-bottom:none}
-.prize-icon-wrap{
-  width:36px;height:36px;border-radius:10px;overflow:hidden;
-  background:var(--primary-light);display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;font-size:16px
-}
-.prize-icon-wrap img{width:100%;height:100%;object-fit:cover}
-.prize-details{flex:1;min-width:0}
-.prize-name-txt{font-size:14px;font-weight:600;color:var(--on-s);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.prize-val-txt{font-size:13px;font-weight:700;color:var(--primary)}
+.buy-body{padding:14px;max-width:520px;margin:0 auto}
 
 /* Sheet picker card */
 .pick-btn-row{margin-bottom:14px}
@@ -267,8 +268,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .sheet-chip.avail{background:#F4F0FB;color:var(--primary);border-color:var(--border)}
 .sheet-chip.avail:active{background:var(--primary-light);border-color:var(--primary)}
 .sheet-chip.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
-.sheet-chip.sold-chip{background:#FFEBEE;color:var(--error);border-color:#FFCDD2;cursor:not-allowed;opacity:.6}
+.sheet-chip.sold-chip{background:#450a0a;color:#fca5a5;border-color:#7f1d1d;cursor:not-allowed}
 .sheet-chip.hidden{display:none}
+
+.quick-select-row{
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+  background:var(--primary-light);border-radius:12px;padding:10px 12px
+}
+.quick-select-label{font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap}
+.quick-select-input{
+  flex:1;min-width:0;padding:8px 10px;border:2px solid var(--primary);border-radius:10px;
+  font-size:14px;font-weight:700;font-family:inherit;outline:none;
+  color:var(--primary);text-align:center;background:#fff
+}
+.quick-select-btn{
+  background:var(--primary);color:#fff;border:none;border-radius:10px;
+  padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+  white-space:nowrap;flex-shrink:0
+}
 
 .picker-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:6px}
 .picker-count-txt{font-size:13px;font-weight:700;color:var(--primary)}
@@ -401,8 +418,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 @media(max-width:360px){
   .game-card-name{font-size:17px}
-  .buy-hero{height:240px}
-  .buy-hero-name{font-size:20px}
+  .buy-hero{min-height:320px}
+  .buy-hero-name{font-size:21px}
 }
 </style>
 </head>
@@ -427,34 +444,25 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   <!-- BUY -->
   <div class="screen" id="screenBuy">
 
-    <!-- Hero banner -->
+    <!-- Hero banner (contains prizes overlay) -->
     <div class="buy-hero" id="buyHero">
       <div class="buy-hero-bg" id="buyHeroBg"></div>
       <div class="buy-hero-overlay"></div>
       <div class="buy-hero-content">
         <button class="buy-back-btn" onclick="goHome()">← Back</button>
-        <div class="buy-hero-bottom">
-          <div class="buy-hero-countdown" id="buyHeroCountdown" style="display:none">
-            <span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite;display:inline-block"></span>
-            <span id="buyCountdownTxt"></span>
-          </div>
-          <div class="buy-hero-name" id="buyHeroName"></div>
-          <div class="buy-hero-date" id="buyHeroDate"></div>
+        <div class="buy-hero-countdown" id="buyHeroCountdown" style="display:none">
+          <span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite;display:inline-block"></span>
+          <span id="buyCountdownTxt"></span>
         </div>
+        <div class="buy-hero-name" id="buyHeroName"></div>
+        <div class="buy-hero-date" id="buyHeroDate"></div>
+        <!-- Prizes overlaid in hero -->
+        <div class="hero-prize-strip" id="heroPrizeStrip"></div>
       </div>
     </div>
 
     <!-- Body -->
     <div class="buy-body">
-
-      <!-- Prizes -->
-      <div class="prizes-card" id="buyPrizesCard" style="display:none">
-        <div class="prizes-card-header">
-          <span style="font-size:18px">🏆</span>
-          <span class="prizes-card-title">Prizes</span>
-        </div>
-        <div id="buyPrizesList"></div>
-      </div>
 
       <!-- Pick sheets button -->
       <div class="pick-btn-row">
@@ -468,6 +476,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
         <div class="picker-header">
           <span class="picker-title-txt">Choose Your Numbers</span>
           <span class="picker-avail-count" id="pickerAvailCount"></span>
+        </div>
+        <div class="quick-select-row">
+          <span class="quick-select-label">Quick:</span>
+          <input class="quick-select-input" id="quickSelectInput" type="number" inputmode="numeric"
+            min="1" placeholder="How many?" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          <button class="quick-select-btn" onclick="quickSelectSheets()">Auto-Select →</button>
         </div>
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
@@ -647,16 +661,17 @@ function buildGameCard(g) {
   const fh = prizes.find(p => /full.?house/i.test(p.name)) || prizes[0];
   const others = prizes.filter(p => p !== fh);
 
+  const fhVal = fh ? (fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || fh.name)) : '';
   const fhHtml = fh ? `<div class="card-fullhouse">
     <div>
-      <div class="card-fullhouse-label">⭐ Full House</div>
-      <div class="card-fullhouse-val">${fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || fh.name)}</div>
+      <div class="card-fullhouse-label">👑 Full House</div>
+      <div class="card-fullhouse-val">${fhVal}</div>
     </div>
-    <span style="font-size:24px">👑</span>
+    <span style="font-size:22px">🏆</span>
   </div>` : '';
 
   const othersHtml = others.length
-    ? `<div class="card-more-prizes">+ ${others.map(p => esc(p.name)).join(' · ')}</div>`
+    ? `<div class="card-more-prizes">${others.map(p => `<span class="card-other-prize-chip">${esc(p.name)}</span>`).join('')}</div>`
     : '';
 
   const msLeft = getGameMs(g);
@@ -744,11 +759,12 @@ function selectGame(id) {
     cdEl.style.display = 'none';
   }
 
-  // Prizes
+  // Prizes (rendered inside hero)
   buildBuyPrizes(currentGame.prizes || []);
 
   // Reset picker
   document.getElementById('pickerCard').className = 'picker-card';
+  document.getElementById('quickSelectInput').value = '';
   document.getElementById('pickerLoading').style.display = 'block';
   document.getElementById('sheetGrid').style.display = 'none';
   document.getElementById('pickerFooter').style.display = 'none';
@@ -769,39 +785,30 @@ function selectGame(id) {
 }
 
 function buildBuyPrizes(prizes) {
-  const card = document.getElementById('buyPrizesCard');
-  const list = document.getElementById('buyPrizesList');
-  if (!prizes.length) { card.style.display = 'none'; return; }
-  card.style.display = '';
+  const strip = document.getElementById('heroPrizeStrip');
+  if (!prizes.length) { strip.innerHTML = ''; return; }
 
   const fh = prizes.find(p => /full.?house/i.test(p.name)) || prizes[0];
   const others = prizes.filter(p => p !== fh);
-
   const fhVal = fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || '');
 
-  let html = `<div class="fullhouse-row">
-    <div class="fullhouse-left">
-      <div class="fullhouse-label">🏆 Full House</div>
-      <div class="fullhouse-name">${esc(fh.name)}</div>
+  let html = `<div class="hero-fh-block">
+    <div class="hero-fh-left">
+      <div class="hero-fh-eyebrow">👑 Full House Prize</div>
+      <div class="hero-fh-name">${esc(fh.name)}</div>
     </div>
-    <div class="fullhouse-val">${fhVal}</div>
-    <div class="fullhouse-crown">👑</div>
+    <div class="hero-fh-val">${fhVal}</div>
+    <div class="hero-fh-crown">🏆</div>
   </div>`;
 
-  others.forEach(p => {
-    const val = p.kind === 'cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '');
-    html += `<div class="other-prize-row">
-      <div class="prize-icon-wrap">
-        ${p.imageUrl ? `<img src="${esc(p.imageUrl)}" alt="">` : '🎁'}
-      </div>
-      <div class="prize-details">
-        <div class="prize-name-txt">${esc(p.name)}</div>
-        <div class="prize-val-txt">${val}</div>
-      </div>
-    </div>`;
-  });
+  if (others.length) {
+    html += `<div class="hero-other-prizes">` + others.map(p => {
+      const val = p.kind === 'cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '');
+      return `<div class="hero-other-chip">${esc(p.name)}<span class="hero-other-chip-val">${val}</span></div>`;
+    }).join('') + `</div>`;
+  }
 
-  list.innerHTML = html;
+  strip.innerHTML = html;
 }
 
 /* ── Sheet picker ── */
@@ -897,6 +904,41 @@ function clearPicker() {
   buyQty = 1;
   updatePickerCount();
   updateQtyDisplay();
+}
+
+function quickSelectSheets() {
+  const n = parseInt(document.getElementById('quickSelectInput').value) || 0;
+  if (n <= 0) { toast('Enter how many sheets you want'); return; }
+
+  // Collect all available (not sold, not already picked) chip elements
+  const availNums = [];
+  document.querySelectorAll('#sheetGrid .sheet-chip').forEach(el => {
+    if (!el.classList.contains('sold-chip')) availNums.push(parseInt(el.dataset.n));
+  });
+
+  // Shuffle and pick n
+  for (let i = availNums.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availNums[i], availNums[j]] = [availNums[j], availNums[i]];
+  }
+
+  // Clear current selection first
+  selectedSheetNums.clear();
+  document.querySelectorAll('.sheet-chip.picked').forEach(el => el.className = 'sheet-chip avail');
+
+  const toSelect = availNums.slice(0, Math.min(n, availNums.length));
+  if (toSelect.length < n) toast(`Only ${availNums.length} available — selected all`);
+
+  toSelect.forEach(num => {
+    selectedSheetNums.add(num);
+    const chip = document.getElementById(`chip-${num}`);
+    if (chip) chip.className = 'sheet-chip picked';
+  });
+
+  buyQty = Math.max(1, selectedSheetNums.size);
+  updatePickerCount();
+  updateQtyDisplay();
+  document.getElementById('quickSelectInput').value = '';
 }
 
 function updatePickerCount() {
