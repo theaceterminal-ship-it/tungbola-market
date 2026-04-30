@@ -1164,7 +1164,7 @@ async function uploadGcfThumb(input) {
 function collectPrizes() {
   return PRIZES.filter(p => ps[p.key].enabled).map(p => {
     const s = ps[p.key];
-    const prize = { name: p.label.replace(/^\S+\s/,''), kind:s.kind };
+    const prize = { name: p.label, kind:s.kind };
     if (s.kind==='cash') prize.amount = parseInt(s.amount)||0;
     else { prize.description = s.description; if (s.imageUrl) prize.imageUrl = s.imageUrl; }
     return prize;

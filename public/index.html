@@ -1014,15 +1014,16 @@ function buildBuyPrizes(prizes) {
   if (!prizes.length) { strip.innerHTML = ''; return; }
 
   const PRIORITY = [
-    [/^full.?house$/i, 1],
-    [/second.?full.?house/i, 2],
-    [/third.?full.?house/i, 3],
-    [/top.?line/i, 4],
-    [/bottom.?line/i, 5],
-    [/middle.?line/i, 6],
-    [/ticket.?corner/i, 7],
-    [/sheet.?corner/i, 8],
-    [/early.?seven/i, 9],
+    [/^full house$/i, 1],
+    [/^second full house$/i, 2],
+    [/^third full house$/i, 3],
+    [/^upper line$/i, 4],
+    [/^middle line$/i, 5],
+    [/^bottom line$/i, 6],
+    [/^ticket corners$/i, 7],
+    [/^sheet corner$/i, 8],
+    [/^early [567]$/i, 9],
+    [/^jackpot$/i, 10],
   ];
   function getPriority(name) {
     for (const [re, rank] of PRIORITY) if (re.test(name)) return rank;
@@ -1033,9 +1034,9 @@ function buildBuyPrizes(prizes) {
   }
 
   const sorted = [...prizes].sort((a, b) => getPriority(a.name) - getPriority(b.name));
-  const fullHouses = sorted.filter(p => /full.?house/i.test(p.name));
-  const lines = sorted.filter(p => /top.?line|bottom.?line|middle.?line/i.test(p.name));
-  const others = sorted.filter(p => !/full.?house|top.?line|bottom.?line|middle.?line/i.test(p.name));
+  const fullHouses = sorted.filter(p => /full house/i.test(p.name));
+  const lines = sorted.filter(p => /^(upper|middle|bottom) line$/i.test(p.name));
+  const others = sorted.filter(p => !/full house|(upper|middle|bottom) line/i.test(p.name));
 
   const trophySvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v5a5 5 0 01-10 0V2zM4 4H2v2a4 4 0 004 4V4H4zM20 4h-2v6a4 4 0 004-4V4h-2zM11 13v2.5H8V18h8v-2.5h-3V13a7 7 0 003.46-1.27A7 7 0 0111 13z"/></svg>`;
   const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
