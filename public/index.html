@@ -607,7 +607,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
           <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50" autocomplete="name">
         </div>
         <div class="field-wrap">
-          <div class="field-lbl">Phone (optional)</div>
+          <div class="field-lbl">Phone Number</div>
           <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
         </div>
       </div>
@@ -1273,6 +1273,7 @@ async function submitPurchase() {
   const phone = document.getElementById('buyPhone').value.trim();
   const btn = document.getElementById('modalPaidBtn');
   if (!name) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your name'; document.getElementById('buyErr').style.display = 'block'; return; }
+  if (!phone) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your phone number'; document.getElementById('buyErr').style.display = 'block'; return; }
   btn.disabled = true;
   btn.textContent = 'Submitting…';
   try {
