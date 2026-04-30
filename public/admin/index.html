@@ -4,191 +4,370 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Marketplace Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
-  --primary:#6750A4;--primary-light:#EADDFF;--bg:#F4F0FB;--surface:#fff;
-  --border:#E7E0EC;--muted:#49454F;--error:#B3261E;--success:#2E7D32;--warn:#F57F17;
+  --primary:#6750A4;--pl:#EADDFF;--bg:#F0EBF8;--surface:#fff;
+  --border:#E7E0EC;--muted:#6B6570;--err:#B3261E;--ok:#2E7D32;--warn:#E65100;
+  --listed:#1B5E20;--listed-bg:#E8F5E9;--draft:#4A148C;--draft-bg:#F3E5F5;
+  --ended:#B71C1C;--ended-bg:#FFEBEE;
+  --shadow:0 1px 4px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.12);
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:#1C1B1F;min-height:100vh}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:#1C1B1F;font-size:13px}
 
-header{
-  background:linear-gradient(135deg,#4527A0,var(--primary));color:#fff;
-  padding:0 20px;display:flex;align-items:center;justify-content:space-between;
-  height:56px;box-shadow:0 2px 8px rgba(0,0,0,.2);position:sticky;top:0;z-index:100
+/* ── HEADER ── */
+.adm-header{
+  height:52px;background:linear-gradient(135deg,#2D0A6E,#6750A4,#7B1FA2);
+  display:flex;align-items:center;padding:0 16px;gap:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.25);position:relative;z-index:50
 }
-header h1{font-size:16px;font-weight:700;letter-spacing:.2px}
-.logout-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;
-  padding:6px 14px;border-radius:16px;font-size:13px;cursor:pointer;font-family:inherit}
+.adm-logo{font-size:15px;font-weight:900;color:#fff;letter-spacing:-.3px}
+.adm-subtitle{font-size:11px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.12);
+  padding:2px 8px;border-radius:10px}
+.adm-spacer{flex:1}
+.adm-logout{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);color:#fff;
+  padding:6px 13px;border-radius:14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 
-.tab-nav{background:var(--surface);border-bottom:2px solid var(--border);
-  display:flex;overflow-x:auto;position:sticky;top:56px;z-index:99;scrollbar-width:none}
+/* ── TAB NAV ── */
+.tab-nav{
+  background:var(--surface);border-bottom:2px solid var(--border);
+  display:flex;height:44px;position:relative;z-index:40;overflow-x:auto;scrollbar-width:none
+}
 .tab-nav::-webkit-scrollbar{display:none}
-.tab-btn{flex-shrink:0;padding:14px 20px;border:none;background:none;
-  font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
-  border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;white-space:nowrap}
+.tab-btn{
+  flex-shrink:0;padding:0 18px;border:none;background:none;
+  font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;
+  border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;transition:color .15s,border-color .15s
+}
 .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
-.tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
-  border-radius:9px;font-size:10px;font-weight:700;background:var(--error);color:#fff;margin-left:5px;padding:0 4px}
+.tab-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:17px;height:17px;border-radius:9px;font-size:10px;font-weight:800;
+  background:var(--err);color:#fff;padding:0 4px
+}
 
-#gate{max-width:360px;margin:80px auto;background:var(--surface);border-radius:20px;
-  padding:32px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center}
-#gate h2{font-size:20px;font-weight:700;margin-bottom:8px;color:var(--primary)}
-#gate p{font-size:13px;color:var(--muted);margin-bottom:24px}
-.gate-input{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
-  font-size:15px;font-family:inherit;outline:none;margin-bottom:12px}
+/* ── LAYOUT: fixed height tabs ── */
+#gate{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:200
+}
+.gate-box{background:var(--surface);border-radius:24px;padding:36px 32px;
+  width:340px;box-shadow:var(--shadow-md);text-align:center}
+.gate-logo{font-size:40px;margin-bottom:12px}
+.gate-title{font-size:20px;font-weight:900;color:var(--primary);margin-bottom:6px}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.gate-input{width:100%;padding:13px 14px;border:2px solid var(--border);border-radius:12px;
+  font-size:15px;font-family:inherit;outline:none;margin-bottom:12px;text-align:center;letter-spacing:2px}
 .gate-input:focus{border-color:var(--primary)}
 .gate-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;
   border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.gate-err{font-size:13px;color:var(--err);margin-top:10px}
 
-#main{display:none}
-.tab-content{max-width:960px;margin:0 auto;padding:20px;display:none}
-.tab-content.active{display:block}
+#main{display:none;height:100%;flex-direction:column}
+#main.show{display:flex}
+.tab-content{
+  flex:1;overflow:hidden;display:none;
+  height:calc(100vh - 52px - 44px)
+}
+.tab-content.active{display:flex;flex-direction:column}
 
-.card{background:var(--surface);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 6px rgba(0,0,0,.07)}
-.card-title{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;
-  padding-bottom:12px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
-.card-title-meta{font-size:11px;font-weight:400;color:var(--muted);margin-left:auto}
-
-.form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px}
-.form-group label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-input[type=text],input[type=number],input[type=password],input[type=datetime-local],textarea,select{
-  padding:10px 12px;border:2px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;width:100%;background:#fff}
-input:focus,textarea:focus,select:focus{border-color:var(--primary)}
-textarea{resize:vertical;min-height:60px}
-
-.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;
-  cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s}
-.btn:disabled{opacity:.5;cursor:not-allowed}
+/* ── SHARED COMPONENTS ── */
+.btn{padding:8px 16px;border:none;border-radius:10px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s,transform .1s;display:inline-flex;align-items:center;gap:5px}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-green{background:#2E7D32;color:#fff}
-.btn-red{background:var(--error);color:#fff}
+.btn-red{background:var(--err);color:#fff}
+.btn-warn{background:var(--warn);color:#fff}
 .btn-ghost{background:var(--border);color:#1C1B1F}
-.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+.btn-sm{padding:5px 11px;font-size:11px;border-radius:8px}
+.btn-xs{padding:3px 8px;font-size:10px;border-radius:6px}
+.btn-icon{width:32px;height:32px;padding:0;border-radius:8px;justify-content:center;font-size:14px}
 
-.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-top:12px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);background:var(--bg)}
-td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-.tbl-chk{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
-.empty-row td{text-align:center;color:var(--muted);padding:32px;font-size:13px}
+input[type=text],input[type=number],input[type=password],input[type=datetime-local],input[type=tel],textarea,select{
+  padding:9px 11px;border:2px solid var(--border);border-radius:10px;
+  font-size:13px;font-family:inherit;outline:none;width:100%;background:#fff;
+  transition:border-color .15s;color:#1C1B1F
+}
+input:focus,textarea:focus,select:focus{border-color:var(--primary)}
+textarea{resize:vertical;min-height:56px}
+label.lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
 
-.chip{display:inline-block;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700}
-.chip-draft{background:#F3E5F5;color:#6A1B9A}
-.chip-listed{background:#E8F5E9;color:var(--success)}
-.chip-ended{background:#FFEBEE;color:var(--error)}
-.chip-pending{background:#FFF8E1;color:var(--warn)}
-.chip-approved{background:#E8F5E9;color:var(--success)}
+.chip-status{display:inline-block;padding:2px 9px;border-radius:8px;font-size:11px;font-weight:700}
+.chip-draft{background:var(--draft-bg);color:var(--draft)}
+.chip-listed{background:var(--listed-bg);color:var(--listed)}
+.chip-ended{background:var(--ended-bg);color:var(--ended)}
+.chip-pending{background:#FFF3E0;color:var(--warn)}
+.chip-approved{background:var(--listed-bg);color:var(--ok)}
 
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-.stat-card{background:var(--surface);border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
-.stat-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
-.stat-value{font-size:26px;font-weight:700;color:var(--primary);line-height:1}
-.stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.dot-live{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
 
-.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:4px}
-.game-card{background:var(--surface);border-radius:16px;overflow:hidden;
-  box-shadow:0 2px 8px rgba(0,0,0,.08);border:2px solid var(--border);display:flex;flex-direction:column}
-.game-thumb-wrap{height:110px;overflow:hidden;position:relative;
-  background:linear-gradient(135deg,#4527A0,var(--primary));
-  display:flex;align-items:center;justify-content:center}
-.game-thumb-wrap img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
-.game-thumb-icon{font-size:32px;opacity:.5;z-index:0}
-.game-card-body{padding:14px;flex:1;display:flex;flex-direction:column;gap:8px}
-.game-card-name{font-size:15px;font-weight:700;line-height:1.2}
-.game-card-meta{font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
-.game-stats-row{display:flex;gap:14px}
-.game-stat{text-align:center}
-.game-stat-val{font-size:16px;font-weight:700;color:var(--primary)}
-.game-stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase}
-.game-card-actions{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.assign-inline{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px;padding-top:8px;border-top:1px dashed var(--border)}
-.assign-inline input{width:72px;padding:6px 8px;font-size:12px}
-.assign-inline label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase}
-.assign-pair{display:flex;flex-direction:column;gap:3px}
+.field-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.field-row .fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px}
+.field-row .fg.narrow{min-width:80px;flex:0 0 90px}
+.field-row .fg.wide{flex:2}
 
-.thumb-upload-area{border:2px dashed var(--border);border-radius:10px;height:90px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;
-  overflow:hidden;background:var(--bg);transition:border-color .15s;flex-direction:column;gap:4px}
-.thumb-upload-area:hover{border-color:var(--primary)}
-.thumb-upload-area img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
-.thumb-upload-hint{font-size:11px;color:var(--muted);text-align:center;padding:4px 8px;z-index:1;pointer-events:none}
+.msg{padding:9px 12px;border-radius:8px;font-size:12px;font-weight:500;margin-top:8px}
+.msg-ok{background:#E8F5E9;color:var(--ok)}
+.msg-err{background:#FFEBEE;color:var(--err)}
 
-.bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;
-  background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-top:12px}
-.bulk-info{font-size:12px;color:var(--muted);flex:1;white-space:nowrap}
-.zip-badge{font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 7px;border-radius:6px;font-weight:700}
+/* ── SHEETS TAB ── */
+.sheets-toolbar{
+  padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0
+}
+.sheet-search-wrap{position:relative;flex:1;min-width:180px;max-width:300px}
+.sheet-search-wrap input{padding-left:32px}
+.sheet-search-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.5}
+.sheets-upload-row{
+  padding:8px 14px;background:#F8F4FF;border-bottom:1px solid var(--border);
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;
+  font-size:12px;color:var(--muted)
+}
+.sheets-bulk-bar{
+  padding:7px 14px;background:var(--pl);border-bottom:1px solid #C9B8F0;
+  display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;
+  font-size:12px;color:var(--primary);font-weight:600
+}
+.sheets-bulk-bar.hidden{display:none}
+.sheet-grid-area{
+  flex:1;overflow-y:auto;padding:12px 14px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:5px;
+  align-content:start
+}
+.sh-chip{
+  height:42px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;cursor:pointer;
+  border:2px solid var(--border);background:var(--surface);color:#444;
+  transition:background .1s,border-color .1s;user-select:none;position:relative
+}
+.sh-chip:hover{border-color:var(--primary);color:var(--primary)}
+.sh-chip.selected{background:var(--primary);color:#fff;border-color:var(--primary)}
+.sh-chip.assigned{background:#E3F2FD;color:#1565C0;border-color:#90CAF9}
+.sh-chip.sold{background:#FFEBEE;color:var(--err);border-color:#FFCDD2}
+.sh-chip.hidden-chip{display:none}
+.sh-empty{grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:13px}
 
-.msg{font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px}
-.msg-ok{background:#E8F5E9;color:var(--success)}
-.msg-err{background:#FFEBEE;color:var(--error)}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;margin-right:4px;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* ── GAMES TAB ── */
+.games-layout{display:flex;height:100%;overflow:hidden}
+.games-sidebar{
+  width:260px;flex-shrink:0;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;background:var(--surface)
+}
+.games-sidebar-header{
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex-shrink:0
+}
+.games-sidebar-title{font-size:12px;font-weight:700;color:var(--muted);flex:1}
+.games-list{flex:1;overflow-y:auto;padding:8px}
+.game-list-item{
+  border-radius:12px;padding:10px 11px;margin-bottom:6px;cursor:pointer;
+  border:2px solid var(--border);background:#fff;
+  transition:border-color .15s,background .15s;position:relative
+}
+.game-list-item:hover{border-color:var(--primary);background:#FAFAFE}
+.game-list-item.active{border-color:var(--primary);background:var(--pl)}
+.gli-thumb{
+  width:100%;height:64px;border-radius:8px;overflow:hidden;margin-bottom:8px;
+  background:linear-gradient(135deg,#4527A0,#7B1FA2);
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  position:relative
+}
+.gli-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gli-name{font-size:13px;font-weight:700;line-height:1.2;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gli-meta{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.gli-stats{display:flex;gap:8px;font-size:10px;color:var(--muted);font-weight:600}
+.gli-stat-sold{color:var(--err)}
+.gli-stat-left{color:var(--ok)}
 
-.rev-cards{display:flex;flex-direction:column;gap:10px}
-.rev-card{display:flex;gap:14px;align-items:center;padding:12px;background:var(--bg);border-radius:12px}
-.rev-thumb{width:54px;height:54px;border-radius:10px;flex-shrink:0;overflow:hidden;
-  background:linear-gradient(135deg,#4527A0,var(--primary));
-  display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:18px}
+.games-detail{flex:1;overflow-y:auto;background:var(--bg)}
+.games-detail-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;color:var(--muted);text-align:center;padding:32px
+}
+.games-detail-empty-ico{font-size:48px;margin-bottom:12px;opacity:.4}
+
+/* Game detail panel */
+.gd-hero{
+  height:160px;position:relative;overflow:hidden;flex-shrink:0;
+  background:linear-gradient(135deg,#2D0A6E,#6750A4)
+}
+.gd-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.7)}
+.gd-hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent,rgba(0,0,0,.7))}
+.gd-hero-content{position:absolute;bottom:0;left:0;right:0;padding:14px 16px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.gd-name{font-size:20px;font-weight:900;color:#fff;line-height:1.2}
+.gd-hero-actions{display:flex;gap:6px;flex-shrink:0}
+
+.gd-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+
+.gd-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.gd-stat{background:var(--surface);border-radius:12px;padding:10px 12px;text-align:center;box-shadow:var(--shadow)}
+.gd-stat-val{font-size:20px;font-weight:900;color:var(--primary);line-height:1}
+.gd-stat-lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+.gd-section{background:var(--surface);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+.gd-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+
+.sold-nums-wrap{max-height:80px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.sold-num-chip{background:#FFEBEE;color:var(--err);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700}
+
+/* Game create/edit form */
+.gcf{padding:16px;overflow-y:auto;height:100%;background:var(--bg)}
+.gcf-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.gcf-title{font-size:16px;font-weight:800;color:var(--primary);flex:1}
+
+.prize-row-item{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;
+  border:2px solid var(--border);border-radius:10px;margin-bottom:6px;
+  background:#fff;cursor:pointer;transition:border-color .15s
+}
+.prize-row-item.active{border-color:var(--primary);background:var(--pl)}
+.prize-row-item.active .prize-expand{display:block}
+.prize-expand{display:none;padding:10px 0 4px;border-top:1px solid var(--border);margin-top:8px}
+.prize-label{font-size:13px;font-weight:600;flex:1}
+.prize-check{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
+.prize-kind-tabs{display:flex;gap:6px;margin-bottom:8px}
+.pkind-tab{padding:4px 12px;border-radius:8px;border:2px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;background:#fff}
+.pkind-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* Thumb upload */
+.thumb-area{
+  border:2px dashed var(--border);border-radius:10px;height:80px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  position:relative;overflow:hidden;background:var(--bg);transition:border-color .15s;gap:6px
+}
+.thumb-area:hover{border-color:var(--primary)}
+.thumb-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb-area span{font-size:11px;color:var(--muted);z-index:1}
+
+/* ── SALES TAB ── */
+.sales-layout{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.sales-filter-bar{
+  padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0
+}
+.sales-filter-bar select{width:auto;padding:7px 10px;font-size:12px}
+.sales-stats-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  padding:10px 14px;flex-shrink:0;background:var(--bg)
+}
+.ss-card{
+  background:var(--surface);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:10px
+}
+.ss-icon{font-size:22px;flex-shrink:0}
+.ss-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.ss-value{font-size:22px;font-weight:900;color:var(--primary);line-height:1.1}
+.ss-card.warn .ss-value{color:var(--warn)}
+.ss-card.green .ss-value{color:var(--ok)}
+
+.sales-body{flex:1;overflow:hidden;display:flex;gap:0}
+.sales-left-col{
+  width:340px;flex-shrink:0;border-right:1px solid var(--border);
+  overflow-y:auto;padding:12px 14px;background:var(--surface)
+}
+.sales-right-col{flex:1;overflow-y:auto;padding:12px 14px;background:var(--bg)}
+
+.rev-game-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--bg);border-radius:12px;margin-bottom:8px
+}
+.rev-thumb{width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;
+  background:linear-gradient(135deg,#4527A0,#7B1FA2);
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:rgba(255,255,255,.5)}
 .rev-thumb img{width:100%;height:100%;object-fit:cover}
 .rev-info{flex:1;min-width:0}
-.rev-name{font-size:13px;font-weight:700;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rev-stats{display:flex;gap:16px;flex-wrap:wrap}
-.rev-stat{display:flex;flex-direction:column}
-.rev-val{font-size:14px;font-weight:700;color:var(--primary)}
-.rev-lbl{font-size:10px;color:var(--muted);text-transform:uppercase}
+.rev-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.rev-chips{display:flex;gap:6px;flex-wrap:wrap}
+.rev-chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
+.rev-chip.green{background:var(--listed-bg);color:var(--ok)}
+.rev-chip.warn{background:#FFF3E0;color:var(--warn)}
+.rev-chip.blue{background:#E3F2FD;color:#1565C0}
 
-.prizes-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.prize-card{border:2px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .15s}
-.prize-card.active{border-color:var(--primary)}
-.prize-hdr{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;background:#fff;user-select:none}
-.prize-hdr input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
-.prize-hdr-label{font-size:14px;font-weight:600;flex:1}
-.prize-body{padding:12px 13px;background:#FAFAFA;border-top:1px solid var(--border);display:none}
-.prize-kind-row{display:flex;gap:16px;margin-bottom:10px}
-.prize-kind-row label{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
-.prize-kind-row input[type=radio]{accent-color:var(--primary)}
-.prize-cash input{padding:8px 10px;font-size:14px}
-.prize-thing{display:flex;flex-direction:column;gap:8px}
-.prize-thing input[type=text]{padding:8px 10px;font-size:13px}
-.prize-img-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.prize-img-btn{padding:7px 12px;font-size:12px;background:var(--border);border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600}
-.prize-img-preview{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none}
-.prize-uploading{font-size:11px;color:var(--muted)}
+.pending-order-item{
+  background:var(--surface);border-radius:12px;padding:10px 12px;margin-bottom:8px;
+  border-left:3px solid var(--warn);box-shadow:var(--shadow)
+}
+.poi-name{font-size:13px;font-weight:700;margin-bottom:2px}
+.poi-meta{font-size:11px;color:var(--muted);margin-bottom:6px}
+.poi-game{font-size:11px;font-weight:600;color:var(--primary);margin-bottom:6px}
 
+.purch-tbl-wrap{
+  background:var(--surface);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);
+  margin:10px 14px;flex-shrink:0
+}
+.purch-tbl-header{
+  padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  border-bottom:1px solid var(--border);background:var(--surface)
+}
+.purch-tbl-header select,.purch-tbl-header input{width:auto;padding:6px 10px;font-size:12px;flex:1;min-width:120px;max-width:200px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--border);background:var(--bg);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px}
+tr:last-child td{border-bottom:none}
+.empty-row td{text-align:center;color:var(--muted);padding:28px;font-size:13px}
+.sales-purchases{overflow-y:auto;flex-shrink:0;max-height:320px}
+
+/* ── SETTINGS TAB ── */
+.settings-layout{overflow-y:auto;padding:14px;height:100%;background:var(--bg)}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:900px;margin:0 auto}
+.set-card{background:var(--surface);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+.set-card-title{font-size:14px;font-weight:800;color:var(--primary);margin-bottom:14px;
+  padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px}
+.set-field{margin-bottom:12px}
+.set-field:last-child{margin-bottom:0}
+.qr-preview{border:2px solid var(--border);border-radius:12px;overflow:hidden;margin-top:8px;
+  display:flex;align-items:center;justify-content:center;height:110px;background:var(--bg)}
+.qr-preview img{max-height:100%;max-width:100%;object-fit:contain}
+
+@media(max-width:800px){
+  .games-sidebar{width:200px}
+  .sales-stats-row{grid-template-columns:repeat(2,1fr)}
+  .settings-grid{grid-template-columns:1fr}
+  .sales-left-col{width:260px}
+  .gd-stats-row{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:600px){
-  .tab-content{padding:12px}
-  .tab-btn{padding:12px 14px;font-size:12px}
-  .form-row{flex-direction:column}
-  .prizes-grid{grid-template-columns:1fr}
-  .games-grid{grid-template-columns:1fr}
-  .stats-grid{grid-template-columns:1fr 1fr}
-  .btn{padding:9px 14px;font-size:12px}
+  .games-sidebar{display:none}
+  .sales-body{flex-direction:column}
+  .sales-left-col{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .sales-stats-row{grid-template-columns:repeat(2,1fr)}
+  .settings-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>🎯 Marketplace Admin</h1>
-  <button class="logout-btn" onclick="logout()">Logout</button>
-</header>
-
+<!-- LOGIN GATE -->
 <div id="gate">
-  <h2>Admin Login</h2>
-  <p>Enter your admin password to manage the marketplace.</p>
-  <input class="gate-input" id="pwdInput" type="password" placeholder="Admin password">
-  <button class="gate-btn" onclick="unlock()">Unlock</button>
-  <div style="font-size:13px;color:var(--error);margin-top:10px" id="gateErr"></div>
+  <div class="gate-box">
+    <div class="gate-logo">🎯</div>
+    <div class="gate-title">Admin Panel</div>
+    <div class="gate-sub">Tungbola Marketplace</div>
+    <input class="gate-input" id="pwdInput" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="gate-btn" onclick="unlock()">Unlock →</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
 </div>
 
+<!-- MAIN APP -->
 <div id="main">
-  <nav class="tab-nav" id="tabNav">
+  <div class="adm-header">
+    <div class="adm-logo">🎯 Tungbola</div>
+    <div class="adm-subtitle">Marketplace Admin</div>
+    <div class="adm-spacer"></div>
+    <div id="hdrOpName" style="font-size:12px;color:rgba(255,255,255,.75);margin-right:8px"></div>
+    <button class="adm-logout" onclick="logout()">Logout</button>
+  </div>
+
+  <nav class="tab-nav">
     <button class="tab-btn active" onclick="showTab('sheets')">📄 Sheets</button>
     <button class="tab-btn" onclick="showTab('games')">🎮 Games</button>
     <button class="tab-btn" onclick="showTab('sales')">
@@ -197,208 +376,245 @@ tr:last-child td{border-bottom:none}
     <button class="tab-btn" onclick="showTab('settings')">⚙️ Settings</button>
   </nav>
 
-  <!-- ── SHEETS TAB ── -->
-  <div id="tc-sheets" class="tab-content active">
-    <div class="card">
-      <div class="card-title">📄 Sheet Library
-        <span class="card-title-meta" id="sheetCountMeta"></span>
+  <!-- ══════════════════════════════════════════════ SHEETS ══ -->
+  <div class="tab-content active" id="tc-sheets">
+
+    <div class="sheets-upload-row">
+      <span>📤 <strong>Upload sheets:</strong></span>
+      <input type="file" id="sheetFile" accept=".pdf,.zip" multiple onchange="previewSheetFiles()" style="max-width:260px">
+      <button class="btn btn-primary btn-sm" id="uploadBtn" onclick="uploadSheets()">Upload All</button>
+      <span style="flex:1"></span>
+      <span id="uploadMsg" style="font-size:12px"></span>
+    </div>
+
+    <div id="sheetFilePreview" style="padding:0 14px 6px;display:none;font-size:11px;color:var(--muted);max-height:60px;overflow:hidden"></div>
+
+    <div class="sheets-toolbar">
+      <div class="sheet-search-wrap">
+        <input type="number" inputmode="numeric" id="sheetSearchInput" placeholder="Search sheet #…" oninput="filterSheetGrid(this.value)">
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>PDFs or ZIP of PDFs</label>
-          <input type="file" id="sheetFile" accept=".pdf,.zip" multiple onchange="previewSheetFiles()">
-        </div>
-        <div class="form-group" style="justify-content:flex-end;min-width:auto">
-          <label>&nbsp;</label>
-          <button class="btn btn-primary" id="uploadBtn" onclick="uploadSheets()">Upload All</button>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
-        💡 Name files like <strong>47.pdf</strong> — sheet number is auto-detected from filename.
-      </div>
-      <div id="sheetFileList"></div>
-      <div id="uploadMsg"></div>
-      <div class="bulk-bar" id="bulkBar" style="display:none">
-        <span class="bulk-info" id="bulkInfo">0 selected</span>
-        <button class="btn btn-ghost btn-sm" onclick="selectAllSheets()">All</button>
-        <button class="btn btn-ghost btn-sm" onclick="deselectAllSheets()">None</button>
-        <button class="btn btn-red btn-sm" id="bulkDeleteBtn" onclick="deleteSelected()" disabled>Delete Selected</button>
-        <button class="btn btn-red btn-sm" style="background:#7B1C1C" onclick="deleteAllSheets()">🗑 Delete All</button>
-      </div>
-      <div class="tbl-wrap" id="sheetsTblWrap" style="display:none">
-        <table>
-          <thead><tr>
-            <th><input type="checkbox" class="tbl-chk" id="selectAllChk" onchange="toggleSelectAll(this.checked)"></th>
-            <th>#</th><th>Filename</th><th>Size</th><th>Uploaded</th><th></th>
-          </tr></thead>
-          <tbody id="sheetsTbl"></tbody>
-        </table>
-      </div>
+      <span style="font-size:12px;color:var(--muted)" id="sheetCountMeta">0 sheets</span>
+      <button class="btn btn-ghost btn-sm" onclick="selectAllSheets()">Select All</button>
+      <button class="btn btn-ghost btn-sm" onclick="deselectAllSheets()">None</button>
+    </div>
+
+    <div class="sheets-bulk-bar hidden" id="bulkBar">
+      <span id="bulkInfo">0 selected</span>
+      <button class="btn btn-red btn-sm" id="bulkDeleteBtn" onclick="deleteSelected()" disabled>Delete Selected</button>
+      <button class="btn btn-sm" style="background:#7B1C1C;color:#fff" onclick="deleteAllSheets()">🗑 Delete All</button>
+    </div>
+
+    <div class="sheet-grid-area" id="sheetGrid">
+      <div class="sh-empty">Upload sheets to get started.</div>
     </div>
   </div>
 
-  <!-- ── GAMES TAB ── -->
-  <div id="tc-games" class="tab-content">
-    <div class="card">
-      <div class="card-title">➕ Create New Game</div>
-      <div class="form-row">
-        <div class="form-group" style="flex:2;min-width:160px">
-          <label>Game Name</label>
-          <input type="text" id="gameName" placeholder="e.g. Sunday Special" maxlength="80">
+  <!-- ══════════════════════════════════════════════ GAMES ══ -->
+  <div class="tab-content" id="tc-games">
+    <div class="games-layout">
+
+      <!-- Sidebar: game list -->
+      <div class="games-sidebar">
+        <div class="games-sidebar-header">
+          <span class="games-sidebar-title" id="gamesSidebarCount">0 games</span>
+          <button class="btn btn-primary btn-sm" onclick="openCreatePanel()">+ New</button>
         </div>
-        <div class="form-group" style="max-width:200px">
-          <label>Date &amp; Time</label>
-          <input type="datetime-local" id="gameDateTime">
-        </div>
-        <div class="form-group" style="max-width:85px">
-          <label>₹ / Sheet</label>
-          <input type="number" id="gamePrice" min="1" value="5">
+        <div class="games-list" id="gamesList">
+          <div style="text-align:center;padding:24px;color:var(--muted)">Loading…</div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:2">
-          <label>Description (optional)</label>
-          <textarea id="gameDesc" placeholder="Extra info about the game" maxlength="200"></textarea>
+
+      <!-- Detail / create area -->
+      <div class="games-detail" id="gamesDetail">
+        <div class="games-detail-empty">
+          <div class="games-detail-empty-ico">🎮</div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px">Select a game</div>
+          <div style="font-size:12px;opacity:.7">or create a new one</div>
         </div>
-        <div class="form-group" style="max-width:160px">
-          <label>Thumbnail Image</label>
-          <div class="thumb-upload-area" id="thumbArea" onclick="document.getElementById('thumbFile').click()">
-            <img id="thumbPreview" src="" style="display:none">
-            <span style="font-size:22px;z-index:1">🖼️</span>
-            <div class="thumb-upload-hint" id="thumbHint">Click to upload</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ SALES ══ -->
+  <div class="tab-content" id="tc-sales">
+    <div class="sales-layout">
+
+      <div class="sales-filter-bar">
+        <span style="font-size:12px;font-weight:700;color:var(--muted)">Showing:</span>
+        <select id="salesGameFilter" onchange="renderSalesView()">
+          <option value="">All Games</option>
+        </select>
+        <span style="font-size:12px;font-weight:700;color:var(--muted);margin-left:8px">Period:</span>
+        <select id="salesDateFilter" onchange="renderSalesView()">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+        </select>
+        <span style="flex:1"></span>
+        <span style="font-size:11px;color:var(--muted)"><span class="dot-live"></span>Refreshes every 10s</span>
+      </div>
+
+      <div class="sales-stats-row">
+        <div class="ss-card green">
+          <div class="ss-icon">💰</div>
+          <div><div class="ss-label">Collected</div><div class="ss-value" id="sTotalRev">₹0</div><div style="font-size:10px;color:var(--muted)" id="sTotalRevSub">selected game</div></div>
+        </div>
+        <div class="ss-card warn">
+          <div class="ss-icon">⏳</div>
+          <div><div class="ss-label">Pending Amount</div><div class="ss-value" id="sPendingRev">₹0</div><div style="font-size:10px;color:var(--muted)">all games</div></div>
+        </div>
+        <div class="ss-card">
+          <div class="ss-icon">🛒</div>
+          <div><div class="ss-label">Total Orders</div><div class="ss-value" id="sTotalOrders">0</div><div style="font-size:10px;color:var(--muted)" id="sOrdersSub">selected game</div></div>
+        </div>
+        <div class="ss-card warn">
+          <div class="ss-icon">🔔</div>
+          <div><div class="ss-label">Pending Orders</div><div class="ss-value" id="sPendingCount">0</div><div style="font-size:10px;color:var(--muted)">all games</div></div>
+        </div>
+      </div>
+
+      <div class="sales-body">
+        <div class="sales-left-col">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px" id="revByGameTitle">Revenue by Game</div>
+          <div id="revenueByGame"><div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Loading…</div></div>
+        </div>
+        <div class="sales-right-col">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">⏳ Pending Approvals — All Games</div>
+          <div id="pendingOrdersList"><div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- Purchases table -->
+      <div class="purch-tbl-wrap">
+        <div class="purch-tbl-header">
+          <span style="font-size:12px;font-weight:700">🛒 All Purchases</span>
+          <input type="text" id="purchaseSearch" placeholder="🔍 Name or phone…" oninput="renderPurchasesTable()">
+          <select id="purchGameFilter" onchange="renderPurchasesTable()" style="max-width:160px">
+            <option value="">All Games</option>
+          </select>
+          <select id="purchStatusFilter" onchange="renderPurchasesTable()">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+          </select>
+        </div>
+        <div class="sales-purchases">
+          <table>
+            <thead><tr>
+              <th>Player</th><th>Phone</th><th>Game</th><th>Qty</th><th>Amount</th><th>Sheets</th><th>Time</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="9">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ SETTINGS ══ -->
+  <div class="tab-content" id="tc-settings">
+    <div class="settings-layout">
+      <div class="settings-grid">
+
+        <!-- Operator Info -->
+        <div class="set-card">
+          <div class="set-card-title">🏢 Operator Info</div>
+          <div class="set-field"><label class="lbl">Operator / Brand Name</label><input type="text" id="setOperatorName" placeholder="e.g. Sunday Tambola Club" maxlength="80"></div>
+          <div class="set-field"><label class="lbl">WhatsApp Support Number</label><input type="tel" id="setWhatsapp" placeholder="+91 98765 43210" maxlength="20"></div>
+          <div class="set-field"><label class="lbl">Support Info / Message</label><textarea id="setSupportText" placeholder="For help, contact us on WhatsApp…" maxlength="200"></textarea></div>
+          <button class="btn btn-primary" onclick="saveOperatorSettings()" style="margin-top:4px">💾 Save Operator Info</button>
+          <div id="setOpMsg"></div>
+        </div>
+
+        <!-- Payment Settings -->
+        <div class="set-card">
+          <div class="set-card-title">💳 Payment Settings</div>
+          <div class="set-field"><label class="lbl">UPI ID (shown to buyers)</label><input type="text" id="setUpiId" placeholder="yourname@upi" maxlength="100"></div>
+          <div class="set-field">
+            <label class="lbl">Custom QR Image (optional)</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('setQrFile').click()">📷 Upload QR Image</button>
+              <span id="setQrStatus" style="font-size:11px;color:var(--muted)"></span>
+              <input type="file" id="setQrFile" accept="image/*" style="display:none" onchange="uploadQrImage(this)">
+            </div>
+            <div class="qr-preview" id="qrPreview" style="display:none">
+              <img id="qrPreviewImg" src="" alt="QR">
+            </div>
           </div>
-          <input type="file" id="thumbFile" accept="image/*" style="display:none" onchange="uploadThumb(this)">
-          <div id="thumbStatus" style="font-size:11px;color:var(--muted);margin-top:3px"></div>
+          <button class="btn btn-primary" onclick="savePaymentSettings()" style="margin-top:4px">💾 Save Payment Settings</button>
+          <div id="setPayMsg"></div>
         </div>
-      </div>
 
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-          Prizes — tick the ones to offer
+        <!-- Session -->
+        <div class="set-card">
+          <div class="set-card-title">🔒 Session & Security</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+            Logged in as <strong style="color:#1C1B1F">Admin</strong>.<br>
+            Admin password is managed via environment variables.
+          </div>
+          <button class="btn btn-red" onclick="logout()">🚪 Logout</button>
         </div>
-        <div class="prizes-grid" id="prizesGrid"></div>
-      </div>
 
-      <button class="btn btn-primary" onclick="createGame()">+ Create Game</button>
-      <div id="createGameMsg"></div>
-    </div>
+        <!-- About -->
+        <div class="set-card">
+          <div class="set-card-title">ℹ️ About</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.9">
+            <strong style="color:#1C1B1F">Tungbola Marketplace</strong><br>
+            Admin Panel v2.0<br>
+            Upload sheets, create Tambola games, manage purchases &amp; approvals.<br><br>
+            <span style="font-size:11px">Sheets stored on Vercel Blob · Data on Upstash Redis</span>
+          </div>
+        </div>
 
-    <div id="gamesContainer">
-      <div style="font-size:13px;color:var(--muted);text-align:center;padding:32px">Loading games…</div>
-    </div>
-  </div>
-
-  <!-- ── SALES TAB ── -->
-  <div id="tc-sales" class="tab-content">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Collected</div>
-        <div class="stat-value" id="sTotalRev">₹0</div>
-        <div class="stat-sub">from approved orders</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Pending Amount</div>
-        <div class="stat-value" id="sPendingRev" style="color:var(--warn)">₹0</div>
-        <div class="stat-sub">awaiting approval</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total Orders</div>
-        <div class="stat-value" id="sTotalOrders">0</div>
-        <div class="stat-sub">all time</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Pending Orders</div>
-        <div class="stat-value" id="sPendingCount" style="color:var(--warn)">0</div>
-        <div class="stat-sub">need approval</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📊 Revenue by Game</div>
-      <div class="rev-cards" id="revenueByGame">
-        <div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">Loading…</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <span>🛒 All Purchases <span class="card-title-meta"><span class="dot"></span>Live · refreshes every 10s</span></span>
-        <input type="text" id="purchaseSearch" placeholder="🔍 Search name or phone…"
-          oninput="renderPurchases()"
-          style="padding:7px 12px;border:2px solid var(--border);border-radius:10px;font-size:13px;
-                 font-family:inherit;outline:none;min-width:200px;max-width:260px;transition:border-color .2s"
-          onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Player</th><th>Phone</th><th>Game</th>
-            <th>Qty</th><th>Amount</th><th>Sheets</th><th>Status</th><th></th>
-          </tr></thead>
-          <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody>
-        </table>
       </div>
     </div>
   </div>
 
-  <!-- ── SETTINGS TAB ── -->
-  <div id="tc-settings" class="tab-content">
-    <div class="card">
-      <div class="card-title">⚙️ Session</div>
-      <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Logged in as admin.</p>
-      <button class="btn btn-red" onclick="logout()">🚪 Logout</button>
-    </div>
-    <div class="card">
-      <div class="card-title">ℹ️ About</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.8">
-        <strong style="color:#1C1B1F">Tungbola Marketplace Admin Panel</strong><br>
-        Upload sheets, create Tambola games, and manage purchases &amp; approvals.
-      </div>
-    </div>
-  </div>
 </div>
 
+<!-- toast -->
 <div id="toastEl" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
   background:#1C1B1F;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;
-  z-index:999;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center"></div>
+  z-index:9999;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center;pointer-events:none"></div>
 
 <script>
-let pwd = '';
-let allSheets = [], allGames = [], allPurchases = [];
-let purchaseRefreshTimer = null;
+/* ══ STATE ══════════════════════════════════════════════════════ */
+let pwd = '', activeTab = 'sheets';
+let allSheets = [], allGames = [], allPurchases = [], adminSettings = {};
 let selectedSheetIds = new Set();
+let currentGameId = null;    // game shown in detail panel
+let editingGameId = null;    // game being edited (null = create mode)
 let gameThumbnailUrl = '';
-let activeTab = 'sheets';
+let purchaseRefreshTimer = null;
 
+/* Prize state */
 const PRIZES = [
-  { key:'full_house',    label:'🏆 Full House' },
-  { key:'second_full',   label:'🥈 Second Full House' },
-  { key:'third_full',    label:'🥉 Third Full House' },
-  { key:'upper_line',    label:'⬆️ Upper Line' },
-  { key:'middle_line',   label:'↔️ Middle Line' },
-  { key:'bottom_line',   label:'⬇️ Bottom Line' },
-  { key:'ticket_corners',label:'🔲 Ticket Corners' },
-  { key:'sheet_corner',  label:'📋 Sheet Corner' },
-  { key:'early_5',       label:'5️⃣ Early 5' },
-  { key:'early_6',       label:'6️⃣ Early 6' },
-  { key:'early_7',       label:'7️⃣ Early 7' },
-  { key:'jackpot',       label:'💰 Jackpot' },
+  {key:'full_house',    label:'🏆 Full House'},
+  {key:'second_full',   label:'🥈 Second Full House'},
+  {key:'third_full',    label:'🥉 Third Full House'},
+  {key:'upper_line',    label:'⬆️ Upper Line'},
+  {key:'middle_line',   label:'↔️ Middle Line'},
+  {key:'bottom_line',   label:'⬇️ Bottom Line'},
+  {key:'ticket_corners',label:'🔲 Ticket Corners'},
+  {key:'sheet_corner',  label:'📋 Sheet Corner'},
+  {key:'early_5',       label:'5️⃣ Early 5'},
+  {key:'early_6',       label:'6️⃣ Early 6'},
+  {key:'early_7',       label:'7️⃣ Early 7'},
+  {key:'jackpot',       label:'💰 Jackpot'},
 ];
-const ps = {};
-PRIZES.forEach(p => { ps[p.key] = { enabled:false, kind:'cash', amount:'', description:'', imageUrl:'' }; });
-
-/* ── Tab switching ── */
-function showTab(name) {
-  activeTab = name;
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById('tc-' + name).classList.add('active');
-  const btns = document.querySelectorAll('.tab-btn');
-  const order = ['sheets','games','sales','settings'];
-  btns[order.indexOf(name)]?.classList.add('active');
+let ps = {};
+function resetPs(prefill) {
+  PRIZES.forEach(p => {
+    const pf = prefill ? prefill.find(x => x.name.includes(p.label.replace(/^\S+\s/,''))) : null;
+    ps[p.key] = pf
+      ? { enabled:true, kind:pf.kind||'cash', amount:String(pf.amount||''), description:pf.description||'', imageUrl:pf.imageUrl||'' }
+      : { enabled:false, kind:'cash', amount:'', description:'', imageUrl:'' };
+  });
 }
+resetPs();
 
-/* ── Auth ── */
+/* ══ AUTH ════════════════════════════════════════════════════════ */
 async function unlock() {
   const p = document.getElementById('pwdInput').value.trim();
   if (!p) return;
@@ -410,187 +626,105 @@ async function unlock() {
     if (!r.ok) { errEl.textContent = 'Server error'; return; }
     pwd = p;
     document.getElementById('gate').style.display = 'none';
-    document.getElementById('main').style.display = 'block';
-    renderPrizesGrid();
+    document.getElementById('main').classList.add('show');
     loadAll();
-    purchaseRefreshTimer = setInterval(() => { loadPurchases(); }, 10000);
+    purchaseRefreshTimer = setInterval(() => loadPurchases(), 10000);
   } catch(e) { errEl.textContent = 'Network error'; }
 }
 
 function logout() {
   pwd = ''; clearInterval(purchaseRefreshTimer);
-  document.getElementById('gate').style.display = 'block';
-  document.getElementById('main').style.display = 'none';
+  document.getElementById('gate').style.display = 'flex';
+  document.getElementById('main').classList.remove('show');
   document.getElementById('pwdInput').value = '';
-  showTab('sheets');
 }
 
-function loadAll() { loadSheets(); loadGames(); loadPurchases(); }
-
-/* ── Prizes Grid ── */
-function renderPrizesGrid() {
-  document.getElementById('prizesGrid').innerHTML = PRIZES.map(p => `
-    <div class="prize-card" id="pcard-${p.key}">
-      <div class="prize-hdr" onclick="togglePrize('${p.key}')">
-        <input type="checkbox" id="pchk-${p.key}" onclick="event.stopPropagation();togglePrize('${p.key}')">
-        <span class="prize-hdr-label">${p.label}</span>
-      </div>
-      <div class="prize-body" id="pbody-${p.key}">
-        <div class="prize-kind-row">
-          <label><input type="radio" name="pkind-${p.key}" value="cash" checked onchange="setKind('${p.key}','cash')"> Cash</label>
-          <label><input type="radio" name="pkind-${p.key}" value="thing" onchange="setKind('${p.key}','thing')"> Thing / Prize</label>
-        </div>
-        <div class="prize-cash" id="pcash-${p.key}">
-          <input type="number" min="1" placeholder="₹ Amount" id="pamt-${p.key}" oninput="ps['${p.key}'].amount=this.value">
-        </div>
-        <div class="prize-thing" id="pthing-${p.key}" style="display:none">
-          <input type="text" placeholder="e.g. iPhone 16, Bullet Bike" maxlength="100" id="pdesc-${p.key}" oninput="ps['${p.key}'].description=this.value">
-          <div class="prize-img-wrap">
-            <button class="prize-img-btn" onclick="document.getElementById('pfile-${p.key}').click()">📷 Upload Photo</button>
-            <span class="prize-uploading" id="pupl-${p.key}"></span>
-            <img class="prize-img-preview" id="pimg-${p.key}" src="">
-            <input type="file" id="pfile-${p.key}" accept="image/*" style="display:none" onchange="uploadPrizeImage('${p.key}',this)">
-          </div>
-        </div>
-      </div>
-    </div>`).join('');
+/* ══ TAB SWITCHING ═══════════════════════════════════════════════ */
+function showTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tc-' + name).classList.add('active');
+  const order = ['sheets','games','sales','settings'];
+  document.querySelectorAll('.tab-btn')[order.indexOf(name)]?.classList.add('active');
 }
 
-function togglePrize(key) {
-  ps[key].enabled = !ps[key].enabled;
-  document.getElementById(`pchk-${key}`).checked = ps[key].enabled;
-  document.getElementById(`pbody-${key}`).style.display = ps[key].enabled ? 'block' : 'none';
-  document.getElementById(`pcard-${key}`).classList.toggle('active', ps[key].enabled);
-}
+function loadAll() { loadSheets(); loadGames(); loadPurchases(); loadSettings(); }
 
-function setKind(key, kind) {
-  ps[key].kind = kind;
-  document.getElementById(`pcash-${key}`).style.display = kind === 'cash' ? 'block' : 'none';
-  document.getElementById(`pthing-${key}`).style.display = kind === 'thing' ? 'flex' : 'none';
-}
-
-async function uploadPrizeImage(key, input) {
-  const file = input.files[0]; if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { toast('Image too large (max 5MB)'); return; }
-  const uplEl = document.getElementById(`pupl-${key}`);
-  const imgEl = document.getElementById(`pimg-${key}`);
-  uplEl.textContent = 'Uploading…';
-  try {
-    const b64 = await fileToBase64(file);
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name })
-    });
-    const data = await r.json();
-    if (!r.ok) { uplEl.textContent = data.error || 'Upload failed'; return; }
-    ps[key].imageUrl = data.url;
-    imgEl.src = data.url; imgEl.style.display = 'block';
-    uplEl.textContent = '✓';
-    setTimeout(() => { uplEl.textContent = ''; }, 2000);
-  } catch(e) { uplEl.textContent = 'Network error'; }
-}
-
-function collectPrizes() {
-  return PRIZES.filter(p => ps[p.key].enabled).map(p => {
-    const s = ps[p.key];
-    const prize = { name: p.label.replace(/^\S+\s/, ''), kind: s.kind };
-    if (s.kind === 'cash') prize.amount = parseInt(s.amount) || 0;
-    else { prize.description = s.description; if (s.imageUrl) prize.imageUrl = s.imageUrl; }
-    return prize;
-  });
-}
-
-function resetPrizes() {
-  PRIZES.forEach(p => {
-    ps[p.key] = { enabled:false, kind:'cash', amount:'', description:'', imageUrl:'' };
-    document.getElementById(`pchk-${p.key}`).checked = false;
-    document.getElementById(`pbody-${p.key}`).style.display = 'none';
-    document.getElementById(`pcard-${p.key}`).classList.remove('active');
-    document.getElementById(`pamt-${p.key}`).value = '';
-    document.getElementById(`pdesc-${p.key}`).value = '';
-    document.getElementById(`pimg-${p.key}`).src = '';
-    document.getElementById(`pimg-${p.key}`).style.display = 'none';
-    document.querySelectorAll(`input[name="pkind-${p.key}"]`).forEach(r => { r.checked = r.value === 'cash'; });
-    document.getElementById(`pcash-${p.key}`).style.display = 'block';
-    document.getElementById(`pthing-${p.key}`).style.display = 'none';
-  });
-}
-
-/* ── Thumbnail upload ── */
-async function uploadThumb(input) {
-  const file = input.files[0]; if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { toast('Image too large (max 5MB)'); return; }
-  const statusEl = document.getElementById('thumbStatus');
-  const previewEl = document.getElementById('thumbPreview');
-  const hintEl = document.getElementById('thumbHint');
-  statusEl.textContent = 'Uploading…';
-  try {
-    const b64 = await fileToBase64(file);
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name })
-    });
-    const data = await r.json();
-    if (!r.ok) { statusEl.textContent = data.error || 'Upload failed'; return; }
-    gameThumbnailUrl = data.url;
-    previewEl.src = data.url; previewEl.style.display = 'block';
-    hintEl.style.display = 'none';
-    statusEl.textContent = '✓ Thumbnail uploaded';
-    setTimeout(() => { statusEl.textContent = ''; }, 2000);
-  } catch(e) { statusEl.textContent = 'Network error'; }
-}
-
-/* ── Sheets ── */
+/* ══ SHEETS ══════════════════════════════════════════════════════ */
 async function loadSheets() {
   try {
     const r = await fetch(`/api/sheets?password=${encodeURIComponent(pwd)}`);
     const data = await r.json();
     allSheets = data.sheets || [];
     selectedSheetIds.clear();
-    document.getElementById('sheetCountMeta').textContent = `${allSheets.length} uploaded`;
-    renderSheets();
+    renderSheetGrid();
   } catch(e) {}
 }
 
-function renderSheets() {
-  const wrap = document.getElementById('sheetsTblWrap');
+function buildSheetStatusMap() {
+  const assigned = new Map(); // sheetNum → gameId
+  const sold = new Set();
+  allGames.forEach(g => {
+    if (g.sheetFrom && g.sheetTo) {
+      for (let n = g.sheetFrom; n <= g.sheetTo; n++) assigned.set(n, g.id);
+    }
+    (g.soldSheetNums || []).forEach(n => sold.add(n));
+  });
+  return { assigned, sold };
+}
+
+function renderSheetGrid() {
+  const grid = document.getElementById('sheetGrid');
+  const meta = document.getElementById('sheetCountMeta');
+  meta.textContent = `${allSheets.length.toLocaleString()} sheets`;
+
   const bulkBar = document.getElementById('bulkBar');
-  const tbody = document.getElementById('sheetsTbl');
-  if (!allSheets.length) { wrap.style.display = 'none'; bulkBar.style.display = 'none'; return; }
-  wrap.style.display = 'block'; bulkBar.style.display = 'flex';
-  tbody.innerHTML = allSheets.map(s => `
-    <tr>
-      <td><input type="checkbox" class="tbl-chk" ${selectedSheetIds.has(s.id)?'checked':''} onchange="toggleSheetSelect('${s.id}',this.checked)"></td>
-      <td><strong>#${s.n}</strong></td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.f)}</td>
-      <td>${(s.s/1024).toFixed(0)} KB</td>
-      <td>${new Date(s.ts).toLocaleDateString()}</td>
-      <td><button class="btn btn-red btn-sm" onclick="deleteSheet('${s.id}',${s.n})">Del</button></td>
-    </tr>`).join('');
+  bulkBar.classList.toggle('hidden', allSheets.length === 0);
+
+  if (!allSheets.length) {
+    grid.innerHTML = '<div class="sh-empty">No sheets uploaded yet.<br>Upload PDFs or a ZIP above.</div>';
+    return;
+  }
+
+  const { assigned, sold } = buildSheetStatusMap();
+
+  grid.innerHTML = allSheets.map(s => {
+    let cls = 'sh-chip';
+    if (selectedSheetIds.has(s.id)) cls += ' selected';
+    else if (sold.has(s.n)) cls += ' sold';
+    else if (assigned.has(s.n)) cls += ' assigned';
+    return `<div class="${cls}" id="sch-${s.id}" data-n="${s.n}" title="#${s.n} · ${esc(s.f)}"
+      onclick="toggleSheetChip('${s.id}')">${s.n}</div>`;
+  }).join('');
+
+  filterSheetGrid(document.getElementById('sheetSearchInput').value);
   refreshBulkBar();
 }
 
-function toggleSheetSelect(id, checked) {
-  if (checked) selectedSheetIds.add(id); else selectedSheetIds.delete(id);
-  refreshBulkBar();
+function filterSheetGrid(val) {
+  const q = String(val || '').trim();
+  document.querySelectorAll('#sheetGrid .sh-chip').forEach(el => {
+    const show = !q || String(el.dataset.n).startsWith(q);
+    el.classList.toggle('hidden-chip', !show);
+  });
 }
 
-function toggleSelectAll(checked) {
-  if (checked) allSheets.forEach(s => selectedSheetIds.add(s.id));
-  else selectedSheetIds.clear();
-  document.querySelectorAll('.tbl-chk:not(#selectAllChk)').forEach(cb => cb.checked = checked);
+function toggleSheetChip(id) {
+  if (selectedSheetIds.has(id)) selectedSheetIds.delete(id);
+  else selectedSheetIds.add(id);
+  const el = document.getElementById(`sch-${id}`);
+  if (el) el.classList.toggle('selected', selectedSheetIds.has(id));
   refreshBulkBar();
 }
 
 function selectAllSheets() {
-  allSheets.forEach(s => selectedSheetIds.add(s.id));
-  document.querySelectorAll('.tbl-chk').forEach(cb => cb.checked = true);
+  allSheets.forEach(s => { selectedSheetIds.add(s.id); const el = document.getElementById(`sch-${s.id}`); if(el) el.classList.add('selected'); });
   refreshBulkBar();
 }
-
 function deselectAllSheets() {
   selectedSheetIds.clear();
-  document.querySelectorAll('.tbl-chk').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.sh-chip.selected').forEach(el => el.classList.remove('selected'));
   refreshBulkBar();
 }
 
@@ -600,20 +734,16 @@ function refreshBulkBar() {
   const btn = document.getElementById('bulkDeleteBtn');
   btn.disabled = n === 0;
   btn.textContent = n ? `Delete (${n})` : 'Delete Selected';
-  const hdr = document.getElementById('selectAllChk');
-  if (hdr) { hdr.checked = n === allSheets.length && n > 0; hdr.indeterminate = n > 0 && n < allSheets.length; }
 }
 
 async function deleteSelected() {
   const ids = Array.from(selectedSheetIds);
-  if (!ids.length) return;
-  if (!confirm(`Permanently delete ${ids.length} selected sheet${ids.length!==1?'s':''}?`)) return;
+  if (!ids.length || !confirm(`Permanently delete ${ids.length} sheet${ids.length!==1?'s':''}?`)) return;
   await runBulkDelete(ids);
 }
 
 async function deleteAllSheets() {
-  if (!allSheets.length) { toast('No sheets to delete'); return; }
-  if (!confirm(`Permanently delete ALL ${allSheets.length} sheets? This cannot be undone.`)) return;
+  if (!allSheets.length || !confirm(`Delete ALL ${allSheets.length} sheets? Cannot be undone.`)) return;
   await runBulkDelete(allSheets.map(s => s.id));
 }
 
@@ -621,10 +751,8 @@ async function runBulkDelete(ids) {
   const btn = document.getElementById('bulkDeleteBtn');
   btn.disabled = true; btn.textContent = 'Deleting…';
   try {
-    const r = await fetch('/api/sheets', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'delete-bulk', password:pwd, ids })
-    });
+    const r = await fetch('/api/sheets', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'delete-bulk', password:pwd, ids }) });
     const data = await r.json();
     if (!r.ok) toast(data.error || 'Delete failed');
     else { toast(`${data.deleted} sheet${data.deleted!==1?'s':''} deleted`); loadSheets(); }
@@ -632,61 +760,44 @@ async function runBulkDelete(ids) {
   btn.disabled = false;
 }
 
-function parseSheetNum(filename) {
-  const nums = filename.replace(/\.pdf$/i,'').match(/\d+/g);
-  return nums ? parseInt(nums[nums.length - 1]) : null;
-}
-
 function previewSheetFiles() {
   const files = Array.from(document.getElementById('sheetFile').files);
-  const listEl = document.getElementById('sheetFileList');
-  if (!files.length) { listEl.innerHTML = ''; return; }
-  listEl.innerHTML = `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px">` +
-    files.map((f, i) => {
-      const isZip = f.name.toLowerCase().endsWith('.zip');
-      const size = (f.size / 1024 / 1024).toFixed(1);
-      const border = i > 0 ? 'border-top:1px solid var(--border)' : '';
-      if (isZip) return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${border}">
-        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
-        <span class="zip-badge">ZIP</span>
-        <span style="font-size:11px;color:var(--muted)">${size} MB</span>
-        <span style="font-size:11px;color:var(--primary)">📦 PDFs extracted on upload</span></div>`;
-      const num = parseSheetNum(f.name);
-      const ok = num && num >= 1 && num <= 99999;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;${border}">
-        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
-        ${num ? `<span style="font-size:12px;font-weight:700;color:var(--primary)">#${num}</span>` : ''}
-        <span style="font-size:11px;color:var(--muted)">${(f.size/1024).toFixed(0)} KB</span>
-        <span style="font-size:11px;${ok?'color:var(--success)':'color:var(--error)'}">${ok?'✓':'⚠ no #'}</span></div>`;
-    }).join('') + `</div>`;
+  const prev = document.getElementById('sheetFilePreview');
+  if (!files.length) { prev.style.display = 'none'; return; }
+  prev.style.display = 'block';
+  prev.innerHTML = files.slice(0, 8).map(f => {
+    const n = parseSheetNum(f.name);
+    const isZip = f.name.toLowerCase().endsWith('.zip');
+    return `<span style="background:var(--border);border-radius:6px;padding:2px 7px;margin:2px;display:inline-block">
+      ${isZip?'📦':n?`#${n}`:'⚠'} ${esc(f.name.slice(0,20))}
+    </span>`;
+  }).join('') + (files.length > 8 ? `<span style="color:var(--muted)"> +${files.length-8} more</span>` : '');
+}
+
+function parseSheetNum(filename) {
+  const nums = filename.replace(/\.pdf$/i,'').match(/\d+/g);
+  return nums ? parseInt(nums[nums.length-1]) : null;
 }
 
 async function uploadSheets() {
   const files = Array.from(document.getElementById('sheetFile').files);
   const msgEl = document.getElementById('uploadMsg');
-  msgEl.innerHTML = '';
-  if (!files.length) { showMsg(msgEl, 'Select PDFs or a ZIP file', 'err'); return; }
+  msgEl.textContent = '';
+  if (!files.length) { msgEl.textContent = '⚠ Select files first'; return; }
   const btn = document.getElementById('uploadBtn');
   btn.disabled = true;
-
   let blobUploadFn;
   try {
     btn.textContent = 'Loading…';
     const mod = await import('https://esm.sh/@vercel/blob@0.27.0/client');
     blobUploadFn = mod.upload;
-  } catch(e) {
-    btn.disabled = false; btn.textContent = 'Upload All';
-    showMsg(msgEl, 'Failed to load upload client. Check your connection.', 'err'); return;
-  }
+  } catch(e) { btn.disabled = false; btn.textContent = 'Upload All'; msgEl.textContent = '⚠ Upload client failed'; return; }
 
   let tasks = [];
   const directPdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
   const zipFiles   = files.filter(f => f.name.toLowerCase().endsWith('.zip'));
 
-  directPdfs.forEach(f => {
-    const num = parseSheetNum(f.name);
-    if (num && num >= 1 && num <= 99999) tasks.push({ file:f, num });
-  });
+  directPdfs.forEach(f => { const num = parseSheetNum(f.name); if (num && num >= 1 && num <= 99999) tasks.push({ file:f, num }); });
 
   for (const zipFile of zipFiles) {
     btn.textContent = `Extracting ${zipFile.name}…`;
@@ -695,49 +806,31 @@ async function uploadSheets() {
       const entries = [];
       zip.forEach((path, entry) => { if (!entry.dir && path.toLowerCase().endsWith('.pdf')) entries.push({ path, entry }); });
       for (let i = 0; i < entries.length; i++) {
-        if (i % 100 === 0) { btn.textContent = `Extracting… ${i}/${entries.length}`; await new Promise(r => setTimeout(r, 0)); }
+        if (i % 100 === 0) { btn.textContent = `Extracting… ${i}/${entries.length}`; await new Promise(r => setTimeout(r,0)); }
         const filename = entries[i].path.split('/').pop().split('\\').pop();
         const num = parseSheetNum(filename);
         if (!num || num < 1 || num > 99999) continue;
         const ab = await entries[i].entry.async('arraybuffer');
         tasks.push({ file: new File([ab], filename, { type:'application/pdf' }), num });
       }
-    } catch(e) {
-      btn.disabled = false; btn.textContent = 'Upload All';
-      showMsg(msgEl, `Failed to read ZIP "${zipFile.name}": ${e.message}`, 'err'); return;
-    }
+    } catch(e) { btn.disabled = false; btn.textContent = 'Upload All'; msgEl.textContent = `⚠ ZIP error: ${e.message}`; return; }
   }
 
   const seen = new Set();
   tasks = tasks.filter(t => { if (seen.has(t.num)) return false; seen.add(t.num); return true; });
+  if (!tasks.length) { btn.disabled = false; btn.textContent = 'Upload All'; msgEl.textContent = '⚠ No valid PDFs found'; return; }
 
-  if (!tasks.length) {
-    btn.disabled = false; btn.textContent = 'Upload All';
-    showMsg(msgEl, 'No valid PDF sheets found. Files must have a number in the name (e.g. 47.pdf)', 'err'); return;
-  }
-
-  let done = 0, failCount = 0, failed = [];
+  let done = 0, failCount = 0, failed = [], cursor = 0;
   const total = tasks.length;
-  let cursor = 0;
-  const CONCURRENCY = 20;
-
   async function worker() {
     while (true) {
-      const i = cursor++;
-      if (i >= total) break;
+      const i = cursor++; if (i >= total) break;
       const task = tasks[i];
       try {
-        const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+        const id = Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
         const pathname = `tungbola/sheet-${String(task.num).padStart(5,'0')}-${id}.pdf`;
-        const blob = await blobUploadFn(pathname, task.file, {
-          access: 'public',
-          handleUploadUrl: '/api/sheets',
-          clientPayload: JSON.stringify({ password:pwd, sheetNumber:task.num, filename:task.file.name, id }),
-        });
-        const regRes = await fetch('/api/sheets', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ action:'register', password:pwd, sheetNumber:task.num, filename:task.file.name, url:blob.url, size:task.file.size, id })
-        });
+        const blob = await blobUploadFn(pathname, task.file, { access:'public', handleUploadUrl:'/api/sheets', clientPayload:JSON.stringify({password:pwd,sheetNumber:task.num,filename:task.file.name,id}) });
+        const regRes = await fetch('/api/sheets', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'register',password:pwd,sheetNumber:task.num,filename:task.file.name,url:blob.url,size:task.file.size,id}) });
         const regData = await regRes.json();
         if (!regRes.ok) { failed.push(`#${task.num}: ${regData.error||'failed'}`); failCount++; }
         else done++;
@@ -745,272 +838,613 @@ async function uploadSheets() {
       btn.textContent = `Uploading… ${done+failCount}/${total}`;
     }
   }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
-
+  await Promise.all(Array.from({ length: Math.min(20, total) }, worker));
   btn.disabled = false; btn.textContent = 'Upload All';
   document.getElementById('sheetFile').value = '';
-  document.getElementById('sheetFileList').innerHTML = '';
-
-  const errSample = failed.slice(0,5).join(', ') + (failed.length > 5 ? ` (+${failed.length-5} more)` : '');
-  if (failed.length) showMsg(msgEl, `${done} uploaded. Errors: ${errSample}`, 'err');
-  else showMsg(msgEl, `${done} sheet${done!==1?'s':''} uploaded!`, 'ok');
+  document.getElementById('sheetFilePreview').style.display = 'none';
+  const errSample = failed.slice(0,3).join(', ') + (failed.length>3?` +${failed.length-3} more`:'');
+  if (failed.length) msgEl.textContent = `✓ ${done} uploaded, ${failCount} failed: ${errSample}`;
+  else { msgEl.textContent = `✓ ${done} sheet${done!==1?'s':''} uploaded!`; setTimeout(()=>{ msgEl.textContent=''; },3000); }
   loadSheets();
 }
 
-async function deleteSheet(id, n) {
-  if (!confirm(`Delete sheet #${n}?`)) return;
-  selectedSheetIds.delete(id);
-  try {
-    const r = await fetch('/api/sheets', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'delete', password:pwd, id }) });
-    if (r.ok) { toast(`Sheet #${n} deleted`); loadSheets(); }
-    else { const d = await r.json(); toast(d.error || 'Delete failed'); }
-  } catch(e) { toast('Network error'); }
-}
-
-/* ── Games ── */
+/* ══ GAMES ════════════════════════════════════════════════════════ */
 async function loadGames() {
   try {
     const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}`);
     allGames = (await r.json()).games || [];
-    renderGames();
+    renderGamesList();
+    if (currentGameId) renderGameDetail(currentGameId);
+    populateGameFilters();
   } catch(e) {}
 }
 
-function renderGames() {
-  const container = document.getElementById('gamesContainer');
-  if (!allGames.length) {
-    container.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:32px">No games yet. Create one above!</div>';
-    return;
-  }
-  container.innerHTML = `<div class="games-grid">` + allGames.map(g => {
-    const sold = g.soldCount || 0;
-    const total = g.sheetCount || 0;
+function renderGamesList() {
+  const list = document.getElementById('gamesList');
+  const countEl = document.getElementById('gamesSidebarCount');
+  countEl.textContent = `${allGames.length} game${allGames.length!==1?'s':''}`;
+  if (!allGames.length) { list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:12px">No games yet.<br>Create one →</div>'; return; }
+  list.innerHTML = allGames.map(g => {
+    const sold = g.soldCount || 0, total = g.sheetCount || 0;
     const left = Math.max(0, total - sold);
-    const prizeCount = (g.prizes || []).length;
-    const thumbHtml = g.thumbnail
-      ? `<img src="${esc(g.thumbnail)}" onerror="this.style.display='none'">`
-      : `<span class="game-thumb-icon">🎮</span>`;
-
-    return `<div class="game-card">
-      <div class="game-thumb-wrap">${thumbHtml}</div>
-      <div class="game-card-body">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-          <div class="game-card-name">${esc(g.name)}</div>
-          <span class="chip chip-${g.status}">${g.status}</span>
-        </div>
-        <div class="game-card-meta">
-          ${g.gameDate ? `<span>📅 ${esc(g.gameDate)}</span>` : ''}
-          <span>₹${g.pricePerSheet}/sheet</span>
-          ${prizeCount ? `<span>🎁 ${prizeCount} prize${prizeCount>1?'s':''}</span>` : ''}
-        </div>
-        ${total ? `<div class="game-stats-row">
-          <div class="game-stat"><div class="game-stat-val">${total}</div><div class="game-stat-lbl">Total</div></div>
-          <div class="game-stat"><div class="game-stat-val" style="color:var(--success)">${sold}</div><div class="game-stat-lbl">Sold</div></div>
-          <div class="game-stat"><div class="game-stat-val" style="color:var(--warn)">${left}</div><div class="game-stat-lbl">Left</div></div>
-        </div>` : `<div style="font-size:12px;color:var(--muted)">No sheets assigned yet</div>`}
-
-        <div class="assign-inline">
-          <div class="assign-pair"><label>From</label><input type="number" id="af-${g.id}" min="1" placeholder="1" style="width:72px;padding:6px 8px;font-size:12px" value="${g.sheetFrom||''}"></div>
-          <div class="assign-pair"><label>To</label><input type="number" id="at-${g.id}" min="1" placeholder="100" style="width:72px;padding:6px 8px;font-size:12px" value="${g.sheetTo||''}"></div>
-          <button class="btn btn-ghost btn-sm" style="margin-top:16px" onclick="assignSheets('${g.id}')">Assign</button>
+    const thumbHtml = g.thumbnail ? `<img src="${esc(g.thumbnail)}" onerror="this.style.display='none'">` : '🎮';
+    const collection = allPurchases.filter(p => p.gameId === g.id && p.status === 'approved').reduce((s,p) => s + (p.amount||0), 0);
+    return `<div class="game-list-item${currentGameId===g.id?' active':''}" onclick="selectGame('${g.id}')">
+      <div class="gli-thumb"><span style="font-size:20px;opacity:.4;z-index:0">🎮</span>${g.thumbnail?`<img src="${esc(g.thumbnail)}" onerror="this.style.display='none'">`:''}  </div>
+      <div class="gli-name">${esc(g.name)}</div>
+      <div class="gli-meta">
+        <span class="chip-status chip-${g.status}">${g.status}</span>
+        <div class="gli-stats">
+          ${total?`<span class="gli-stat-sold">🔴${sold}</span><span class="gli-stat-left">🟢${left}</span>`:'<span>no sheets</span>'}
         </div>
       </div>
-      <div class="game-card-actions">
-        ${g.status!=='listed' ? `<button class="btn btn-green btn-sm" onclick="setStatus('${g.id}','listed')">▶ List</button>` : ''}
-        ${g.status!=='draft'  ? `<button class="btn btn-ghost btn-sm" onclick="setStatus('${g.id}','draft')">Draft</button>` : ''}
-        ${g.status!=='ended'  ? `<button class="btn btn-red btn-sm" onclick="setStatus('${g.id}','ended')">■ End</button>` : ''}
-        <button class="btn btn-red btn-sm" style="margin-left:auto;background:#7B1C1C" onclick="deleteGame('${g.id}','${esc(g.name)}')">🗑 Delete</button>
-      </div>
+      ${collection?`<div style="font-size:11px;font-weight:700;color:var(--ok);margin-top:4px">₹${collection.toLocaleString('en-IN')} collected</div>`:''}
     </div>`;
-  }).join('') + `</div>`;
+  }).join('');
 }
 
-async function createGame() {
-  const name = document.getElementById('gameName').value.trim();
-  const dt = document.getElementById('gameDateTime').value;
-  const pricePerSheet = parseInt(document.getElementById('gamePrice').value) || 5;
-  const description = document.getElementById('gameDesc').value.trim();
-  const prizes = collectPrizes();
-  const msgEl = document.getElementById('createGameMsg');
-  if (!name) { showMsg(msgEl, 'Game name required', 'err'); return; }
+function selectGame(id) {
+  currentGameId = id;
+  renderGamesList();
+  renderGameDetail(id);
+}
 
-  const gameDate = dt ? new Date(dt).toLocaleString('en-IN', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+function renderGameDetail(id) {
+  const g = allGames.find(x => x.id === id);
+  if (!g) return;
+  const detail = document.getElementById('gamesDetail');
+  const sold = g.soldCount || 0, total = g.sheetCount || 0, left = Math.max(0, total - sold);
+  const collection = allPurchases.filter(p => p.gameId === id && p.status === 'approved').reduce((s,p)=>s+(p.amount||0),0);
+  const pendingAmt = allPurchases.filter(p => p.gameId === id && p.status === 'pending').reduce((s,p)=>s+(p.amount||0),0);
+  const soldNums = g.soldSheetNums || [];
 
+  const prizeHtml = (g.prizes||[]).map(p => {
+    const val = p.kind==='cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description||'');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:600">${esc(p.name)}</span>
+      <span style="font-size:12px;font-weight:700;color:var(--primary)">${val}</span>
+    </div>`;
+  }).join('') || '<div style="font-size:12px;color:var(--muted);padding:8px 0">No prizes set</div>';
+
+  const soldNumsHtml = soldNums.length
+    ? soldNums.map(n=>`<span class="sold-num-chip">${n}</span>`).join('')
+    : '<span style="font-size:12px;color:var(--muted)">None sold yet</span>';
+
+  detail.innerHTML = `
+    <div class="gd-hero">
+      ${g.thumbnail?`<img src="${esc(g.thumbnail)}" onerror="this.style.display='none'">`:''}
+      <div class="gd-hero-overlay"></div>
+      <div class="gd-hero-content">
+        <div>
+          <span class="chip-status chip-${g.status}" style="margin-bottom:6px;display:inline-block">${g.status}</span>
+          <div class="gd-name">${esc(g.name)}</div>
+          ${g.gameDate?`<div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px">📅 ${esc(g.gameDate)}</div>`:''}
+        </div>
+        <div class="gd-hero-actions">
+          ${g.status!=='listed'?`<button class="btn btn-green btn-xs" onclick="setStatus('${g.id}','listed')">▶ List</button>`:''}
+          ${g.status!=='draft'?`<button class="btn btn-ghost btn-xs" onclick="setStatus('${g.id}','draft')">Draft</button>`:''}
+          ${g.status!=='ended'?`<button class="btn btn-warn btn-xs" onclick="setStatus('${g.id}','ended')">■ End</button>`:''}
+          <button class="btn btn-primary btn-xs" onclick="openEditPanel('${g.id}')">✏️ Edit</button>
+          <button class="btn btn-red btn-xs" onclick="deleteGame('${g.id}','${esc(g.name)}')">🗑</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gd-body">
+
+      <div class="gd-stats-row">
+        <div class="gd-stat"><div class="gd-stat-val">${total}</div><div class="gd-stat-lbl">Assigned</div></div>
+        <div class="gd-stat"><div class="gd-stat-val" style="color:var(--err)">${sold}</div><div class="gd-stat-lbl">Sold</div></div>
+        <div class="gd-stat"><div class="gd-stat-val" style="color:var(--ok)">${left}</div><div class="gd-stat-lbl">Remaining</div></div>
+        <div class="gd-stat"><div class="gd-stat-val" style="color:#1B5E20;font-size:16px">₹${collection.toLocaleString('en-IN')}</div><div class="gd-stat-lbl">Collected</div></div>
+      </div>
+
+      ${pendingAmt?`<div style="background:#FFF3E0;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;color:var(--warn)">⏳ ₹${pendingAmt.toLocaleString('en-IN')} pending verification</div>`:''}
+
+      ${total?`<div class="gd-section">
+        <div class="gd-section-title">📋 Sheet Range</div>
+        <div style="font-size:13px;font-weight:700;color:var(--primary)">#${g.sheetFrom} — #${g.sheetTo}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${total} sheets assigned</div>
+      </div>`:''}
+
+      <div class="gd-section">
+        <div class="gd-section-title">
+          Assign Sheets
+          <span style="font-weight:400;font-size:11px;color:var(--muted)">range inclusive</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" id="af-${g.id}" placeholder="From" value="${g.sheetFrom||''}" style="width:90px">
+          <span style="color:var(--muted)">—</span>
+          <input type="number" id="at-${g.id}" placeholder="To" value="${g.sheetTo||''}" style="width:90px">
+          <button class="btn btn-primary btn-sm" onclick="assignSheets('${g.id}')">Assign</button>
+        </div>
+      </div>
+
+      ${soldNums.length?`<div class="gd-section">
+        <div class="gd-section-title">Sold Sheet Numbers <span style="font-weight:400">(${soldNums.length})</span></div>
+        <div class="sold-nums-wrap">${soldNumsHtml}</div>
+      </div>`:''}
+
+      ${g.description?`<div class="gd-section">
+        <div class="gd-section-title">Description</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6">${esc(g.description)}</div>
+      </div>`:''}
+
+      <div class="gd-section">
+        <div class="gd-section-title">Prizes</div>
+        ${prizeHtml}
+      </div>
+
+    </div>`;
+}
+
+/* ── Create / Edit Game Panel ── */
+function openCreatePanel() {
+  currentGameId = null;
+  editingGameId = null;
+  gameThumbnailUrl = '';
+  resetPs();
+  renderGamesList();
+  renderGameForm(null);
+}
+
+function openEditPanel(id) {
+  const g = allGames.find(x => x.id === id);
+  if (!g) return;
+  editingGameId = id;
+  gameThumbnailUrl = g.thumbnail || '';
+  resetPs(g.prizes || []);
+  renderGameForm(g);
+}
+
+function renderGameForm(g) {
+  const detail = document.getElementById('gamesDetail');
+  const isEdit = !!g;
+  const thumbSrc = gameThumbnailUrl || (g && g.thumbnail) || '';
+
+  detail.innerHTML = `<div class="gcf">
+    <div class="gcf-header">
+      <button class="btn btn-ghost btn-sm" onclick="${isEdit?`selectGame('${g.id}')`:'showDefaultDetail()'}">← Back</button>
+      <div class="gcf-title">${isEdit?'Edit: '+esc(g.name):'Create New Game'}</div>
+    </div>
+
+    <div class="field-row">
+      <div class="fg wide"><label class="lbl">Game Name</label>
+        <input type="text" id="gcfName" placeholder="e.g. Sunday Special" maxlength="80" value="${isEdit?esc(g.name):''}"></div>
+      <div class="fg narrow"><label class="lbl">₹/Sheet</label>
+        <input type="number" id="gcfPrice" min="1" value="${isEdit?g.pricePerSheet:5}"></div>
+    </div>
+    <div class="field-row">
+      <div class="fg"><label class="lbl">Date &amp; Time</label>
+        <input type="datetime-local" id="gcfDateTime" value="${isEdit&&g.gameDateRaw?g.gameDateRaw:''}"></div>
+      <div class="fg"><label class="lbl">Thumbnail</label>
+        <div class="thumb-area" onclick="document.getElementById('gcfThumbFile').click()">
+          ${thumbSrc?`<img id="gcfThumbPreview" src="${esc(thumbSrc)}">`:'<span style="font-size:20px">🖼️</span><span>Click to upload</span>'}
+        </div>
+        <input type="file" id="gcfThumbFile" accept="image/*" style="display:none" onchange="uploadGcfThumb(this)">
+        <span id="gcfThumbStatus" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="fg"><label class="lbl">Description (optional)</label>
+        <textarea id="gcfDesc" placeholder="Extra info…" maxlength="200">${isEdit?esc(g.description||''):''}</textarea></div>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Prizes — tick to include</div>
+    <div id="gcfPrizesGrid">${buildPrizesHtml()}</div>
+
+    <div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-primary" onclick="${isEdit?`saveEditGame('${g.id}')`:' saveCreateGame()'}">${isEdit?'💾 Save Changes':'✅ Create Game'}</button>
+      <button class="btn btn-ghost" onclick="${isEdit?`selectGame('${g.id}')`:'showDefaultDetail()'}">Cancel</button>
+    </div>
+    <div id="gcfMsg"></div>
+  </div>`;
+}
+
+function buildPrizesHtml() {
+  return PRIZES.map(p => {
+    const s = ps[p.key];
+    return `<div class="prize-row-item${s.enabled?' active':''}" id="pri-${p.key}">
+      <input type="checkbox" class="prize-check" id="prchk-${p.key}" ${s.enabled?'checked':''}
+        onchange="togglePrizeItem('${p.key}',this.checked)" onclick="event.stopPropagation()">
+      <span class="prize-label" onclick="togglePrizeItem('${p.key}',!ps['${p.key}'].enabled)">${p.label}</span>
+      <div class="prize-expand" id="prexp-${p.key}" style="display:${s.enabled?'block':'none'}">
+        <div class="prize-kind-tabs">
+          <div class="pkind-tab${s.kind==='cash'?' active':''}" onclick="setPrizeKind('${p.key}','cash')">💰 Cash</div>
+          <div class="pkind-tab${s.kind==='thing'?' active':''}" onclick="setPrizeKind('${p.key}','thing')">🎁 Prize</div>
+        </div>
+        <div id="prcash-${p.key}" style="display:${s.kind==='cash'?'block':'none'}">
+          <input type="number" min="1" placeholder="₹ Amount" id="pramt-${p.key}" value="${s.amount}" oninput="ps['${p.key}'].amount=this.value" style="max-width:160px">
+        </div>
+        <div id="prthing-${p.key}" style="display:${s.kind==='thing'?'flex':'none'};flex-direction:column;gap:6px">
+          <input type="text" placeholder="e.g. iPhone 16, Bullet Bike" maxlength="100" id="prdesc-${p.key}" value="${esc(s.description||'')}" oninput="ps['${p.key}'].description=this.value">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn btn-ghost btn-xs" onclick="document.getElementById('prfile-${p.key}').click()">📷 Photo</button>
+            <span id="prupl-${p.key}" style="font-size:11px;color:var(--muted)"></span>
+            ${s.imageUrl?`<img src="${esc(s.imageUrl)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">`:''}
+            <input type="file" id="prfile-${p.key}" accept="image/*" style="display:none" onchange="uploadPrizeImg('${p.key}',this)">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePrizeItem(key, enabled) {
+  ps[key].enabled = enabled;
+  document.getElementById(`prchk-${key}`).checked = enabled;
+  document.getElementById(`prexp-${key}`).style.display = enabled ? 'block' : 'none';
+  document.getElementById(`pri-${key}`).classList.toggle('active', enabled);
+}
+
+function setPrizeKind(key, kind) {
+  ps[key].kind = kind;
+  document.getElementById(`prcash-${key}`).style.display = kind==='cash'?'block':'none';
+  document.getElementById(`prthing-${key}`).style.display = kind==='thing'?'flex':'none';
+  document.querySelectorAll(`#pri-${key} .pkind-tab`).forEach((el,i) => el.classList.toggle('active', (i===0&&kind==='cash')||(i===1&&kind==='thing')));
+}
+
+async function uploadPrizeImg(key, input) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5*1024*1024) { toast('Image too large (max 5MB)'); return; }
+  const uplEl = document.getElementById(`prupl-${key}`);
+  uplEl.textContent = 'Uploading…';
   try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, gameDateRaw: dt || null, pricePerSheet, description, prizes, thumbnail: gameThumbnailUrl || null })
-    });
+    const b64 = await fileToBase64(file);
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name }) });
     const data = await r.json();
-    if (!r.ok) { showMsg(msgEl, data.error || 'Failed', 'err'); return; }
-    showMsg(msgEl, `"${name}" created${prizes.length ? ` with ${prizes.length} prize${prizes.length!==1?'s':''}` : ''}!`, 'ok');
-    document.getElementById('gameName').value = '';
-    document.getElementById('gameDateTime').value = '';
-    document.getElementById('gameDesc').value = '';
-    gameThumbnailUrl = '';
-    document.getElementById('thumbPreview').style.display = 'none';
-    document.getElementById('thumbHint').style.display = 'block';
-    resetPrizes();
-    loadGames();
-  } catch(e) { showMsg(msgEl, 'Network error', 'err'); }
+    if (!r.ok) { uplEl.textContent = data.error||'Failed'; return; }
+    ps[key].imageUrl = data.url;
+    uplEl.textContent = '✓';
+    setTimeout(()=>uplEl.textContent='',2000);
+  } catch(e) { uplEl.textContent = 'Error'; }
+}
+
+async function uploadGcfThumb(input) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5*1024*1024) { toast('Image too large (max 5MB)'); return; }
+  const statusEl = document.getElementById('gcfThumbStatus');
+  statusEl.textContent = 'Uploading…';
+  try {
+    const b64 = await fileToBase64(file);
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name }) });
+    const data = await r.json();
+    if (!r.ok) { statusEl.textContent = data.error||'Failed'; return; }
+    gameThumbnailUrl = data.url;
+    const area = document.querySelector('.thumb-area');
+    if (area) area.innerHTML = `<img src="${esc(data.url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`;
+    statusEl.textContent = '✓ Uploaded';
+    setTimeout(()=>statusEl.textContent='',2000);
+  } catch(e) { statusEl.textContent = 'Error'; }
+}
+
+function collectPrizes() {
+  return PRIZES.filter(p => ps[p.key].enabled).map(p => {
+    const s = ps[p.key];
+    const prize = { name: p.label.replace(/^\S+\s/,''), kind:s.kind };
+    if (s.kind==='cash') prize.amount = parseInt(s.amount)||0;
+    else { prize.description = s.description; if (s.imageUrl) prize.imageUrl = s.imageUrl; }
+    return prize;
+  });
+}
+
+async function saveCreateGame() {
+  const name = document.getElementById('gcfName').value.trim();
+  const dt = document.getElementById('gcfDateTime').value;
+  const pricePerSheet = parseInt(document.getElementById('gcfPrice').value)||5;
+  const description = document.getElementById('gcfDesc').value.trim();
+  const prizes = collectPrizes();
+  const msgEl = document.getElementById('gcfMsg');
+  if (!name) { showMsg(msgEl,'Game name required','err'); return; }
+  const gameDate = dt ? new Date(dt).toLocaleString('en-IN',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  try {
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, gameDateRaw:dt||null, pricePerSheet, description, prizes, thumbnail:gameThumbnailUrl||null }) });
+    const data = await r.json();
+    if (!r.ok) { showMsg(msgEl,data.error||'Failed','err'); return; }
+    toast(`"${name}" created!`);
+    gameThumbnailUrl = ''; resetPs();
+    await loadGames();
+    selectGame(data.game.id);
+  } catch(e) { showMsg(msgEl,'Network error','err'); }
+}
+
+async function saveEditGame(gameId) {
+  const name = document.getElementById('gcfName').value.trim();
+  const dt = document.getElementById('gcfDateTime').value;
+  const pricePerSheet = parseInt(document.getElementById('gcfPrice').value)||5;
+  const description = document.getElementById('gcfDesc').value.trim();
+  const prizes = collectPrizes();
+  const msgEl = document.getElementById('gcfMsg');
+  if (!name) { showMsg(msgEl,'Game name required','err'); return; }
+  const gameDate = dt ? new Date(dt).toLocaleString('en-IN',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  try {
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'edit-game', password:pwd, gameId, name, gameDate, gameDateRaw:dt||null, pricePerSheet, description, prizes, thumbnail:gameThumbnailUrl||null }) });
+    const data = await r.json();
+    if (!r.ok) { showMsg(msgEl,data.error||'Failed','err'); return; }
+    toast(`"${name}" updated!`);
+    await loadGames();
+    selectGame(gameId);
+  } catch(e) { showMsg(msgEl,'Network error','err'); }
+}
+
+function showDefaultDetail() {
+  currentGameId = null; editingGameId = null;
+  renderGamesList();
+  document.getElementById('gamesDetail').innerHTML = `<div class="games-detail-empty"><div class="games-detail-empty-ico">🎮</div><div style="font-size:15px;font-weight:700;margin-bottom:6px">Select a game</div><div style="font-size:12px;opacity:.7">or create a new one</div></div>`;
 }
 
 async function assignSheets(gameId) {
-  const from = document.getElementById(`af-${gameId}`).value;
-  const to = document.getElementById(`at-${gameId}`).value;
-  if (!from || !to) { toast('Enter from and to sheet numbers'); return; }
+  const from = document.getElementById(`af-${gameId}`)?.value;
+  const to   = document.getElementById(`at-${gameId}`)?.value;
+  if (!from||!to) { toast('Enter from and to sheet numbers'); return; }
   try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'assign-sheets', password:pwd, gameId, sheetFrom:from, sheetTo:to })
-    });
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'assign-sheets', password:pwd, gameId, sheetFrom:from, sheetTo:to }) });
     const data = await r.json();
-    if (!r.ok) { toast(data.error || 'Assign failed'); return; }
-    toast(`Assigned ${data.sheetsFound} sheets`); loadGames();
+    if (!r.ok) { toast(data.error||'Assign failed'); return; }
+    toast(`Assigned ${data.sheetsFound} sheets`);
+    await loadGames();
+    renderGameDetail(gameId);
   } catch(e) { toast('Network error'); }
 }
 
 async function deleteGame(gameId, name) {
-  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  if (!confirm(`Permanently delete "${name}"?`)) return;
   try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'delete-game', password:pwd, gameId })
-    });
-    const data = await r.json();
-    if (!r.ok) { toast(data.error || 'Delete failed'); return; }
-    toast(`"${name}" deleted`); loadGames();
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'delete-game', password:pwd, gameId }) });
+    if (r.ok) { toast(`"${name}" deleted`); currentGameId=null; loadGames(); showDefaultDetail(); }
+    else { const d=await r.json(); toast(d.error||'Delete failed'); }
   } catch(e) { toast('Network error'); }
 }
 
 async function setStatus(gameId, status) {
-  const labels = { listed:'list', ended:'end', draft:'move to draft' };
+  const labels = {listed:'list',ended:'end',draft:'move to draft'};
   if (!confirm(`${labels[status]} this game?`)) return;
   try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'set-status', password:pwd, gameId, status })
-    });
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'set-status', password:pwd, gameId, status }) });
     const data = await r.json();
-    if (!r.ok) { toast(data.error || 'Failed'); return; }
-    toast(`Status → ${status}`); loadGames();
+    if (!r.ok) { toast(data.error||'Failed'); return; }
+    toast(`Status → ${status}`);
+    await loadGames();
+    renderGameDetail(gameId);
   } catch(e) { toast('Network error'); }
 }
 
-/* ── Purchases / Sales ── */
+/* ══ SALES ════════════════════════════════════════════════════════ */
 async function loadPurchases() {
   try {
     const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}&type=purchases`);
     allPurchases = (await r.json()).purchases || [];
-    renderPurchases();
-    renderSalesStats();
+    renderSalesView();
+    renderGamesList();
     updatePendingBadge();
   } catch(e) {}
 }
 
 function updatePendingBadge() {
-  const pending = allPurchases.filter(p => p.status === 'pending').length;
-  const badge = document.getElementById('pendingBadge');
-  badge.style.display = pending ? 'inline-flex' : 'none';
-  badge.textContent = pending;
+  const n = allPurchases.filter(p=>p.status==='pending').length;
+  const b = document.getElementById('pendingBadge');
+  b.style.display = n ? 'inline-flex' : 'none'; b.textContent = n;
 }
 
-function renderSalesStats() {
-  const approved = allPurchases.filter(p => p.status === 'approved');
-  const pending  = allPurchases.filter(p => p.status === 'pending');
-  const totalRev = approved.reduce((s, p) => s + (p.amount || 0), 0);
-  const pendingRev = pending.reduce((s, p) => s + (p.amount || 0), 0);
+function getFilteredPurchases() {
+  const gameId = document.getElementById('salesGameFilter')?.value || '';
+  const period = document.getElementById('salesDateFilter')?.value || 'all';
+  const now = Date.now();
+  const cutoffs = { today: now - 86400000, week: now - 604800000, all: 0 };
+  const cutoff = cutoffs[period] || 0;
+  return allPurchases.filter(p => {
+    if (gameId && p.gameId !== gameId) return false;
+    if (cutoff && (p.createdAt||0) < cutoff) return false;
+    return true;
+  });
+}
+
+function renderSalesView() {
+  const filtered = getFilteredPurchases();
+  const approved = filtered.filter(p=>p.status==='approved');
+  const allPending = allPurchases.filter(p=>p.status==='pending');
+
+  const totalRev = approved.reduce((s,p)=>s+(p.amount||0),0);
+  const pendingAmt = allPending.reduce((s,p)=>s+(p.amount||0),0);
+
   document.getElementById('sTotalRev').textContent = `₹${totalRev.toLocaleString('en-IN')}`;
-  document.getElementById('sPendingRev').textContent = `₹${pendingRev.toLocaleString('en-IN')}`;
-  document.getElementById('sTotalOrders').textContent = allPurchases.length;
-  document.getElementById('sPendingCount').textContent = pending.length;
+  document.getElementById('sPendingRev').textContent = `₹${pendingAmt.toLocaleString('en-IN')}`;
+  document.getElementById('sTotalOrders').textContent = filtered.length;
+  document.getElementById('sPendingCount').textContent = allPending.length;
+
+  const gameId = document.getElementById('salesGameFilter')?.value || '';
+  const label = gameId ? (allGames.find(g=>g.id===gameId)?.name||'Selected') : 'All Games';
+  document.getElementById('sTotalRevSub').textContent = label;
+  document.getElementById('sOrdersSub').textContent = label;
 
   // Revenue by game
+  renderRevenueByGame(filtered, gameId);
+  // Pending orders (all games always)
+  renderPendingOrders(allPending);
+  // Purchases table
+  renderPurchasesTable();
+}
+
+function renderRevenueByGame(filtered, selectedGameId) {
   const byGame = {};
-  allPurchases.forEach(p => {
-    if (!byGame[p.gameId]) byGame[p.gameId] = { name:p.gameName, collected:0, pendingAmt:0, orders:0, pending:0 };
+  filtered.forEach(p => {
+    if (!byGame[p.gameId]) byGame[p.gameId] = { name:p.gameName, id:p.gameId, collected:0, pendingAmt:0, orders:0 };
     byGame[p.gameId].orders++;
-    if (p.status === 'approved') byGame[p.gameId].collected += p.amount || 0;
-    else { byGame[p.gameId].pendingAmt += p.amount || 0; byGame[p.gameId].pending++; }
+    if (p.status==='approved') byGame[p.gameId].collected += p.amount||0;
+    else byGame[p.gameId].pendingAmt += p.amount||0;
   });
 
-  // Get thumbnails from allGames
   const thumbMap = {};
-  allGames.forEach(g => { if (g.thumbnail) thumbMap[g.id] = g.thumbnail; });
+  allGames.forEach(g => { if(g.thumbnail) thumbMap[g.id]=g.thumbnail; });
 
-  const gameEntries = Object.entries(byGame).sort((a,b) => b[1].collected - a[1].collected);
-  const revEl = document.getElementById('revenueByGame');
-  if (!gameEntries.length) {
-    revEl.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">No purchases yet.</div>';
-    return;
-  }
-  revEl.innerHTML = gameEntries.map(([gameId, d]) => {
-    const thumb = thumbMap[gameId];
-    const thumbHtml = thumb
-      ? `<img src="${esc(thumb)}" onerror="this.style.display='none'">`
-      : `<span>🎮</span>`;
-    return `<div class="rev-card">
-      <div class="rev-thumb">${thumbHtml}</div>
+  const entries = Object.values(byGame).sort((a,b)=>b.collected-a.collected);
+  const el = document.getElementById('revenueByGame');
+  const titleEl = document.getElementById('revByGameTitle');
+  titleEl.textContent = selectedGameId ? 'Revenue for Selected Game' : 'Revenue by Game';
+
+  if (!entries.length) { el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;font-size:12px">No data for this filter.</div>'; return; }
+  el.innerHTML = entries.map(d => {
+    const thumb = thumbMap[d.id];
+    return `<div class="rev-game-item">
+      <div class="rev-thumb">${thumb?`<img src="${esc(thumb)}" onerror="this.style.display='none'">`:''}<span style="font-size:18px;position:absolute">🎮</span></div>
       <div class="rev-info">
         <div class="rev-name">${esc(d.name)}</div>
-        <div class="rev-stats">
-          <div class="rev-stat"><div class="rev-val">₹${d.collected.toLocaleString('en-IN')}</div><div class="rev-lbl">Collected</div></div>
-          ${d.pendingAmt ? `<div class="rev-stat"><div class="rev-val" style="color:var(--warn)">₹${d.pendingAmt.toLocaleString('en-IN')}</div><div class="rev-lbl">Pending</div></div>` : ''}
-          <div class="rev-stat"><div class="rev-val">${d.orders}</div><div class="rev-lbl">Orders</div></div>
-          ${d.pending ? `<div class="rev-stat"><div class="rev-val" style="color:var(--warn)">${d.pending}</div><div class="rev-lbl">Awaiting</div></div>` : ''}
+        <div class="rev-chips">
+          <span class="rev-chip green">₹${d.collected.toLocaleString('en-IN')} collected</span>
+          ${d.pendingAmt?`<span class="rev-chip warn">₹${d.pendingAmt.toLocaleString('en-IN')} pending</span>`:''}
+          <span class="rev-chip blue">${d.orders} order${d.orders!==1?'s':''}</span>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
-function renderPurchases() {
+function renderPendingOrders(pending) {
+  const el = document.getElementById('pendingOrdersList');
+  if (!pending.length) { el.innerHTML = '<div style="color:var(--ok);text-align:center;padding:16px;font-size:12px;font-weight:700">✅ All clear — no pending orders</div>'; return; }
+  el.innerHTML = pending.map(p => `<div class="pending-order-item">
+    <div class="poi-name">${esc(p.playerName)} <span style="font-weight:400;font-size:11px">${p.phone?'· '+esc(p.phone):''}</span></div>
+    <div class="poi-game">🎮 ${esc(p.gameName)}</div>
+    <div class="poi-meta">${p.quantity} sheet${p.quantity!==1?'s':''} · ₹${p.amount} · ${timeAgo(p.createdAt)}</div>
+    <button class="btn btn-green btn-xs" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">✓ Approve</button>
+  </div>`).join('');
+}
+
+function renderPurchasesTable() {
   const tbody = document.getElementById('purchasesTbl');
-  const q = (document.getElementById('purchaseSearch')?.value || '').trim().toLowerCase();
-  const list = q
-    ? allPurchases.filter(p =>
-        (p.playerName||'').toLowerCase().includes(q) ||
-        (p.phone||'').replace(/\s/g,'').includes(q.replace(/\s/g,''))
-      )
-    : allPurchases;
-  if (!list.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${q ? 'No results for "'+q+'"' : 'No purchases yet.'}</td></tr>`; return;
-  }
+  const q = (document.getElementById('purchaseSearch')?.value||'').trim().toLowerCase();
+  const gf = document.getElementById('purchGameFilter')?.value||'';
+  const sf = document.getElementById('purchStatusFilter')?.value||'';
+  let list = allPurchases;
+  if (q) list = list.filter(p => (p.playerName||'').toLowerCase().includes(q)||(p.phone||'').replace(/\s/g,'').includes(q.replace(/\s/g,'')));
+  if (gf) list = list.filter(p => p.gameId===gf);
+  if (sf) list = list.filter(p => p.status===sf);
+  if (!list.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No results.</td></tr>`; return; }
   tbody.innerHTML = list.map(p => {
-    const sheetsCell = p.sheetNums && p.sheetNums.length
-      ? `<span style="font-size:11px;color:var(--muted)">${p.sheetNums.slice(0,5).map(n=>'#'+n).join(', ')}${p.sheetNums.length>5?' …':''}</span>`
-      : `<span style="font-size:11px;color:var(--muted)">—</span>`;
+    const sheetsCell = p.sheetNums?.length
+      ? `<span style="font-size:11px;color:var(--muted)">${p.sheetNums.slice(0,4).map(n=>'#'+n).join(', ')}${p.sheetNums.length>4?` +${p.sheetNums.length-4}`:''}</span>`
+      : '—';
     return `<tr>
       <td><strong>${esc(p.playerName)}</strong></td>
-      <td style="font-size:12px">${esc(p.phone||'—')}</td>
-      <td style="font-size:12px">${esc(p.gameName)}</td>
+      <td style="font-size:11px">${esc(p.phone||'—')}</td>
+      <td style="font-size:11px">${esc(p.gameName)}</td>
       <td>${p.quantity}</td>
-      <td>₹${p.amount}</td>
+      <td style="font-weight:700">₹${p.amount}</td>
       <td>${sheetsCell}</td>
-      <td><span class="chip chip-${p.status}">${p.status}</span></td>
-      <td>${p.status==='pending'
-        ? `<button class="btn btn-green btn-sm" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>`
-        : ''}</td>
+      <td style="font-size:11px;color:var(--muted)">${timeAgo(p.createdAt)}</td>
+      <td><span class="chip-status chip-${p.status}">${p.status}</span></td>
+      <td>${p.status==='pending'?`<button class="btn btn-green btn-xs" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">Approve</button>`:''}</td>
     </tr>`;
   }).join('');
+}
+
+function populateGameFilters() {
+  const filters = ['salesGameFilter','purchGameFilter'];
+  filters.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = `<option value="">All Games</option>` +
+      allGames.map(g=>`<option value="${g.id}"${g.id===cur?' selected':''}>${esc(g.name)}</option>`).join('');
+  });
 }
 
 async function approvePurchase(purchaseId, name) {
   if (!confirm(`Approve purchase for ${name}?`)) return;
   try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'approve-purchase', password:pwd, purchaseId })
-    });
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'approve-purchase', password:pwd, purchaseId }) });
     const data = await r.json();
-    if (!r.ok) { toast(data.error || 'Approval failed'); return; }
-    toast(`Approved — ${data.sheetsAssigned} sheet(s) sent to ${name}`);
+    if (!r.ok) { toast(data.error||'Approval failed'); return; }
+    toast(`✅ ${data.sheetsAssigned} sheet${data.sheetsAssigned!==1?'s':''} sent to ${name}`);
     loadPurchases(); loadGames();
   } catch(e) { toast('Network error'); }
 }
 
-/* ── Helpers ── */
+/* ══ SETTINGS ══════════════════════════════════════════════════════ */
+async function loadSettings() {
+  try {
+    const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}&type=settings`);
+    const data = await r.json();
+    adminSettings = data.settings || {};
+    document.getElementById('setOperatorName').value = adminSettings.operatorName || '';
+    document.getElementById('setWhatsapp').value = adminSettings.whatsappNumber || '';
+    document.getElementById('setSupportText').value = adminSettings.supportText || '';
+    document.getElementById('setUpiId').value = adminSettings.upiId || '';
+    if (adminSettings.customQrUrl) {
+      document.getElementById('qrPreviewImg').src = adminSettings.customQrUrl;
+      document.getElementById('qrPreview').style.display = 'flex';
+    }
+    if (adminSettings.operatorName) document.getElementById('hdrOpName').textContent = adminSettings.operatorName;
+  } catch(e) {}
+}
+
+async function saveOperatorSettings() {
+  const msgEl = document.getElementById('setOpMsg');
+  try {
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'update-settings', password:pwd,
+        operatorName: document.getElementById('setOperatorName').value.trim(),
+        whatsappNumber: document.getElementById('setWhatsapp').value.trim(),
+        supportText: document.getElementById('setSupportText').value.trim()
+      }) });
+    const data = await r.json();
+    if (!r.ok) { showMsg(msgEl,data.error||'Failed','err'); return; }
+    showMsg(msgEl,'Saved!','ok');
+    if (data.settings?.operatorName) document.getElementById('hdrOpName').textContent = data.settings.operatorName;
+  } catch(e) { showMsg(msgEl,'Network error','err'); }
+}
+
+async function savePaymentSettings() {
+  const msgEl = document.getElementById('setPayMsg');
+  try {
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'update-settings', password:pwd,
+        upiId: document.getElementById('setUpiId').value.trim(),
+        customQrUrl: adminSettings.customQrUrl || null
+      }) });
+    const data = await r.json();
+    if (!r.ok) { showMsg(msgEl,data.error||'Failed','err'); return; }
+    showMsg(msgEl,'Payment settings saved!','ok');
+    adminSettings = data.settings || adminSettings;
+  } catch(e) { showMsg(msgEl,'Network error','err'); }
+}
+
+async function uploadQrImage(input) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5*1024*1024) { toast('Image too large (max 5MB)'); return; }
+  const statusEl = document.getElementById('setQrStatus');
+  statusEl.textContent = 'Uploading…';
+  try {
+    const b64 = await fileToBase64(file);
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'upload-prize-image', password:pwd, data:b64, filename:file.name }) });
+    const data = await r.json();
+    if (!r.ok) { statusEl.textContent = data.error||'Failed'; return; }
+    adminSettings.customQrUrl = data.url;
+    document.getElementById('qrPreviewImg').src = data.url;
+    document.getElementById('qrPreview').style.display = 'flex';
+    statusEl.textContent = '✓ Uploaded — save to apply';
+  } catch(e) { statusEl.textContent = 'Upload failed'; }
+}
+
+/* ══ HELPERS ══════════════════════════════════════════════════════ */
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1022,21 +1456,21 @@ function fileToBase64(file) {
 
 function showMsg(el, text, type) {
   el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${esc(text)}</div>`;
-  setTimeout(() => { if (el) el.innerHTML = ''; }, 4000);
+  if (type==='ok') setTimeout(()=>{ if(el) el.innerHTML=''; },3000);
 }
 
 let toastT;
 function toast(msg) {
   const el = document.getElementById('toastEl');
   el.textContent = msg; el.style.transform = 'translateX(-50%) translateY(0)';
-  clearTimeout(toastT); toastT = setTimeout(() => { el.style.transform = 'translateX(-50%) translateY(80px)'; }, 2800);
+  clearTimeout(toastT); toastT = setTimeout(()=>{ el.style.transform = 'translateX(-50%) translateY(80px)'; },2800);
 }
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-document.getElementById('pwdInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+document.getElementById('pwdInput').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
 </script>
 </body>
 </html>

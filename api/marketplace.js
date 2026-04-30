@@ -32,6 +32,11 @@ module.exports = async function(req, res) {
       const purchases = await kv.get('tb:mkt:purchases') || [];
       return res.json({ purchases });
     }
+    if (type === 'settings') {
+      const settings = await kv.get('tb:mkt:settings') || {};
+      const cfg = await kv.get('tb:config') || {};
+      return res.json({ settings: { ...settings, upiId: settings.upiId || cfg.upiId || '' } });
+    }
     return res.json({ games: await kv.get('tb:mkt:games') || [] });
   }
 
@@ -225,6 +230,52 @@ module.exports = async function(req, res) {
     if (purchase.status === 'approved')
       return res.json({ status: 'approved', downloadToken: purchase.downloadToken, quantity: purchase.quantity });
     return res.json({ status: purchase.status });
+  }
+
+  /* ── Admin: edit game ── */
+  if (action === 'edit-game') {
+    if (await rateLimit(req, 'editgame', 60, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+    const game = await kv.get(`tb:mkt:game:${gameId}`);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+    if (name !== undefined) game.name = String(name).trim().slice(0, 80);
+    if (gameDate !== undefined) game.gameDate = gameDate ? String(gameDate).trim().slice(0, 40) : null;
+    if (gameDateRaw !== undefined) game.gameDateRaw = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
+    if (pricePerSheet !== undefined) game.pricePerSheet = Math.max(1, Number(pricePerSheet) || 5);
+    if (description !== undefined) game.description = String(description || '').trim().slice(0, 200);
+    if (prizes !== undefined) game.prizes = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
+    if (thumbnail !== undefined) game.thumbnail = thumbnail ? String(thumbnail).slice(0, 500) : null;
+    await kv.set(`tb:mkt:game:${gameId}`, game);
+    const games = await kv.get('tb:mkt:games') || [];
+    const idx = games.findIndex(g => g.id === gameId);
+    if (idx !== -1) { games[idx] = game; await kv.set('tb:mkt:games', games); }
+    return res.json({ ok: true, game });
+  }
+
+  /* ── Admin: update settings ── */
+  if (action === 'update-settings') {
+    if (await rateLimit(req, 'updatesettings', 30, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, operatorName, whatsappNumber, supportText, upiId, customQrUrl } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    const settings = await kv.get('tb:mkt:settings') || {};
+    if (operatorName !== undefined) settings.operatorName = String(operatorName).trim().slice(0, 80);
+    if (whatsappNumber !== undefined) settings.whatsappNumber = String(whatsappNumber).trim().slice(0, 20);
+    if (supportText !== undefined) settings.supportText = String(supportText).trim().slice(0, 200);
+    if (customQrUrl !== undefined) settings.customQrUrl = customQrUrl ? String(customQrUrl).slice(0, 500) : null;
+    if (upiId !== undefined) {
+      settings.upiId = String(upiId).trim().slice(0, 100);
+      const cfg = await kv.get('tb:config') || {};
+      cfg.upiId = settings.upiId;
+      await kv.set('tb:config', cfg);
+    }
+    await kv.set('tb:mkt:settings', settings);
+    return res.json({ ok: true, settings });
   }
 
   /* ── Player: lookup purchase by name + phone ── */
