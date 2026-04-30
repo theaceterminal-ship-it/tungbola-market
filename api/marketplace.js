@@ -378,10 +378,18 @@ module.exports = async function(req, res) {
       return res.status(401).json({ error: 'Wrong password' });
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
 
+    // Remove game record and from games list
     await kv.del(`tb:mkt:game:${gameId}`);
     const games = await kv.get('tb:mkt:games') || [];
-    const filtered = games.filter(g => g.id !== gameId);
-    await kv.set('tb:mkt:games', filtered);
+    await kv.set('tb:mkt:games', games.filter(g => g.id !== gameId));
+
+    // Remove all purchases for this game (individual keys + list)
+    const purchases = await kv.get('tb:mkt:purchases') || [];
+    const toDelete = purchases.filter(p => p.gameId === gameId);
+    const remaining = purchases.filter(p => p.gameId !== gameId);
+    await kv.set('tb:mkt:purchases', remaining);
+    await Promise.all(toDelete.map(p => kv.del(`tb:mkt:purchase:${p.purchaseId}`)));
+
     return res.json({ ok: true });
   }
 
