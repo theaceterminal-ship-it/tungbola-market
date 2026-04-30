@@ -152,6 +152,48 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .empty-sub{font-size:13px;margin-top:6px;opacity:.7;line-height:1.5}
 .loading-txt{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
 
+/* ── Pending order resume banner ── */
+.resume-banner{
+  background:linear-gradient(135deg,#1E3A5F,#1565C0);
+  border-radius:18px;padding:14px 16px;margin-bottom:16px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:0 4px 16px rgba(21,101,192,.3)
+}
+.resume-icon{font-size:28px;flex-shrink:0}
+.resume-body{flex:1;min-width:0}
+.resume-title{font-size:13px;font-weight:800;color:#fff;margin-bottom:2px}
+.resume-sub{font-size:11px;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.resume-btn{background:#fff;color:#1565C0;border:none;border-radius:12px;
+  padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;white-space:nowrap}
+
+/* ── Track My Order card ── */
+.track-card{
+  background:var(--surface);border-radius:18px;box-shadow:var(--shadow);
+  margin-bottom:16px;overflow:hidden
+}
+.track-card-header{
+  padding:13px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;
+  border-bottom:1px solid transparent;transition:border-color .2s
+}
+.track-card-header.open{border-bottom-color:var(--border)}
+.track-card-title{font-size:13px;font-weight:700;color:var(--on-s);display:flex;align-items:center;gap:6px}
+.track-card-chevron{font-size:11px;color:var(--muted);transition:transform .2s}
+.track-card-header.open .track-card-chevron{transform:rotate(180deg)}
+.track-body{padding:14px 16px;display:none}
+.track-card-header.open + .track-body{display:block}
+.track-row{display:flex;gap:8px;margin-bottom:10px}
+.track-field{flex:1;padding:11px 13px;border:2px solid var(--border);border-radius:11px;
+  font-size:14px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
+.track-field:focus{border-color:var(--primary)}
+.track-btn{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;
+  border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:opacity .2s}
+.track-btn:disabled{opacity:.5;cursor:not-allowed}
+.track-result{margin-top:12px;padding:12px;border-radius:12px;font-size:13px;font-weight:600;text-align:center}
+.track-result.pending{background:#FFF8E1;color:var(--warn)}
+.track-result.approved{background:#E8F5E9;color:var(--success)}
+.track-result.error{background:#FFEBEE;color:var(--error)}
+
 /* ── BUY SCREEN ── */
 #screenBuy{padding:0;padding-bottom:100px}
 
@@ -437,6 +479,32 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
   <!-- HOME -->
   <div class="screen visible" id="screenHome">
+    <!-- Pending order resume banner (shown if localStorage has an order) -->
+    <div class="resume-banner" id="resumeBanner" style="display:none">
+      <div class="resume-icon">🎟</div>
+      <div class="resume-body">
+        <div class="resume-title" id="resumeTitle">Order in progress</div>
+        <div class="resume-sub" id="resumeSub"></div>
+      </div>
+      <button class="resume-btn" onclick="resumeOrder()">Check Status</button>
+    </div>
+
+    <!-- Track my order (collapsible) -->
+    <div class="track-card">
+      <div class="track-card-header" id="trackHeader" onclick="toggleTrack()">
+        <div class="track-card-title">🔍 Track my order</div>
+        <span class="track-card-chevron">▼</span>
+      </div>
+      <div class="track-body" id="trackBody">
+        <div class="track-row">
+          <input class="track-field" id="trackName" type="text" placeholder="Your name" maxlength="50" autocomplete="name">
+          <input class="track-field" id="trackPhone" type="tel" placeholder="Phone" maxlength="20" style="max-width:140px">
+        </div>
+        <button class="track-btn" id="trackBtn" onclick="lookupOrder()">Find My Order →</button>
+        <div class="track-result" id="trackResult" style="display:none"></div>
+      </div>
+    </div>
+
     <div class="loading-txt" id="homeLoading">Loading games…</div>
     <div id="gamesContainer" style="display:none"></div>
   </div>
@@ -593,8 +661,108 @@ let currentSheets = [], selectedSheetNums = new Set();
 let pickerMode = false, pickerLoaded = false, pickerOpen = false;
 const PICKER_LIMIT = 400;
 
+/* ── localStorage order persistence ── */
+const LS_KEY = 'tb_pending_order';
+
+function saveOrderLocal(data) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function clearOrderLocal() {
+  try { localStorage.removeItem(LS_KEY); } catch(e) {}
+}
+function loadOrderLocal() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) { return null; }
+}
+
+function showResumeBanner() {
+  const saved = loadOrderLocal();
+  const banner = document.getElementById('resumeBanner');
+  if (!saved) { banner.style.display = 'none'; return; }
+  document.getElementById('resumeTitle').textContent = `Pending: ${saved.gameName}`;
+  document.getElementById('resumeSub').textContent = `${saved.playerName} · ${saved.qty} sheet${saved.qty!==1?'s':''} · ₹${saved.amount}`;
+  banner.style.display = 'flex';
+}
+
+async function resumeOrder() {
+  const saved = loadOrderLocal();
+  if (!saved) { showResumeBanner(); return; }
+  purchaseId = saved.purchaseId;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'check-purchase', purchaseId })
+    });
+    if (r.status === 404) {
+      clearOrderLocal(); showResumeBanner();
+      toast('Order expired or not found.'); return;
+    }
+    const data = await r.json();
+    if (data.status === 'approved' && data.downloadToken) {
+      clearOrderLocal(); showResumeBanner();
+      loadDownloads(data.downloadToken); return;
+    }
+    document.getElementById('waitInfo').textContent = `${saved.playerName} · ${saved.qty} sheet${saved.qty!==1?'s':''} · ₹${saved.amount} · ${saved.gameName}`;
+    show('screenWait');
+    startPolling();
+  } catch(e) { toast('Network error. Try again.'); }
+}
+
+/* ── Track My Order ── */
+function toggleTrack() {
+  const h = document.getElementById('trackHeader');
+  h.classList.toggle('open');
+  document.getElementById('trackResult').style.display = 'none';
+}
+
+async function lookupOrder() {
+  const name = document.getElementById('trackName').value.trim();
+  const phone = document.getElementById('trackPhone').value.trim();
+  const resEl = document.getElementById('trackResult');
+  const btn = document.getElementById('trackBtn');
+  if (!name && !phone) { toast('Enter your name or phone'); return; }
+  btn.disabled = true; btn.textContent = 'Searching…';
+  resEl.style.display = 'none';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'lookup-purchase', playerName:name, phone })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      resEl.className = 'track-result error';
+      resEl.textContent = data.error || 'No order found';
+      resEl.style.display = 'block';
+    } else if (data.status === 'approved' && data.downloadToken) {
+      resEl.style.display = 'none';
+      loadDownloads(data.downloadToken);
+    } else {
+      resEl.className = 'track-result pending';
+      resEl.innerHTML = `⏳ Your order is being verified.<br><strong>${data.gameName}</strong> · ${data.quantity} sheet${data.quantity!==1?'s':''} · ₹${data.amount}<br><br>
+        <button onclick="resumePendingFromLookup('${data.purchaseId}','${esc(data.playerName)}','${esc(data.gameName)}',${data.quantity},${data.amount})"
+          style="background:var(--warn);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+          Watch for approval →
+        </button>`;
+      resEl.style.display = 'block';
+    }
+  } catch(e) {
+    resEl.className = 'track-result error';
+    resEl.textContent = 'Network error. Try again.';
+    resEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Find My Order →';
+}
+
+function resumePendingFromLookup(pid, name, gameName, qty, amount) {
+  purchaseId = pid;
+  saveOrderLocal({ purchaseId: pid, playerName: name, gameName, qty, amount });
+  document.getElementById('waitInfo').textContent = `${name} · ${qty} sheet${qty!==1?'s':''} · ₹${amount} · ${gameName}`;
+  show('screenWait');
+  startPolling();
+}
+
 /* ── Init ── */
 async function init() {
+  showResumeBanner();
   try {
     const [cfgR, gamesR] = await Promise.all([fetch('/api/config'), fetch('/api/marketplace')]);
     cfg = await cfgR.json();
@@ -1022,6 +1190,7 @@ async function submitPurchase() {
       return;
     }
     purchaseId = data.purchaseId;
+    saveOrderLocal({ purchaseId, playerName: name, gameName: data.gameName, qty: purchaseQty, amount: data.amount });
     closeQRModal();
     document.getElementById('waitInfo').textContent = `${name} · ${purchaseQty} sheet${purchaseQty>1?'s':''} · ₹${data.amount} · ${data.gameName}`;
     show('screenWait');
@@ -1047,11 +1216,11 @@ async function poll() {
     });
     if (r.status === 404) { stopPolling(); toast('Purchase expired. Try again.'); goHome(); return; }
     const data = await r.json();
-    if (data.status === 'approved' && data.downloadToken) { stopPolling(); loadDownloads(data.downloadToken); }
+    if (data.status === 'approved' && data.downloadToken) { stopPolling(); clearOrderLocal(); loadDownloads(data.downloadToken); }
   } catch(e) {}
 }
 
-function cancelPurchase() { stopPolling(); purchaseId = null; goHome(); }
+function cancelPurchase() { stopPolling(); clearOrderLocal(); purchaseId = null; goHome(); }
 
 /* ── Downloads ── */
 async function loadDownloads(token) {
@@ -1134,6 +1303,7 @@ function goHome() {
   stopPolling();
   clearInterval(countdownTimer);
   purchaseId = null;
+  showResumeBanner();
   startCardCountdowns();
 }
 

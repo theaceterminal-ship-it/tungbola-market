@@ -321,8 +321,13 @@ tr:last-child td{border-bottom:none}
     </div>
 
     <div class="card">
-      <div class="card-title">🛒 All Purchases
-        <span class="card-title-meta"><span class="dot"></span>Live · refreshes every 10s</span>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>🛒 All Purchases <span class="card-title-meta"><span class="dot"></span>Live · refreshes every 10s</span></span>
+        <input type="text" id="purchaseSearch" placeholder="🔍 Search name or phone…"
+          oninput="renderPurchases()"
+          style="padding:7px 12px;border:2px solid var(--border);border-radius:10px;font-size:13px;
+                 font-family:inherit;outline:none;min-width:200px;max-width:260px;transition:border-color .2s"
+          onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
       </div>
       <div class="tbl-wrap">
         <table>
@@ -962,10 +967,17 @@ function renderSalesStats() {
 
 function renderPurchases() {
   const tbody = document.getElementById('purchasesTbl');
-  if (!allPurchases.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No purchases yet.</td></tr>'; return;
+  const q = (document.getElementById('purchaseSearch')?.value || '').trim().toLowerCase();
+  const list = q
+    ? allPurchases.filter(p =>
+        (p.playerName||'').toLowerCase().includes(q) ||
+        (p.phone||'').replace(/\s/g,'').includes(q.replace(/\s/g,''))
+      )
+    : allPurchases;
+  if (!list.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${q ? 'No results for "'+q+'"' : 'No purchases yet.'}</td></tr>`; return;
   }
-  tbody.innerHTML = allPurchases.map(p => {
+  tbody.innerHTML = list.map(p => {
     const sheetsCell = p.sheetNums && p.sheetNums.length
       ? `<span style="font-size:11px;color:var(--muted)">${p.sheetNums.slice(0,5).map(n=>'#'+n).join(', ')}${p.sheetNums.length>5?' …':''}</span>`
       : `<span style="font-size:11px;color:var(--muted)">—</span>`;

@@ -227,6 +227,30 @@ module.exports = async function(req, res) {
     return res.json({ status: purchase.status });
   }
 
+  /* ── Player: lookup purchase by name + phone ── */
+  if (action === 'lookup-purchase') {
+    if (await rateLimit(req, 'lookuppurchase', 15, 60))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { playerName, phone } = body;
+    if (!playerName && !phone) return res.status(400).json({ error: 'playerName or phone required' });
+    const purchases = await kv.get('tb:mkt:purchases') || [];
+    const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, '');
+    const match = purchases.find(p => {
+      const byName = playerName && norm(p.playerName) === norm(playerName);
+      const byPhone = phone && p.phone && norm(p.phone) === norm(phone);
+      return byName || byPhone;
+    });
+    if (!match) return res.status(404).json({ error: 'No order found for that name / phone' });
+    const fresh = await kv.get(`tb:mkt:purchase:${match.purchaseId}`);
+    if (!fresh) return res.status(404).json({ error: 'Order has expired' });
+    return res.json({
+      purchaseId: fresh.purchaseId, status: fresh.status,
+      gameName: fresh.gameName, quantity: fresh.quantity, amount: fresh.amount,
+      playerName: fresh.playerName,
+      downloadToken: fresh.status === 'approved' ? fresh.downloadToken : undefined
+    });
+  }
+
   /* ── Player: get downloads using token ── */
   if (action === 'get-downloads') {
     if (await rateLimit(req, 'getdl', 60, 300))
