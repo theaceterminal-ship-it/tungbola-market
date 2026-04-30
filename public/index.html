@@ -230,23 +230,37 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   border-radius:20px;padding:5px 12px;margin-bottom:8px;
   font-size:12px;font-weight:700;color:#fff;align-self:flex-start
 }
-.buy-hero-name{font-size:26px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px}
+.buy-hero-name{font-size:26px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px;word-break:break-word;overflow-wrap:break-word}
 .buy-hero-date{font-size:13px;color:rgba(255,255,255,.75);margin-bottom:14px}
 
 /* Hero prize strip */
 .hero-prize-strip{margin-bottom:4px}
-.hero-fh-block{
+.hero-fh1-block{
   background:linear-gradient(90deg,rgba(146,64,14,.9),rgba(185,28,28,.85));
-  border-radius:16px;padding:12px 14px;margin-bottom:10px;
+  border-radius:16px;padding:12px 16px;margin-bottom:8px;
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   border:1px solid rgba(253,230,138,.35)
 }
-.hero-fh-left{}
-.hero-fh-eyebrow{font-size:10px;font-weight:800;color:rgba(253,230,138,.85);text-transform:uppercase;letter-spacing:.9px;margin-bottom:2px}
+.hero-fh2-block{
+  background:linear-gradient(90deg,rgba(91,33,182,.8),rgba(124,58,237,.75));
+  border-radius:12px;padding:9px 14px;margin-bottom:8px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border:1px solid rgba(196,181,253,.3)
+}
+.hero-fh-left{flex:1;min-width:0}
+.hero-fh-eyebrow{font-size:10px;font-weight:800;color:rgba(253,230,138,.85);text-transform:uppercase;letter-spacing:.9px;margin-bottom:2px;display:flex;align-items:center;gap:4px}
+.hero-fh2-eyebrow{font-size:11px;font-weight:700;color:rgba(196,181,253,.9);display:flex;align-items:center;gap:4px}
 .hero-fh-name{font-size:15px;font-weight:800;color:#fff}
-.hero-fh-val{font-size:24px;font-weight:900;color:#FDE68A;text-shadow:0 1px 6px rgba(0,0,0,.4)}
-.hero-fh-crown{font-size:26px;flex-shrink:0}
-
+.hero-fh1-val{font-size:24px;font-weight:900;color:#FDE68A;text-shadow:0 1px 6px rgba(0,0,0,.4);flex-shrink:0}
+.hero-fh2-val{font-size:20px;font-weight:900;color:#C4B5FD;flex-shrink:0}
+.hero-line-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.hero-line-chip{
+  background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.3);
+  border-radius:12px;padding:7px 10px;flex:1;min-width:70px;
+  display:flex;flex-direction:column;align-items:center;gap:2px
+}
+.hero-line-chip-name{font-size:10px;font-weight:700;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.5px;text-align:center}
+.hero-line-chip-val{font-size:13px;font-weight:900;color:#6EE7B7;text-align:center}
 .hero-other-prizes{
   display:flex;flex-wrap:wrap;gap:6px;padding-bottom:16px
 }
@@ -999,24 +1013,67 @@ function buildBuyPrizes(prizes) {
   const strip = document.getElementById('heroPrizeStrip');
   if (!prizes.length) { strip.innerHTML = ''; return; }
 
-  const fh = prizes.find(p => /full.?house/i.test(p.name)) || prizes[0];
-  const others = prizes.filter(p => p !== fh);
-  const fhVal = fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || '');
+  const PRIORITY = [
+    [/^full.?house$/i, 1],
+    [/second.?full.?house/i, 2],
+    [/third.?full.?house/i, 3],
+    [/top.?line/i, 4],
+    [/bottom.?line/i, 5],
+    [/middle.?line/i, 6],
+    [/ticket.?corner/i, 7],
+    [/sheet.?corner/i, 8],
+    [/early.?seven/i, 9],
+  ];
+  function getPriority(name) {
+    for (const [re, rank] of PRIORITY) if (re.test(name)) return rank;
+    return 10;
+  }
+  function fmtVal(p) {
+    return p.kind === 'cash' ? `&#8377;${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '');
+  }
 
-  let html = `<div class="hero-fh-block">
-    <div class="hero-fh-left">
-      <div class="hero-fh-eyebrow">👑 Full House Prize</div>
-      <div class="hero-fh-name">${esc(fh.name)}</div>
-    </div>
-    <div class="hero-fh-val">${fhVal}</div>
-    <div class="hero-fh-crown">🏆</div>
-  </div>`;
+  const sorted = [...prizes].sort((a, b) => getPriority(a.name) - getPriority(b.name));
+  const fullHouses = sorted.filter(p => /full.?house/i.test(p.name));
+  const lines = sorted.filter(p => /top.?line|bottom.?line|middle.?line/i.test(p.name));
+  const others = sorted.filter(p => !/full.?house|top.?line|bottom.?line|middle.?line/i.test(p.name));
+
+  const trophySvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v5a5 5 0 01-10 0V2zM4 4H2v2a4 4 0 004 4V4H4zM20 4h-2v6a4 4 0 004-4V4h-2zM11 13v2.5H8V18h8v-2.5h-3V13a7 7 0 003.46-1.27A7 7 0 0111 13z"/></svg>`;
+  const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+
+  let html = '';
+
+  fullHouses.forEach((p, i) => {
+    if (i === 0) {
+      html += `<div class="hero-fh1-block">
+        <div class="hero-fh-left">
+          <div class="hero-fh-eyebrow">${trophySvg} Biggest Prize</div>
+          <div class="hero-fh-name">${esc(p.name)}</div>
+        </div>
+        <div class="hero-fh1-val">${fmtVal(p)}</div>
+      </div>`;
+    } else {
+      html += `<div class="hero-fh2-block">
+        <div class="hero-fh-left">
+          <div class="hero-fh2-eyebrow">${starSvg} ${esc(p.name)}</div>
+        </div>
+        <div class="hero-fh2-val">${fmtVal(p)}</div>
+      </div>`;
+    }
+  });
+
+  if (lines.length) {
+    html += `<div class="hero-line-row">` + lines.map(p =>
+      `<div class="hero-line-chip">
+        <div class="hero-line-chip-name">${esc(p.name)}</div>
+        <div class="hero-line-chip-val">${fmtVal(p)}</div>
+      </div>`
+    ).join('') + `</div>`;
+  }
 
   if (others.length) {
-    html += `<div class="hero-other-prizes">` + others.map(p => {
-      const val = p.kind === 'cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '');
-      return `<div class="hero-other-chip">${esc(p.name)}<span class="hero-other-chip-val">${val}</span></div>`;
-    }).join('') + `</div>`;
+    html += `<div class="hero-other-prizes">` + others.map(p =>
+      `<div class="hero-other-chip">${esc(p.name)}<span class="hero-other-chip-val">${fmtVal(p)}</span></div>`
+    ).join('') + `</div>`;
   }
 
   strip.innerHTML = html;
