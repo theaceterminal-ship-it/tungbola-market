@@ -521,9 +521,9 @@ tr:last-child td{border-bottom:none}
               <div class="sales-purchases">
                 <table>
                   <thead><tr>
-                    <th>Player</th><th>Phone</th><th>Game</th><th>Qty</th><th>Amount</th><th>Sheets</th><th>Time</th><th>Status</th><th></th>
+                    <th>Player</th><th>Phone</th><th>PIN</th><th>Game</th><th>Qty</th><th>Amount</th><th>Sheets</th><th>Time</th><th>Status</th><th></th>
                   </tr></thead>
-                  <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="9">Loading…</td></tr></tbody>
+                  <tbody id="purchasesTbl"><tr class="empty-row"><td colspan="10">Loading…</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -1356,7 +1356,7 @@ function renderPendingOrders(pending) {
   const el = document.getElementById('pendingOrdersList');
   if (!pending.length) { el.innerHTML = `<div style="color:var(--ok);text-align:center;padding:16px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">${ico('checkOk')} All clear — no pending orders</div>`; return; }
   el.innerHTML = pending.map(p => `<div class="pending-order-item">
-    <div class="poi-name">${esc(p.playerName)} <span style="font-weight:400;font-size:11px">${p.phone?'· '+esc(p.phone):''}</span></div>
+    <div class="poi-name">${esc(p.playerName)} <span style="font-weight:400;font-size:11px">${p.phone?'· '+esc(p.phone):''}</span>${p.pin?`<span style="margin-left:6px;background:#EDE9FE;color:#5B21B6;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;letter-spacing:2px">PIN ${esc(p.pin)}</span>`:''}</div>
     <div class="poi-game" style="font-size:11px;font-weight:600;color:var(--primary);margin-bottom:6px">${esc(p.gameName)}</div>
     <div class="poi-meta">${p.quantity} sheet${p.quantity!==1?'s':''} · ₹${p.amount} · ${timeAgo(p.createdAt)}</div>
     <button class="btn btn-green btn-xs" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px" onclick="approvePurchase('${p.purchaseId}','${esc(p.playerName)}')">${ico('check')} Approve</button>
@@ -1372,7 +1372,7 @@ function renderPurchasesTable() {
   if (q) list = list.filter(p => (p.playerName||'').toLowerCase().includes(q)||(p.phone||'').replace(/\s/g,'').includes(q.replace(/\s/g,'')));
   if (gf) list = list.filter(p => p.gameId===gf);
   if (sf) list = list.filter(p => p.status===sf);
-  if (!list.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No results.</td></tr>`; return; }
+  if (!list.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="10">No results.</td></tr>`; return; }
   tbody.innerHTML = list.map(p => {
     const sheetsCell = p.sheetNums?.length
       ? `<span style="font-size:11px;color:var(--muted)">${p.sheetNums.slice(0,4).map(n=>'#'+n).join(', ')}${p.sheetNums.length>4?` +${p.sheetNums.length-4}`:''}</span>`
@@ -1380,6 +1380,7 @@ function renderPurchasesTable() {
     return `<tr>
       <td><strong>${esc(p.playerName)}</strong></td>
       <td style="font-size:11px">${esc(p.phone||'—')}</td>
+      <td><span style="background:#EDE9FE;color:#5B21B6;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;letter-spacing:2px">${esc(p.pin||'—')}</span></td>
       <td style="font-size:11px">${esc(p.gameName)}</td>
       <td>${p.quantity}</td>
       <td style="font-weight:700">₹${p.amount}</td>

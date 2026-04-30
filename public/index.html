@@ -367,6 +367,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
   font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
 .mkt-field:focus{border-color:var(--primary)}
+.field-hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}
+.pin-row{display:flex;gap:10px}
+.pin-row .mkt-field{letter-spacing:6px;font-size:22px;font-weight:800;text-align:center;max-width:130px}
 
 /* Amount bar */
 .amount-bar{
@@ -517,8 +520,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
       </div>
       <div class="track-body" id="trackBody">
         <div class="track-row">
-          <input class="track-field" id="trackName" type="text" placeholder="Your name" maxlength="50" autocomplete="name">
-          <input class="track-field" id="trackPhone" type="tel" placeholder="Phone" maxlength="20" style="max-width:140px">
+          <input class="track-field" id="trackPhone" type="tel" placeholder="Your phone number" maxlength="20">
+          <input class="track-field" id="trackPin" type="tel" placeholder="PIN" maxlength="4" inputmode="numeric" autocomplete="off" style="max-width:90px;letter-spacing:4px;font-weight:800;text-align:center">
         </div>
         <button class="track-btn" id="trackBtn" onclick="lookupOrder()">Find My Order →</button>
         <div class="track-result" id="trackResult" style="display:none"></div>
@@ -609,6 +612,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
         <div class="field-wrap">
           <div class="field-lbl">Phone Number</div>
           <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
+        </div>
+        <div class="field-wrap">
+          <div class="field-lbl">Set a 4-digit PIN</div>
+          <div class="pin-row">
+            <input class="mkt-field" id="buyPin" type="tel" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="field-hint">Remember this PIN — you'll need it to track your order and download your sheets</div>
         </div>
       </div>
 
@@ -772,17 +782,18 @@ function toggleTrack() {
 }
 
 async function lookupOrder() {
-  const name = document.getElementById('trackName').value.trim();
   const phone = document.getElementById('trackPhone').value.trim();
+  const pin = document.getElementById('trackPin').value.trim();
   const resEl = document.getElementById('trackResult');
   const btn = document.getElementById('trackBtn');
-  if (!name && !phone) { toast('Enter your name or phone'); return; }
+  if (!phone || !pin) { toast('Enter your phone number and PIN'); return; }
+  if (!/^\d{4}$/.test(pin)) { toast('PIN must be 4 digits'); return; }
   btn.disabled = true; btn.textContent = 'Searching…';
   resEl.style.display = 'none';
   try {
     const r = await fetch('/api/marketplace', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'lookup-purchase', playerName:name, phone })
+      body: JSON.stringify({ action:'lookup-purchase', phone, pin })
     });
     const data = await r.json();
     if (!r.ok) {
@@ -1003,6 +1014,7 @@ function selectGame(id) {
   document.getElementById('buyErr').style.display = 'none';
   document.getElementById('buyName').value = '';
   document.getElementById('buyPhone').value = '';
+  document.getElementById('buyPin').value = '';
   document.getElementById('buyQtyMax').textContent = `max ${avail}`;
   updateQtyDisplay();
 
@@ -1271,9 +1283,11 @@ function handleModalBackdropClick(e) {
 async function submitPurchase() {
   const name = document.getElementById('buyName').value.trim();
   const phone = document.getElementById('buyPhone').value.trim();
+  const pin = document.getElementById('buyPin').value.trim();
   const btn = document.getElementById('modalPaidBtn');
   if (!name) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your name'; document.getElementById('buyErr').style.display = 'block'; return; }
   if (!phone) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your phone number'; document.getElementById('buyErr').style.display = 'block'; return; }
+  if (!/^\d{4}$/.test(pin)) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please set a 4-digit PIN (numbers only)'; document.getElementById('buyErr').style.display = 'block'; return; }
   btn.disabled = true;
   btn.textContent = 'Submitting…';
   try {
@@ -1281,7 +1295,7 @@ async function submitPurchase() {
     const purchaseQty = pickerMode && reqNums ? reqNums.length : buyQty;
     const r = await fetch('/api/marketplace', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'purchase', playerName:name, phone, gameId:currentGame.id, quantity:purchaseQty, requestedSheetNums:reqNums })
+      body: JSON.stringify({ action:'purchase', playerName:name, phone, pin, gameId:currentGame.id, quantity:purchaseQty, requestedSheetNums:reqNums })
     });
     const data = await r.json();
     if (!r.ok) {
