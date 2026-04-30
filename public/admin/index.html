@@ -835,7 +835,7 @@ async function createGame() {
   try {
     const r = await fetch('/api/marketplace', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, pricePerSheet, description, prizes, thumbnail: gameThumbnailUrl || null })
+      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, gameDateRaw: dt || null, pricePerSheet, description, prizes, thumbnail: gameThumbnailUrl || null })
     });
     const data = await r.json();
     if (!r.ok) { showMsg(msgEl, data.error || 'Failed', 'err'); return; }

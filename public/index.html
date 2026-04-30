@@ -13,6 +13,7 @@
   --primary:#6750A4;--primary-light:#EADDFF;
   --error:#B3261E;--success:#2E7D32;--warn:#F57F17;
   --muted:#49454F;--on-s:#1C1B1F;
+  --gold:#F59E0B;--gold-light:#FEF3C7;
   --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-md:0 4px 16px rgba(0,0,0,.13);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -39,7 +40,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .screen{
   position:absolute;top:0;left:0;right:0;bottom:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
-  background:var(--bg);padding:16px;
+  background:var(--bg);
   display:none;
 }
 .screen.visible{display:block;animation:scrIn .26s cubic-bezier(.4,0,.2,1) both}
@@ -48,45 +49,90 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 @keyframes scrInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:translateX(0)}}
 
 /* ── HOME: GAME CARDS ── */
+#screenHome{padding:14px}
 .section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
-  letter-spacing:.7px;margin-bottom:12px;padding-top:2px}
+  letter-spacing:.7px;margin-bottom:14px;padding-top:2px}
+
 .game-card{
-  position:relative;border-radius:20px;overflow:hidden;height:190px;
-  cursor:pointer;margin-bottom:14px;
-  box-shadow:var(--shadow-md);
-  transform:translateY(0);transition:transform .15s;
+  position:relative;border-radius:24px;overflow:hidden;
+  cursor:pointer;margin-bottom:18px;
+  box-shadow:0 6px 24px rgba(103,80,164,.22);
+  transform:translateY(0);transition:transform .15s,box-shadow .15s;
   -webkit-user-select:none;user-select:none
 }
-.game-card:active{transform:scale(.98)}
-.game-card-bg{position:absolute;inset:0;background:linear-gradient(135deg,#4527A0,#7B1FA2)}
-.game-card-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.game-card-overlay{
-  position:absolute;inset:0;
-  background:linear-gradient(to top,rgba(0,0,0,.86) 0%,rgba(0,0,0,.2) 55%,transparent 100%)
+.game-card:active{transform:scale(.98);box-shadow:var(--shadow-md)}
+.game-card-thumb{
+  width:100%;height:200px;object-fit:cover;display:block;
+  background:linear-gradient(135deg,#4527A0,#7B1FA2)
 }
-.game-card-content{position:absolute;bottom:0;left:0;right:0;padding:14px 16px}
-.game-card-name{font-size:18px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:4px}
-.game-card-date{font-size:12px;color:rgba(255,255,255,.8);margin-bottom:10px}
-.game-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.game-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
-.chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.chip.price{background:rgba(255,255,255,.2);color:#fff;backdrop-filter:blur(4px)}
-.chip.avail{background:rgba(46,125,50,.85);color:#fff}
-.chip.full{background:rgba(179,38,30,.85);color:#fff}
-.chip.sold{background:rgba(245,127,23,.85);color:#fff}
+.game-card-thumb-placeholder{
+  height:200px;background:linear-gradient(135deg,#4527A0 0%,#6750A4 50%,#7B1FA2 100%)
+}
+.game-card-overlay{
+  position:absolute;top:0;left:0;right:0;height:200px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.08) 0%,rgba(0,0,0,.55) 60%,rgba(0,0,0,.85) 100%)
+}
+.game-card-top-badges{
+  position:absolute;top:12px;left:12px;right:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+.countdown-badge{
+  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
+  color:#fff;border-radius:20px;padding:5px 11px;
+  font-size:11px;font-weight:700;letter-spacing:.2px;
+  display:flex;align-items:center;gap:5px;flex-shrink:0
+}
+.countdown-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;
+  animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.price-badge-top{
+  background:rgba(255,255,255,.18);backdrop-filter:blur(6px);
+  color:#fff;border-radius:20px;padding:5px 12px;
+  font-size:12px;font-weight:700
+}
+
+.game-card-info{
+  position:absolute;bottom:0;left:0;right:0;padding:14px 16px 0
+}
+.game-card-name{font-size:20px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:3px}
+.game-card-date{font-size:12px;color:rgba(255,255,255,.75);margin-bottom:10px}
+
+/* full house highlight on card */
+.card-fullhouse{
+  background:linear-gradient(90deg,#F59E0B,#EF4444);
+  border-radius:12px;padding:8px 12px;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+.card-fullhouse-label{font-size:10px;font-weight:800;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.8px}
+.card-fullhouse-val{font-size:18px;font-weight:900;color:#fff}
+.card-more-prizes{font-size:11px;color:rgba(255,255,255,.65);margin-bottom:10px}
+
+.game-card-bottom{
+  background:rgba(0,0,0,.35);backdrop-filter:blur(4px);
+  border-top:1px solid rgba(255,255,255,.1);
+  padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+.sheet-stats{display:flex;gap:8px;align-items:center}
+.stat-pill{
+  border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;
+  display:flex;align-items:center;gap:4px
+}
+.stat-pill.avail{background:rgba(74,222,128,.2);color:#4ADE80}
+.stat-pill.sold{background:rgba(248,113,113,.2);color:#F87171}
 .card-buy-btn{
   background:#fff;color:var(--primary);
-  border:none;border-radius:20px;padding:8px 16px;
+  border:none;border-radius:22px;padding:10px 20px;
   font-size:13px;font-weight:800;cursor:pointer;
-  font-family:inherit;flex-shrink:0;white-space:nowrap
+  font-family:inherit;flex-shrink:0;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(0,0,0,.2)
 }
 .sold-out-overlay{
   position:absolute;inset:0;
-  background:rgba(0,0,0,.55);
+  background:rgba(0,0,0,.6);
   display:flex;align-items:center;justify-content:center;
-  border-radius:20px
+  border-radius:24px
 }
-.sold-out-label{font-size:18px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:1px}
+.sold-out-label{font-size:22px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:2px}
 
 .empty-state{text-align:center;padding:60px 20px 40px;color:var(--muted)}
 .empty-ico{font-size:52px;margin-bottom:12px}
@@ -95,44 +141,162 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .loading-txt{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
 
 /* ── BUY SCREEN ── */
-#screenBuy{max-width:480px;margin:0 auto;padding-bottom:24px}
-.buy-header{
-  position:relative;border-radius:20px;overflow:hidden;height:140px;
-  margin-bottom:16px;box-shadow:var(--shadow-md)
+#screenBuy{padding:0;padding-bottom:120px}
+
+.buy-hero{
+  position:relative;height:280px;overflow:hidden;flex-shrink:0
 }
-.buy-header-bg{position:absolute;inset:0;background:linear-gradient(135deg,#4527A0,#7B1FA2)}
-.buy-header-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.buy-header-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5)}
-.buy-header-content{
-  position:absolute;bottom:0;left:0;right:0;padding:14px 16px;
-  display:flex;align-items:flex-end;justify-content:space-between;gap:8px
+.buy-hero-bg{
+  position:absolute;inset:-20px;
+  background:linear-gradient(135deg,#4527A0,#7B1FA2);
+  filter:blur(0)
 }
-.buy-game-name{font-size:18px;font-weight:800;color:#fff;line-height:1.2}
-.buy-price-chip{background:rgba(255,255,255,.2);color:#fff;
-  padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;
-  backdrop-filter:blur(4px);white-space:nowrap;flex-shrink:0}
+.buy-hero-bg img{
+  width:calc(100% + 40px);height:calc(100% + 40px);
+  object-fit:cover;display:block;filter:blur(2px);
+  transform:scale(1.05)
+}
+.buy-hero-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to bottom,rgba(0,0,0,.25) 0%,rgba(0,0,0,.7) 100%)
+}
+.buy-hero-content{
+  position:absolute;inset:0;padding:16px;
+  display:flex;flex-direction:column;justify-content:space-between
+}
+.buy-back-btn{
+  background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.3);color:#fff;
+  padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;gap:5px;align-self:flex-start
+}
+.buy-hero-bottom{}
+.buy-hero-countdown{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(0,0,0,.45);backdrop-filter:blur(6px);
+  border-radius:20px;padding:5px 12px;margin-bottom:8px;
+  font-size:12px;font-weight:700;color:#fff
+}
+.buy-hero-name{font-size:24px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px}
+.buy-hero-date{font-size:13px;color:rgba(255,255,255,.8)}
 
-.back-row{display:flex;align-items:center;gap:6px;margin-bottom:12px}
-.back-btn{background:none;border:none;color:var(--primary);font-size:14px;font-weight:700;
-  cursor:pointer;font-family:inherit;padding:6px 0;display:flex;align-items:center;gap:4px}
+.buy-body{padding:16px;max-width:520px;margin:0 auto}
 
-.buy-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
-.field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
-.field-wrap{margin-bottom:14px}
-.field-wrap:last-child{margin-bottom:0}
-.mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
-  font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
-.mkt-field:focus{border-color:var(--primary)}
+/* Prizes section */
+.prizes-card{
+  background:var(--surface);border-radius:20px;box-shadow:var(--shadow-md);
+  overflow:hidden;margin-bottom:14px
+}
+.prizes-card-header{
+  padding:14px 16px 10px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border)
+}
+.prizes-card-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
 
+.fullhouse-row{
+  background:linear-gradient(90deg,#78350F,#B45309);
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+.fullhouse-left{}
+.fullhouse-label{font-size:10px;font-weight:800;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.fullhouse-name{font-size:16px;font-weight:900;color:#fff}
+.fullhouse-val{font-size:22px;font-weight:900;color:#FDE68A}
+.fullhouse-crown{font-size:28px;flex-shrink:0}
+
+.other-prize-row{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 16px;border-bottom:1px solid var(--border)
+}
+.other-prize-row:last-child{border-bottom:none}
+.prize-icon-wrap{
+  width:36px;height:36px;border-radius:10px;overflow:hidden;
+  background:var(--primary-light);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:16px
+}
+.prize-icon-wrap img{width:100%;height:100%;object-fit:cover}
+.prize-details{flex:1;min-width:0}
+.prize-name-txt{font-size:14px;font-weight:600;color:var(--on-s);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prize-val-txt{font-size:13px;font-weight:700;color:var(--primary)}
+
+/* Sheet picker card */
+.pick-btn-row{margin-bottom:14px}
+.pick-sheets-btn{
+  width:100%;padding:16px;
+  background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
+  border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 4px 16px rgba(103,80,164,.35)
+}
+.pick-sheets-btn:disabled{opacity:.6;cursor:not-allowed}
+
+.picker-card{
+  background:var(--surface);border-radius:20px;box-shadow:var(--shadow-md);
+  padding:16px;margin-bottom:14px;display:none
+}
+.picker-card.open{display:block}
+.picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.picker-title-txt{font-size:14px;font-weight:700;color:var(--on-s)}
+.picker-avail-count{font-size:12px;font-weight:600;color:var(--success)}
+
+.search-wrap{position:relative;margin-bottom:12px}
+.sheet-search{
+  width:100%;padding:11px 14px 11px 38px;
+  border:2px solid var(--border);border-radius:12px;
+  font-size:14px;font-family:inherit;outline:none;background:#fff;
+  transition:border-color .2s
+}
+.sheet-search:focus{border-color:var(--primary)}
+.search-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  font-size:15px;pointer-events:none;opacity:.5
+}
+
+.picker-legend{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:3px}
+.legend-dot.avail{background:var(--primary-light);border:1.5px solid var(--primary)}
+.legend-dot.picked{background:var(--primary)}
+.legend-dot.sold-dot{background:#FFCDD2;border:1.5px solid var(--error)}
+
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:6px;max-height:280px;overflow-y:auto;padding:2px}
+.sheet-chip{
+  height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;cursor:pointer;border:2px solid transparent;
+  transition:background .1s,border-color .1s,color .1s;
+  -webkit-user-select:none;user-select:none
+}
+.sheet-chip.avail{background:#F4F0FB;color:var(--primary);border-color:var(--border)}
+.sheet-chip.avail:active{background:var(--primary-light);border-color:var(--primary)}
+.sheet-chip.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
+.sheet-chip.sold-chip{background:#FFEBEE;color:var(--error);border-color:#FFCDD2;cursor:not-allowed;opacity:.6}
+.sheet-chip.hidden{display:none}
+
+.picker-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:6px}
+.picker-count-txt{font-size:13px;font-weight:700;color:var(--primary)}
+.picker-clear-btn{background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline}
+
+.picker-loading-txt{text-align:center;padding:24px 0;font-size:13px;color:var(--muted)}
+
+/* Fallback stepper */
+.stepper-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px;display:none}
+.field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .qty-row{display:flex;align-items:center;gap:12px}
 .qty-btn{width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:#fff;
   font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
   flex-shrink:0;color:var(--primary);transition:background .15s,border-color .15s}
 .qty-btn:active{background:var(--primary-light);border-color:var(--primary)}
 .qty-val{font-size:24px;font-weight:900;color:var(--primary);min-width:44px;text-align:center}
-.qty-max{font-size:12px;color:var(--muted)}
+.qty-max-txt{font-size:12px;color:var(--muted)}
 
-.amount-display{
+/* Buyer info */
+.info-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+.field-wrap{margin-bottom:14px}
+.field-wrap:last-child{margin-bottom:0}
+.mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
+  font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
+.mkt-field:focus{border-color:var(--primary)}
+
+/* Amount bar */
+.amount-bar{
   background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
   border-radius:16px;padding:14px 18px;
   display:flex;align-items:center;justify-content:space-between;
@@ -141,70 +305,67 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .amount-label{font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.8px}
 .amount-value{font-size:28px;font-weight:900}
 
-.qr-section{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);
-  padding:18px;text-align:center;margin-bottom:14px}
-.qr-box{display:inline-block;background:#fff;border:2px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px}
-.qr-hint{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:4px}
-.qr-upi{font-size:11px;color:var(--muted);word-break:break-all}
-
 .err-msg{font-size:13px;color:var(--error);font-weight:500;margin-bottom:10px;text-align:center}
-.submit-btn{width:100%;padding:16px;background:var(--primary);color:#fff;border:none;
-  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
-  transition:opacity .2s}
-.submit-btn:disabled{opacity:.5;cursor:not-allowed}
-.submit-btn.green{background:#2E7D32;margin-top:8px}
 
-/* ── SHEET PICKER ── */
-.picker-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
-.picker-title{font-size:13px;font-weight:700;color:var(--on-s);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.picker-sub{font-size:11px;color:var(--muted);margin-bottom:12px}
-.picker-loading{font-size:13px;color:var(--muted);text-align:center;padding:20px 0}
-.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;max-height:260px;overflow-y:auto;padding:2px}
-.sheet-chip{
-  height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:700;cursor:pointer;border:2px solid transparent;
-  transition:background .1s,border-color .1s,color .1s;
-  -webkit-user-select:none;user-select:none
+.pay-btn{
+  width:100%;padding:17px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;
+  border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
+  box-shadow:0 4px 14px rgba(5,150,105,.35);transition:opacity .2s
 }
-.sheet-chip.avail{background:#F4F0FB;color:var(--primary);border-color:var(--border)}
-.sheet-chip.avail:active{background:var(--primary-light);border-color:var(--primary)}
-.sheet-chip.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
-.sheet-chip.sold{background:#FFEBEE;color:var(--error);border-color:#FFCDD2;cursor:not-allowed;opacity:.65}
-.picker-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:6px}
-.picker-count{font-size:13px;font-weight:700;color:var(--primary)}
-.picker-clear{background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline}
+.pay-btn:disabled{opacity:.5;cursor:not-allowed}
 
-/* prizes in buy screen */
-.prizes-section{margin-bottom:0}
-.prizes-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.prize-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
-.prize-row:last-child{border-bottom:none}
-.prize-name{font-size:13px;font-weight:600;flex:1}
-.prize-val{font-size:13px;color:var(--primary);font-weight:700;white-space:nowrap}
-.prize-img{width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0}
+/* ── QR MODAL ── */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s
+}
+.modal-backdrop.open{opacity:1;pointer-events:auto}
+.modal-sheet{
+  background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;
+  width:100%;max-width:520px;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)
+}
+.modal-backdrop.open .modal-sheet{transform:translateY(0)}
+.modal-handle{width:40px;height:4px;border-radius:2px;background:#DDD;margin:0 auto 20px}
+.modal-title{font-size:17px;font-weight:800;text-align:center;margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px}
+.qr-wrap{display:flex;justify-content:center;margin-bottom:12px}
+.qr-box{background:#fff;border:2px solid var(--border);border-radius:16px;padding:14px;display:inline-block}
+.qr-upi-txt{font-size:11px;color:var(--muted);text-align:center;word-break:break-all;margin-bottom:20px}
+.modal-pay-btn{
+  width:100%;padding:16px;background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;border:none;
+  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:opacity .2s
+}
+.modal-pay-btn:disabled{opacity:.5;cursor:not-allowed}
+.modal-cancel-link{
+  display:block;text-align:center;margin-top:12px;
+  font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline
+}
 
 /* ── WAIT SCREEN ── */
 #screenWait{text-align:center;padding:40px 24px}
-.wait-card{background:var(--surface);border-radius:24px;box-shadow:var(--shadow-md);padding:36px 28px;max-width:340px;width:100%}
-.wait-spinner{width:52px;height:52px;border-radius:50%;border:4px solid var(--primary-light);
+.wait-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%}
+.wait-card{background:var(--surface);border-radius:24px;box-shadow:var(--shadow-md);padding:40px 28px;max-width:340px;width:100%}
+.wait-spinner{width:56px;height:56px;border-radius:50%;border:4px solid var(--primary-light);
   border-top-color:var(--primary);animation:spin .8s linear infinite;margin:0 auto 20px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.wait-title{font-size:18px;font-weight:800;margin-bottom:8px}
-.wait-info{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.7}
+.wait-title{font-size:20px;font-weight:800;margin-bottom:8px}
+.wait-info{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7}
 .wait-cancel{background:transparent;border:2px solid var(--border);color:var(--muted);
   padding:10px 28px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 
 /* ── DOWNLOADS SCREEN ── */
-#screenDownloads{max-width:480px;margin:0 auto;padding-bottom:32px}
+#screenDownloads{max-width:480px;margin:0 auto;padding:16px 16px 40px}
 .dl-hero{
   background:linear-gradient(135deg,var(--primary),#7C3AED);
-  color:#fff;border-radius:22px;padding:24px 20px;text-align:center;margin-bottom:16px;
+  color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;
   box-shadow:var(--shadow-md)
 }
-.dl-hero-ico{font-size:44px;margin-bottom:10px}
-.dl-hero-title{font-size:20px;font-weight:800;margin-bottom:4px}
+.dl-hero-ico{font-size:48px;margin-bottom:10px}
+.dl-hero-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .dl-hero-sub{font-size:13px;opacity:.85;line-height:1.5}
-
 .dl-all-btn{
   width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;
   border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
@@ -234,14 +395,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 /* ── TOAST ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
   background:#1C1B1F;color:#fff;padding:12px 20px;border-radius:24px;
-  font-size:13px;font-weight:600;z-index:200;transition:transform .25s;
+  font-size:13px;font-weight:600;z-index:300;transition:transform .25s;
   white-space:nowrap;max-width:90vw;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
 @media(max-width:360px){
-  .game-card{height:175px}
-  .game-card-name{font-size:16px}
-  .buy-game-name{font-size:16px}
+  .game-card-name{font-size:17px}
+  .buy-hero{height:240px}
+  .buy-hero-name{font-size:20px}
 }
 </style>
 </head>
@@ -265,88 +426,114 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
   <!-- BUY -->
   <div class="screen" id="screenBuy">
-    <div class="back-row">
-      <button class="back-btn" onclick="goHome()">← Back to games</button>
-    </div>
-    <div class="buy-header" id="buyHeader">
-      <div class="buy-header-bg" id="buyHeaderBg"></div>
-      <div class="buy-header-overlay"></div>
-      <div class="buy-header-content">
-        <div class="buy-game-name" id="buyGameName"></div>
-        <div class="buy-price-chip" id="buyPriceChip"></div>
-      </div>
-    </div>
-    <div id="buyGameInfo" style="margin-bottom:14px"></div>
 
-    <!-- Sheet Picker (shown when available sheets loaded) -->
-    <div class="picker-card" id="pickerCard" style="display:none">
-      <div class="picker-title">
-        <span>🎟 Pick Your Sheet Numbers</span>
-        <span style="font-size:11px;font-weight:400;color:var(--muted)" id="pickerAvailCount"></span>
-      </div>
-      <div class="picker-sub">Tap to select. <span style="color:var(--primary);font-weight:600">Purple</span> = picked · <span style="color:var(--error);font-weight:600">Red</span> = sold</div>
-      <div id="pickerLoading" class="picker-loading">Loading available sheets…</div>
-      <div id="sheetGrid" class="sheet-grid" style="display:none"></div>
-      <div class="picker-footer" id="pickerFooter" style="display:none">
-        <span class="picker-count" id="pickerCount">0 selected</span>
-        <button class="picker-clear" onclick="clearPicker()">Clear all</button>
+    <!-- Hero banner -->
+    <div class="buy-hero" id="buyHero">
+      <div class="buy-hero-bg" id="buyHeroBg"></div>
+      <div class="buy-hero-overlay"></div>
+      <div class="buy-hero-content">
+        <button class="buy-back-btn" onclick="goHome()">← Back</button>
+        <div class="buy-hero-bottom">
+          <div class="buy-hero-countdown" id="buyHeroCountdown" style="display:none">
+            <span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite;display:inline-block"></span>
+            <span id="buyCountdownTxt"></span>
+          </div>
+          <div class="buy-hero-name" id="buyHeroName"></div>
+          <div class="buy-hero-date" id="buyHeroDate"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Fallback qty stepper (large games or load fail) -->
-    <div class="buy-card" id="qtyStepper" style="display:none">
-      <div class="field-lbl">Number of Sheets</div>
-      <div class="qty-row" style="margin-top:6px">
-        <button class="qty-btn" onclick="changeQty(-1)">−</button>
-        <div class="qty-val" id="buyQtyVal">1</div>
-        <button class="qty-btn" onclick="changeQty(1)">+</button>
-        <span class="qty-max" id="buyQtyMax"></span>
-      </div>
-    </div>
+    <!-- Body -->
+    <div class="buy-body">
 
-    <div class="buy-card">
-      <div class="field-wrap">
-        <div class="field-lbl">Your Name</div>
-        <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50" autocomplete="name">
+      <!-- Prizes -->
+      <div class="prizes-card" id="buyPrizesCard" style="display:none">
+        <div class="prizes-card-header">
+          <span style="font-size:18px">🏆</span>
+          <span class="prizes-card-title">Prizes</span>
+        </div>
+        <div id="buyPrizesList"></div>
       </div>
-      <div class="field-wrap" style="margin-bottom:0">
-        <div class="field-lbl">Phone (optional)</div>
-        <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
-      </div>
-    </div>
 
-    <div class="amount-display">
-      <div>
-        <div class="amount-label">Total Amount</div>
-        <div class="amount-value" id="buyAmount">₹5</div>
+      <!-- Pick sheets button -->
+      <div class="pick-btn-row">
+        <button class="pick-sheets-btn" id="pickSheetsBtn" onclick="togglePickerCard()">
+          🎟 Pick Your Sheets
+        </button>
       </div>
-      <div style="font-size:28px">💳</div>
-    </div>
 
-    <div id="qrSection" style="display:none">
-      <div class="qr-section">
-        <div class="qr-box"><div id="qrContainer"></div></div>
-        <div class="qr-hint" id="qrHint"></div>
-        <div class="qr-upi" id="qrUpi"></div>
+      <!-- Sheet picker -->
+      <div class="picker-card" id="pickerCard">
+        <div class="picker-header">
+          <span class="picker-title-txt">Choose Your Numbers</span>
+          <span class="picker-avail-count" id="pickerAvailCount"></span>
+        </div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="sheet-search" id="sheetSearch" type="number" inputmode="numeric"
+            placeholder="Search sheet number…" oninput="filterSheets(this.value)">
+        </div>
+        <div class="picker-legend">
+          <div class="legend-item"><div class="legend-dot avail"></div>Available</div>
+          <div class="legend-item"><div class="legend-dot picked"></div>Picked</div>
+          <div class="legend-item"><div class="legend-dot sold-dot"></div>Sold</div>
+        </div>
+        <div id="pickerLoading" class="picker-loading-txt">Loading sheets…</div>
+        <div id="sheetGrid" class="sheet-grid" style="display:none"></div>
+        <div class="picker-footer" id="pickerFooter" style="display:none">
+          <span class="picker-count-txt" id="pickerCount">None selected</span>
+          <button class="picker-clear-btn" onclick="clearPicker()">Clear all</button>
+        </div>
       </div>
-    </div>
 
-    <div class="err-msg" id="buyErr" style="display:none"></div>
-    <button class="submit-btn" id="buyPayBtn" onclick="showQR()">Show Payment QR →</button>
-    <button class="submit-btn green" id="buySubmitBtn" onclick="submitPurchase()" style="display:none">
-      ✓ I've Paid — Request Sheets →
-    </button>
+      <!-- Fallback stepper -->
+      <div class="stepper-card" id="qtyStepper">
+        <div class="field-lbl">Number of Sheets</div>
+        <div class="qty-row" style="margin-top:6px">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <div class="qty-val" id="buyQtyVal">1</div>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+          <span class="qty-max-txt" id="buyQtyMax"></span>
+        </div>
+      </div>
+
+      <!-- Buyer info -->
+      <div class="info-card">
+        <div class="field-wrap">
+          <div class="field-lbl">Your Name</div>
+          <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50" autocomplete="name">
+        </div>
+        <div class="field-wrap">
+          <div class="field-lbl">Phone (optional)</div>
+          <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
+        </div>
+      </div>
+
+      <!-- Amount -->
+      <div class="amount-bar">
+        <div>
+          <div class="amount-label">Total Amount</div>
+          <div class="amount-value" id="buyAmount">₹5</div>
+        </div>
+        <div style="font-size:32px">💳</div>
+      </div>
+
+      <div class="err-msg" id="buyErr" style="display:none"></div>
+      <button class="pay-btn" id="buyPayBtn" onclick="openQRModal()">💳 Pay Now →</button>
+
+    </div>
   </div>
 
   <!-- WAIT -->
   <div class="screen" id="screenWait">
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%">
-    <div class="wait-card">
-      <div class="wait-spinner"></div>
-      <div class="wait-title">Waiting for approval</div>
-      <div class="wait-info" id="waitInfo">Your payment is being verified. Sheets will be ready shortly.</div>
-      <button class="wait-cancel" onclick="cancelPurchase()">Cancel</button>
-    </div>
+    <div class="wait-wrap">
+      <div class="wait-card">
+        <div class="wait-spinner"></div>
+        <div class="wait-title">Verifying Payment</div>
+        <div class="wait-info" id="waitInfo">Your payment is being verified. Sheets will be ready shortly.</div>
+        <button class="wait-cancel" onclick="cancelPurchase()">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -366,6 +553,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 </div>
 
+<!-- QR Modal -->
+<div class="modal-backdrop" id="qrModal" onclick="handleModalBackdropClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Scan to Pay</div>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="qr-wrap"><div class="qr-box"><div id="qrContainer"></div></div></div>
+    <div class="qr-upi-txt" id="qrUpiTxt"></div>
+    <button class="modal-pay-btn" id="modalPaidBtn" onclick="submitPurchase()">✓ I've Paid — Get My Sheets →</button>
+    <span class="modal-cancel-link" onclick="closeQRModal()">Cancel</span>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -373,11 +573,13 @@ const TUNGBOLA_URL = 'https://tungbola.vercel.app';
 document.getElementById('backBtn').href = TUNGBOLA_URL;
 document.getElementById('openAppBtn').href = TUNGBOLA_URL;
 
-let cfg = {}, games = [], currentGame = null, buyQty = 1, purchaseId = null, pollTimer = null, currentSheets = [];
-let selectedSheetNums = new Set(); // for picker mode
-let pickerMode = false; // true = picker, false = stepper
-const PICKER_LIMIT = 400; // max sheets to show as chips; fallback to stepper above this
+let cfg = {}, games = [], currentGame = null, buyQty = 1;
+let purchaseId = null, pollTimer = null, countdownTimer = null;
+let currentSheets = [], selectedSheetNums = new Set();
+let pickerMode = false, pickerLoaded = false, pickerOpen = false;
+const PICKER_LIMIT = 400;
 
+/* ── Init ── */
 async function init() {
   try {
     const [cfgR, gamesR] = await Promise.all([fetch('/api/config'), fetch('/api/marketplace')]);
@@ -389,6 +591,27 @@ async function init() {
   }
 }
 
+/* ── Countdown helpers ── */
+function msToCountdown(ms) {
+  if (ms <= 0) return null;
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d > 0) return `${d}d ${h % 24}h`;
+  if (h > 0) return `${h}h ${m % 60}m`;
+  if (m > 0) return `${m}m ${s % 60}s`;
+  return `${s}s`;
+}
+
+function getGameMs(g) {
+  if (!g.gameDateRaw) return null;
+  const t = new Date(g.gameDateRaw).getTime();
+  if (isNaN(t)) return null;
+  return t - Date.now();
+}
+
+/* ── Home: render cards ── */
 function renderGames() {
   const loading = document.getElementById('homeLoading');
   const container = document.getElementById('gamesContainer');
@@ -405,98 +628,197 @@ function renderGames() {
   }
 
   container.innerHTML = `<div class="section-label">Available Games (${games.length})</div>` +
-    games.map(g => {
-      const avail = (g.sheetCount || 0) - (g.soldCount || 0);
-      const full = avail <= 0;
-      const bg = g.thumbnail
-        ? `<div class="game-card-bg"><img src="${esc(g.thumbnail)}" onerror="this.style.display='none'"></div>`
-        : `<div class="game-card-bg"></div>`;
+    games.map(g => buildGameCard(g)).join('');
 
-      return `<div class="game-card" onclick="selectGame('${g.id}')">
-        ${bg}
-        <div class="game-card-overlay"></div>
-        <div class="game-card-content">
-          <div class="game-card-name">${esc(g.name)}</div>
-          ${g.gameDate ? `<div class="game-card-date">📅 ${esc(g.gameDate)}</div>` : ''}
-          <div class="game-card-bottom">
-            <div class="game-chips">
-              <span class="chip price">₹${g.pricePerSheet}/sheet</span>
-              <span class="chip ${full?'full':'avail'}">${full?'Sold Out':`${avail} available`}</span>
-              ${g.soldCount ? `<span class="chip sold">${g.soldCount} sold</span>` : ''}
-            </div>
-            ${!full ? `<button class="card-buy-btn" onclick="event.stopPropagation();selectGame('${g.id}')">Buy →</button>` : ''}
-          </div>
-        </div>
-        ${full ? `<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>` : ''}
-      </div>`;
-    }).join('');
+  // Start live countdown ticks for cards
+  startCardCountdowns();
 }
 
+function buildGameCard(g) {
+  const avail = (g.sheetCount || 0) - (g.soldCount || 0);
+  const full = avail <= 0 && g.sheetCount > 0;
+
+  const thumb = g.thumbnail
+    ? `<img class="game-card-thumb" src="${esc(g.thumbnail)}" alt="" onerror="this.style.display='none'">`
+    : `<div class="game-card-thumb-placeholder"></div>`;
+
+  // Prizes: find full house
+  const prizes = Array.isArray(g.prizes) ? g.prizes : [];
+  const fh = prizes.find(p => /full.?house/i.test(p.name)) || prizes[0];
+  const others = prizes.filter(p => p !== fh);
+
+  const fhHtml = fh ? `<div class="card-fullhouse">
+    <div>
+      <div class="card-fullhouse-label">⭐ Full House</div>
+      <div class="card-fullhouse-val">${fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || fh.name)}</div>
+    </div>
+    <span style="font-size:24px">👑</span>
+  </div>` : '';
+
+  const othersHtml = others.length
+    ? `<div class="card-more-prizes">+ ${others.map(p => esc(p.name)).join(' · ')}</div>`
+    : '';
+
+  const msLeft = getGameMs(g);
+  const cdHtml = msLeft && msLeft > 0
+    ? `<div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(msLeft)}</div>`
+    : '';
+  const priceHtml = `<div class="price-badge-top">₹${g.pricePerSheet}/sheet</div>`;
+
+  const statsHtml = g.sheetCount > 0 ? `<div class="sheet-stats">
+    <div class="stat-pill avail">✓ ${avail} left</div>
+    ${g.soldCount ? `<div class="stat-pill sold">🔥 ${g.soldCount} sold</div>` : ''}
+  </div>` : '';
+
+  const buyBtn = !full
+    ? `<button class="card-buy-btn" onclick="event.stopPropagation();selectGame('${g.id}')">Buy Now →</button>`
+    : '';
+
+  return `<div class="game-card" onclick="selectGame('${g.id}')" id="card-${g.id}">
+    ${thumb}
+    <div class="game-card-overlay"></div>
+    <div class="game-card-top-badges">${cdHtml}${priceHtml}</div>
+    <div class="game-card-info">
+      <div class="game-card-name">${esc(g.name)}</div>
+      ${g.gameDate ? `<div class="game-card-date">📅 ${esc(g.gameDate)}</div>` : ''}
+      ${fhHtml}
+      ${othersHtml}
+    </div>
+    <div class="game-card-bottom">
+      ${statsHtml}
+      ${buyBtn}
+    </div>
+    ${full ? `<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>` : ''}
+  </div>`;
+}
+
+function startCardCountdowns() {
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    games.forEach(g => {
+      const el = document.getElementById(`cd-${g.id}`);
+      if (!el) return;
+      const ms = getGameMs(g);
+      if (!ms || ms <= 0) { el.style.display = 'none'; return; }
+      el.innerHTML = `<div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}`;
+    });
+  }, 1000);
+}
+
+/* ── Select game → Buy screen ── */
 function selectGame(id) {
   currentGame = games.find(g => g.id === id);
   if (!currentGame) return;
   const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
-  if (avail <= 0) { toast('This game is sold out.'); return; }
+  if (avail <= 0 && currentGame.sheetCount > 0) { toast('This game is sold out.'); return; }
 
   buyQty = 1;
   selectedSheetNums = new Set();
   pickerMode = false;
+  pickerLoaded = false;
+  pickerOpen = false;
 
-  // Header background
-  const bgEl = document.getElementById('buyHeaderBg');
+  // Hero background
+  const bgEl = document.getElementById('buyHeroBg');
   bgEl.innerHTML = currentGame.thumbnail
-    ? `<img src="${esc(currentGame.thumbnail)}" onerror="this.style.display='none'">`
+    ? `<img src="${esc(currentGame.thumbnail)}" alt="" onerror="this.style.display='none'">`
     : '';
 
-  document.getElementById('buyGameName').textContent = currentGame.name;
-  document.getElementById('buyPriceChip').textContent = `₹${currentGame.pricePerSheet}/sheet`;
-  document.getElementById('buyQtyMax').textContent = `max ${avail}`;
+  document.getElementById('buyHeroName').textContent = currentGame.name;
+  document.getElementById('buyHeroDate').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : '';
 
-  // Game info (date + prizes)
-  let info = '';
-  if (currentGame.gameDate || currentGame.description) {
-    info += `<div class="buy-card" style="padding:14px 18px">`;
-    if (currentGame.gameDate) info += `<div style="font-size:13px;color:var(--muted);margin-bottom:${currentGame.description?'8px':'0'}">📅 ${esc(currentGame.gameDate)}</div>`;
-    if (currentGame.description) info += `<div style="font-size:13px;color:var(--muted);line-height:1.55">${esc(currentGame.description)}</div>`;
-    info += `</div>`;
+  // Countdown on hero
+  const ms = getGameMs(currentGame);
+  const cdEl = document.getElementById('buyHeroCountdown');
+  const cdTxt = document.getElementById('buyCountdownTxt');
+  if (ms && ms > 0) {
+    cdTxt.textContent = `Starts in ${msToCountdown(ms)}`;
+    cdEl.style.display = 'inline-flex';
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+      const remaining = getGameMs(currentGame);
+      if (!remaining || remaining <= 0) { cdEl.style.display = 'none'; clearInterval(countdownTimer); return; }
+      cdTxt.textContent = `Starts in ${msToCountdown(remaining)}`;
+    }, 1000);
+  } else {
+    cdEl.style.display = 'none';
   }
-  if (currentGame.prizes && currentGame.prizes.length) {
-    info += `<div class="buy-card"><div class="prizes-section">
-      <div class="prizes-title">🎁 Prizes</div>
-      ${currentGame.prizes.map(p => `
-        <div class="prize-row">
-          <span class="prize-name">${esc(p.name)}</span>
-          ${p.imageUrl ? `<img class="prize-img" src="${esc(p.imageUrl)}" alt="">` : ''}
-          <span class="prize-val">${p.kind==='cash'?`₹${(p.amount||0).toLocaleString('en-IN')}`:esc(p.description||'')}</span>
-        </div>`).join('')}
-    </div></div>`;
-  }
-  document.getElementById('buyGameInfo').innerHTML = info;
 
-  // Reset form state
-  document.getElementById('buyErr').style.display = 'none';
-  document.getElementById('qrSection').style.display = 'none';
-  document.getElementById('buyPayBtn').style.display = '';
-  document.getElementById('buySubmitBtn').style.display = 'none';
-  document.getElementById('buyName').value = '';
-  document.getElementById('buyPhone').value = '';
+  // Prizes
+  buildBuyPrizes(currentGame.prizes || []);
 
-  // Show picker loading state; hide stepper until we know which mode
-  document.getElementById('pickerCard').style.display = '';
-  document.getElementById('qtyStepper').style.display = 'none';
-  document.getElementById('pickerLoading').style.display = '';
+  // Reset picker
+  document.getElementById('pickerCard').className = 'picker-card';
+  document.getElementById('pickerLoading').style.display = 'block';
   document.getElementById('sheetGrid').style.display = 'none';
   document.getElementById('pickerFooter').style.display = 'none';
   document.getElementById('pickerAvailCount').textContent = '';
+  document.getElementById('sheetSearch').value = '';
+  document.getElementById('qtyStepper').style.display = 'none';
+  document.getElementById('pickSheetsBtn').textContent = '🎟 Pick Your Sheets';
+  document.getElementById('pickSheetsBtn').disabled = false;
 
+  // Reset form
+  document.getElementById('buyErr').style.display = 'none';
+  document.getElementById('buyName').value = '';
+  document.getElementById('buyPhone').value = '';
+  document.getElementById('buyQtyMax').textContent = `max ${avail}`;
   updateQtyDisplay();
+
   show('screenBuy');
-  loadSheetPicker(currentGame.id);
 }
 
-function goHome() { show('screenHome', true); stopPolling(); purchaseId = null; }
+function buildBuyPrizes(prizes) {
+  const card = document.getElementById('buyPrizesCard');
+  const list = document.getElementById('buyPrizesList');
+  if (!prizes.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
 
-/* ── Sheet Picker ── */
+  const fh = prizes.find(p => /full.?house/i.test(p.name)) || prizes[0];
+  const others = prizes.filter(p => p !== fh);
+
+  const fhVal = fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || '');
+
+  let html = `<div class="fullhouse-row">
+    <div class="fullhouse-left">
+      <div class="fullhouse-label">🏆 Full House</div>
+      <div class="fullhouse-name">${esc(fh.name)}</div>
+    </div>
+    <div class="fullhouse-val">${fhVal}</div>
+    <div class="fullhouse-crown">👑</div>
+  </div>`;
+
+  others.forEach(p => {
+    const val = p.kind === 'cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '');
+    html += `<div class="other-prize-row">
+      <div class="prize-icon-wrap">
+        ${p.imageUrl ? `<img src="${esc(p.imageUrl)}" alt="">` : '🎁'}
+      </div>
+      <div class="prize-details">
+        <div class="prize-name-txt">${esc(p.name)}</div>
+        <div class="prize-val-txt">${val}</div>
+      </div>
+    </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+/* ── Sheet picker ── */
+function togglePickerCard() {
+  if (!pickerLoaded) {
+    document.getElementById('pickerCard').classList.add('open');
+    document.getElementById('pickSheetsBtn').textContent = '⏳ Loading sheets…';
+    document.getElementById('pickSheetsBtn').disabled = true;
+    pickerOpen = true;
+    loadSheetPicker(currentGame.id);
+  } else {
+    pickerOpen = !pickerOpen;
+    document.getElementById('pickerCard').className = 'picker-card' + (pickerOpen ? ' open' : '');
+    document.getElementById('pickSheetsBtn').textContent = pickerOpen ? '▲ Hide Sheet Picker' : '🎟 Pick Your Sheets';
+  }
+}
+
 async function loadSheetPicker(gameId) {
   try {
     const r = await fetch('/api/marketplace', {
@@ -506,24 +828,27 @@ async function loadSheetPicker(gameId) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Failed');
 
-    const allNums = [...data.available, ...data.sold].sort((a, b) => a - b);
+    pickerLoaded = true;
+    document.getElementById('pickSheetsBtn').disabled = false;
+    document.getElementById('pickSheetsBtn').textContent = '▲ Hide Sheet Picker';
     document.getElementById('pickerLoading').style.display = 'none';
 
+    const allNums = [...data.available, ...data.sold].sort((a, b) => a - b);
+
     if (allNums.length > PICKER_LIMIT) {
-      // Too many chips — use stepper
       pickerMode = false;
-      document.getElementById('pickerCard').style.display = 'none';
+      document.getElementById('pickerCard').className = 'picker-card';
+      pickerOpen = false;
+      document.getElementById('pickSheetsBtn').textContent = '🎟 Pick Your Sheets';
       document.getElementById('qtyStepper').style.display = '';
-      const avail = data.available.length;
-      document.getElementById('buyQtyMax').textContent = `max ${avail}`;
+      document.getElementById('buyQtyMax').textContent = `max ${data.available.length}`;
     } else {
-      // Render chip grid
       pickerMode = true;
       const soldSet = new Set(data.sold);
       document.getElementById('pickerAvailCount').textContent = `${data.available.length} available`;
       const grid = document.getElementById('sheetGrid');
       grid.innerHTML = allNums.map(n =>
-        `<div class="sheet-chip ${soldSet.has(n) ? 'sold' : 'avail'}" id="chip-${n}" data-n="${n}"
+        `<div class="sheet-chip ${soldSet.has(n) ? 'sold-chip' : 'avail'}" id="chip-${n}" data-n="${n}"
           onclick="toggleChip(${n},${soldSet.has(n)})">${n}</div>`
       ).join('');
       grid.style.display = 'grid';
@@ -531,21 +856,30 @@ async function loadSheetPicker(gameId) {
       updatePickerCount();
     }
   } catch(e) {
-    // On error: hide picker, show stepper
-    pickerMode = false;
-    document.getElementById('pickerCard').style.display = 'none';
+    pickerLoaded = false;
+    document.getElementById('pickSheetsBtn').disabled = false;
+    document.getElementById('pickSheetsBtn').textContent = '🎟 Pick Your Sheets';
+    document.getElementById('pickerCard').className = 'picker-card';
+    pickerOpen = false;
     document.getElementById('qtyStepper').style.display = '';
     const avail = (currentGame?.sheetCount || 0) - (currentGame?.soldCount || 0);
     document.getElementById('buyQtyMax').textContent = `max ${avail}`;
   }
 }
 
+function filterSheets(val) {
+  const q = val.trim();
+  document.querySelectorAll('#sheetGrid .sheet-chip').forEach(el => {
+    if (!q || el.dataset.n.startsWith(q)) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
+}
+
 function toggleChip(n, isSold) {
   if (isSold) return;
   const chip = document.getElementById(`chip-${n}`);
   if (!chip) return;
-  const wasSelected = selectedSheetNums.has(n);
-  if (wasSelected) {
+  if (selectedSheetNums.has(n)) {
     selectedSheetNums.delete(n);
     chip.className = 'sheet-chip avail';
   } else {
@@ -555,10 +889,6 @@ function toggleChip(n, isSold) {
   buyQty = Math.max(1, selectedSheetNums.size);
   updatePickerCount();
   updateQtyDisplay();
-  // Reset payment flow if qty changed
-  document.getElementById('qrSection').style.display = 'none';
-  document.getElementById('buyPayBtn').style.display = '';
-  document.getElementById('buySubmitBtn').style.display = 'none';
 }
 
 function clearPicker() {
@@ -580,50 +910,60 @@ function changeQty(delta) {
   const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
   buyQty = Math.max(1, Math.min(avail, buyQty + delta));
   updateQtyDisplay();
-  document.getElementById('qrSection').style.display = 'none';
-  document.getElementById('buyPayBtn').style.display = '';
-  document.getElementById('buySubmitBtn').style.display = 'none';
 }
 
 function updateQtyDisplay() {
   const qtyEl = document.getElementById('buyQtyVal');
   if (qtyEl) qtyEl.textContent = buyQty;
-  const price = (currentGame?.pricePerSheet || 5) * buyQty;
-  document.getElementById('buyAmount').textContent = `₹${price}`;
+  const effectiveQty = pickerMode && selectedSheetNums.size > 0 ? selectedSheetNums.size : buyQty;
+  const price = (currentGame?.pricePerSheet || 5) * effectiveQty;
+  document.getElementById('buyAmount').textContent = `₹${price.toLocaleString('en-IN')}`;
 }
 
-function showQR() {
+/* ── QR Modal ── */
+function openQRModal() {
   const name = document.getElementById('buyName').value.trim();
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
+  if (!name) { errEl.textContent = 'Please enter your name first'; errEl.style.display = 'block'; return; }
+
   const effectiveQty = pickerMode && selectedSheetNums.size > 0 ? selectedSheetNums.size : buyQty;
   const amount = (currentGame?.pricePerSheet || 5) * effectiveQty;
   const upiId = cfg.upiId || '';
+
+  document.getElementById('modalSub').textContent = `${effectiveQty} sheet${effectiveQty!==1?'s':''} · ₹${amount.toLocaleString('en-IN')} · ${currentGame?.name || ''}`;
+
   const qrContainer = document.getElementById('qrContainer');
   qrContainer.innerHTML = '';
   if (upiId) {
     const upiStr = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=Tungbola&am=${amount}&cu=INR&tn=Tambola+Sheets`;
-    try { new QRCode(qrContainer, { text: upiStr, width: 180, height: 180, colorDark: '#1C1B1F', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch(e) {}
-    document.getElementById('qrHint').textContent = `Pay ₹${amount}`;
-    document.getElementById('qrUpi').textContent = `UPI: ${upiId}`;
+    try { new QRCode(qrContainer, { text: upiStr, width: 200, height: 200, colorDark: '#1C1B1F', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch(e) {}
+    document.getElementById('qrUpiTxt').textContent = `UPI ID: ${upiId}`;
   } else {
-    qrContainer.innerHTML = `<div style="padding:20px;font-size:13px;color:var(--muted)">UPI not configured. Contact admin.</div>`;
+    qrContainer.innerHTML = `<div style="padding:24px;font-size:13px;color:var(--muted);text-align:center">UPI not configured.<br>Contact admin.</div>`;
+    document.getElementById('qrUpiTxt').textContent = '';
   }
-  document.getElementById('qrSection').style.display = '';
-  document.getElementById('buyPayBtn').style.display = 'none';
-  document.getElementById('buySubmitBtn').style.display = '';
-  document.getElementById('screenBuy').scrollTo({ top: document.getElementById('screenBuy').scrollHeight, behavior: 'smooth' });
+
+  document.getElementById('modalPaidBtn').disabled = false;
+  document.getElementById('modalPaidBtn').textContent = '✓ I\'ve Paid — Get My Sheets →';
+  document.getElementById('qrModal').classList.add('open');
+}
+
+function closeQRModal() {
+  document.getElementById('qrModal').classList.remove('open');
+}
+
+function handleModalBackdropClick(e) {
+  if (e.target === document.getElementById('qrModal')) closeQRModal();
 }
 
 async function submitPurchase() {
   const name = document.getElementById('buyName').value.trim();
   const phone = document.getElementById('buyPhone').value.trim();
-  const errEl = document.getElementById('buyErr');
-  const btn = document.getElementById('buySubmitBtn');
-  errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
-  btn.disabled = true; btn.textContent = 'Submitting…';
+  const btn = document.getElementById('modalPaidBtn');
+  if (!name) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your name'; document.getElementById('buyErr').style.display = 'block'; return; }
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
   try {
     const reqNums = pickerMode && selectedSheetNums.size > 0 ? Array.from(selectedSheetNums) : null;
     const purchaseQty = pickerMode && reqNums ? reqNums.length : buyQty;
@@ -633,19 +973,26 @@ async function submitPurchase() {
     });
     const data = await r.json();
     if (!r.ok) {
-      errEl.textContent = data.error || 'Failed'; errEl.style.display = 'block';
-      btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Request Sheets →'; return;
+      btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Get My Sheets →';
+      closeQRModal();
+      document.getElementById('buyErr').textContent = data.error || 'Failed';
+      document.getElementById('buyErr').style.display = 'block';
+      return;
     }
     purchaseId = data.purchaseId;
+    closeQRModal();
     document.getElementById('waitInfo').textContent = `${name} · ${purchaseQty} sheet${purchaseQty>1?'s':''} · ₹${data.amount} · ${data.gameName}`;
     show('screenWait');
     startPolling();
   } catch(e) {
-    errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block';
-    btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Request Sheets →';
+    btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Get My Sheets →';
+    closeQRModal();
+    document.getElementById('buyErr').textContent = 'Network error. Try again.';
+    document.getElementById('buyErr').style.display = 'block';
   }
 }
 
+/* ── Polling ── */
 function startPolling() { stopPolling(); pollTimer = setInterval(poll, 5000); }
 function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
@@ -664,6 +1011,7 @@ async function poll() {
 
 function cancelPurchase() { stopPolling(); purchaseId = null; goHome(); }
 
+/* ── Downloads ── */
 async function loadDownloads(token) {
   try {
     const r = await fetch('/api/marketplace', {
@@ -725,7 +1073,7 @@ function markDownloaded(idx) {
   if (btn) { btn.className = 'dl-btn done'; btn.textContent = '✓ Saved'; }
 }
 
-/* ── Screen transitions ── */
+/* ── Navigation ── */
 const SCREENS = ['screenHome','screenBuy','screenWait','screenDownloads'];
 
 function show(id, back = false) {
@@ -737,6 +1085,14 @@ function show(id, back = false) {
   if (back) el.classList.add('back');
   el.classList.add('visible');
   el.scrollTop = 0;
+}
+
+function goHome() {
+  show('screenHome', true);
+  stopPolling();
+  clearInterval(countdownTimer);
+  purchaseId = null;
+  startCardCountdowns();
 }
 
 /* ── Helpers ── */

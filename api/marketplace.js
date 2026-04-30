@@ -69,7 +69,7 @@ module.exports = async function(req, res) {
   if (action === 'create-game') {
     if (await rateLimit(req, 'creategame', 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, name, gameDate, pricePerSheet, description, prizes, thumbnail } = body;
+    const { password, name, gameDate, pricePerSheet, description, prizes, thumbnail, gameDateRaw } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!name) return res.status(400).json({ error: 'Game name required' });
@@ -79,6 +79,7 @@ module.exports = async function(req, res) {
       id,
       name: String(name).trim().slice(0, 80),
       gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
+      gameDateRaw: gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null,
       pricePerSheet: Math.max(1, Number(pricePerSheet) || 5),
       description: String(description || '').trim().slice(0, 200),
       prizes: Array.isArray(prizes) ? prizes.slice(0, 12) : [],
