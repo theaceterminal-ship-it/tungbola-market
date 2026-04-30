@@ -27,6 +27,8 @@ async function rateLimit(req, action, max, windowSecs) {
 
 function secureHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://tungbola.vercel.app https://*.vercel.app");
   res.setHeader('X-XSS-Protection', '1; mode=block');
