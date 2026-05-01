@@ -1,5 +1,6 @@
 const { Redis } = require('@upstash/redis');
 const { put } = require('@vercel/blob');
+const { handleUpload } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit } = require('./_security');
 const crypto = require('crypto');
 const kv = Redis.fromEnv();
@@ -35,6 +36,39 @@ module.exports = async function(req, res) {
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
     const state = await kv.get(`tb:live:${gameId}`) || { calledNumbers: [], lastNumber: null };
     return res.json({ ok: true, calledNumbers: state.calledNumbers, lastNumber: state.lastNumber, lastCalledAt: state.lastCalledAt });
+  }
+
+  /* ── Vercel Blob client-upload token handler (Plan A sheet library) ── */
+  if (body.type === 'blob.generate-client-token' || body.type === 'blob.upload-completed') {
+    if (body.type === 'blob.generate-client-token') {
+      if (await rateLimit(req, 'op-upload', 5000, 3600))
+        return res.status(429).json({ error: 'Upload rate limit reached' });
+    }
+    const headers = { get: name => req.headers[name.toLowerCase()] || null };
+    try {
+      const response = await handleUpload({
+        body,
+        request: { headers },
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          let payload = {};
+          try { payload = JSON.parse(clientPayload || '{}'); } catch {}
+          const op = await getOperator(payload.apiKey);
+          if (!op) throw new Error('Invalid API key');
+          if (op.plan !== 'own-sheets') throw new Error('Plan A only');
+          const num = parseInt(payload.sheetNum);
+          if (!num || num < 1 || num > 9999) throw new Error('Invalid sheet number (1–9999)');
+          return {
+            allowedContentTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+            maximumSizeInBytes: 10 * 1024 * 1024,
+            tokenPayload: JSON.stringify({ operatorId: op.id }),
+          };
+        },
+        onUploadCompleted: async () => {},
+      });
+      return res.json(response);
+    } catch(e) {
+      return res.status(400).json({ error: e.message || 'Upload failed' });
+    }
   }
 
   if (!apiKey) return res.status(401).json({ error: 'apiKey required' });
@@ -295,6 +329,18 @@ module.exports = async function(req, res) {
   if (action === 'sheet-library-stats') {
     const raw = await kv.hgetall(`tb:op:${operator.id}:sheets`) || {};
     return res.json({ ok: true, count: Object.keys(raw).length, plan: operator.plan });
+  }
+
+  /* ── Register sheet in operator library after client upload ── */
+  if (action === 'register-sheet') {
+    if (operator.plan !== 'own-sheets') return res.status(403).json({ error: 'Plan A only' });
+    const { sheetNum, filename, url } = body;
+    if (!url || !sheetNum || !filename) return res.status(400).json({ error: 'sheetNum, filename, url required' });
+    const num = parseInt(sheetNum);
+    if (!num || num < 1 || num > 9999) return res.status(400).json({ error: 'Invalid sheet number (1–9999)' });
+    const rec = { n: num, f: String(filename).trim().slice(0, 80), u: url };
+    await kv.hset(`tb:op:${operator.id}:sheets`, { [`s${num}`]: JSON.stringify(rec) });
+    return res.json({ ok: true, sheet: rec });
   }
 
   /* ── Get a specific sheet from operator's library ── */
