@@ -297,5 +297,16 @@ module.exports = async function(req, res) {
     return res.json({ ok: true, count: Object.keys(raw).length, plan: operator.plan });
   }
 
+  /* ── Get a specific sheet from operator's library ── */
+  if (action === 'get-sheet') {
+    const { sheetNum } = body;
+    const num = parseInt(sheetNum);
+    if (!num || num < 1) return res.status(400).json({ error: 'sheetNum required' });
+    const raw = await kv.hget(`tb:op:${operator.id}:sheets`, `s${num}`);
+    if (!raw) return res.status(404).json({ error: 'Sheet not found' });
+    const sheet = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return res.json({ ok: true, sheet });
+  }
+
   return res.status(400).json({ error: 'Unknown action' });
 };
