@@ -666,7 +666,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
       </button>
       <div class="dl-notice">Tap Download All to get all sheets in one ZIP, or save them one by one below.</div>
       <div class="dl-list" id="dlList"></div>
-      <div class="muted-note">Download links are valid for 48 hours. Save the PDFs to your device.</div>
+      <div class="muted-note">Download links expire 6 hours after purchase. Once all sheets are downloaded, the link is permanently closed.</div>
     </div>
     <!-- post-download state (shown after ZIP downloaded) -->
     <div id="dlDoneState" style="display:none;margin-top:8px">
@@ -679,7 +679,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back to Tungbola
       </button>
-      <button class="dl-all-btn" onclick="show('screenHome')" style="background:var(--primary)">
+      <button class="dl-all-btn" onclick="goHome()" style="background:var(--primary)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         Buy More Sheets
       </button>
@@ -709,7 +709,7 @@ const TUNGBOLA_URL = 'https://tungbola.vercel.app';
 
 function closeInParent() {
   if (window.parent !== window) {
-    window.parent.postMessage('closeMarket', '*');
+    window.parent.postMessage('closeMarket', 'https://tungbola.vercel.app');
   } else {
     window.location.href = TUNGBOLA_URL;
   }
@@ -726,7 +726,9 @@ let cfg = {}, games = [], currentGame = null, buyQty = 1;
 let purchaseId = null, pollTimer = null, countdownTimer = null;
 let currentSheets = [], selectedSheetNums = new Set();
 let pickerMode = false, pickerLoaded = false, pickerOpen = false;
+let currentDownloadToken = null, pollCount = 0, pendingLookupData = null;
 const PICKER_LIMIT = 400;
+const MAX_POLL_COUNT = 72; // 6 minutes at 5s intervals
 
 /* ── localStorage order persistence ── */
 const LS_KEY = 'tb_pending_order';
@@ -768,6 +770,10 @@ async function resumeOrder() {
       clearOrderLocal(); showResumeBanner();
       loadDownloads(data.downloadToken); return;
     }
+    if (data.status === 'downloaded') {
+      clearOrderLocal(); showResumeBanner();
+      toast('Your sheets have already been downloaded.'); return;
+    }
     document.getElementById('waitInfo').textContent = `${saved.playerName} · ${saved.qty} sheet${saved.qty!==1?'s':''} · ₹${saved.amount} · ${saved.gameName}`;
     show('screenWait');
     startPolling();
@@ -803,13 +809,24 @@ async function lookupOrder() {
     } else if (data.status === 'approved' && data.downloadToken) {
       resEl.style.display = 'none';
       loadDownloads(data.downloadToken);
+    } else if (data.status === 'downloaded') {
+      resEl.className = 'track-result approved';
+      resEl.textContent = `✓ Sheets for "${data.gameName}" have already been downloaded. Your session has ended.`;
+      resEl.style.display = 'block';
     } else {
+      pendingLookupData = { purchaseId: data.purchaseId, playerName: data.playerName, gameName: data.gameName, quantity: data.quantity, amount: data.amount };
       resEl.className = 'track-result pending';
-      resEl.innerHTML = `⏳ Your order is being verified.<br><strong>${data.gameName}</strong> · ${data.quantity} sheet${data.quantity!==1?'s':''} · ₹${data.amount}<br><br>
-        <button onclick="resumePendingFromLookup('${data.purchaseId}','${esc(data.playerName)}','${esc(data.gameName)}',${data.quantity},${data.amount})"
-          style="background:var(--warn);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
-          Watch for approval →
-        </button>`;
+      resEl.innerHTML = `⏳ Your order is being verified.<br><strong>${esc(data.gameName)}</strong> · ${parseInt(data.quantity)||0} sheet${data.quantity!==1?'s':''} · ₹${Number(data.amount).toLocaleString('en-IN')}<br><br>`;
+      const watchBtn = document.createElement('button');
+      watchBtn.textContent = 'Watch for approval →';
+      watchBtn.style.cssText = 'background:var(--warn);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit';
+      watchBtn.onclick = () => {
+        if (pendingLookupData) {
+          const d = pendingLookupData;
+          resumePendingFromLookup(d.purchaseId, d.playerName, d.gameName, d.quantity, d.amount);
+        }
+      };
+      resEl.appendChild(watchBtn);
       resEl.style.display = 'block';
     }
   } catch(e) {
@@ -960,8 +977,9 @@ function startCardCountdowns() {
 function selectGame(id) {
   currentGame = games.find(g => g.id === id);
   if (!currentGame) return;
+  if (!currentGame.sheetCount) { toast('No sheets available for this game yet.'); return; }
   const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
-  if (avail <= 0 && currentGame.sheetCount > 0) { toast('This game is sold out.'); return; }
+  if (avail <= 0) { toast('This game is sold out.'); return; }
 
   buyQty = 1;
   selectedSheetNums = new Set();
@@ -1171,6 +1189,7 @@ function toggleChip(n, isSold) {
     selectedSheetNums.delete(n);
     chip.className = 'sheet-chip avail';
   } else {
+    if (selectedSheetNums.size >= 150) { toast('Maximum 150 sheets per purchase'); return; }
     selectedSheetNums.add(n);
     chip.className = 'sheet-chip picked';
   }
@@ -1246,9 +1265,13 @@ function updateQtyDisplay() {
 /* ── QR Modal ── */
 function openQRModal() {
   const name = document.getElementById('buyName').value.trim();
+  const phone = document.getElementById('buyPhone').value.trim();
+  const pin = document.getElementById('buyPin').value.trim();
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'Please enter your name first'; errEl.style.display = 'block'; return; }
+  if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
+  if (!phone) { errEl.textContent = 'Please enter your phone number'; errEl.style.display = 'block'; return; }
+  if (!/^\d{4}$/.test(pin)) { errEl.textContent = 'Please set a 4-digit PIN (numbers only)'; errEl.style.display = 'block'; return; }
 
   const effectiveQty = pickerMode && selectedSheetNums.size > 0 ? selectedSheetNums.size : buyQty;
   const amount = (currentGame?.pricePerSheet || 5) * effectiveQty;
@@ -1259,7 +1282,8 @@ function openQRModal() {
   const qrContainer = document.getElementById('qrContainer');
   qrContainer.innerHTML = '';
   if (upiId) {
-    const upiStr = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=Tungbola&am=${amount}&cu=INR&tn=Tambola+Sheets`;
+    const payeeName = encodeURIComponent(cfg.operatorName || 'Tungbola');
+    const upiStr = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${payeeName}&am=${amount}&cu=INR&tn=Tambola+Sheets`;
     try { new QRCode(qrContainer, { text: upiStr, width: 200, height: 200, colorDark: '#1C1B1F', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch(e) {}
     document.getElementById('qrUpiTxt').textContent = `UPI ID: ${upiId}`;
   } else {
@@ -1320,26 +1344,36 @@ async function submitPurchase() {
 }
 
 /* ── Polling ── */
-function startPolling() { stopPolling(); pollTimer = setInterval(poll, 5000); }
+function startPolling() { stopPolling(); pollCount = 0; pollTimer = setInterval(poll, 5000); }
 function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
 async function poll() {
   if (!purchaseId) return;
+  pollCount++;
+  if (pollCount > MAX_POLL_COUNT) {
+    stopPolling();
+    document.getElementById('waitInfo').textContent = 'Verification is taking longer than expected. Use "Track My Order" on the home screen to check later, or contact support.';
+    return;
+  }
   try {
     const r = await fetch('/api/marketplace', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ action:'check-purchase', purchaseId })
     });
-    if (r.status === 404) { stopPolling(); toast('Purchase expired. Try again.'); goHome(); return; }
+    if (r.status === 404) { stopPolling(); toast('Purchase not found. Try again.'); goHome(); return; }
     const data = await r.json();
     if (data.status === 'approved' && data.downloadToken) { stopPolling(); clearOrderLocal(); loadDownloads(data.downloadToken); }
-  } catch(e) {}
+    else if (data.status === 'downloaded') { stopPolling(); clearOrderLocal(); toast('Sheets already downloaded.'); goHome(); }
+  } catch(e) {
+    if (pollCount % 3 === 0) toast('Having trouble connecting. Still trying…');
+  }
 }
 
 function cancelPurchase() { stopPolling(); clearOrderLocal(); purchaseId = null; goHome(); }
 
 /* ── Downloads ── */
 async function loadDownloads(token) {
+  currentDownloadToken = token;
   try {
     const r = await fetch('/api/marketplace', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1388,6 +1422,7 @@ async function downloadAll() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     document.getElementById('dlPreState').style.display = 'none';
     document.getElementById('dlDoneState').style.display = 'block';
+    consumeDownload();
   } catch(e) {
     toast(e.message || 'Download failed — use individual buttons below.');
     btn.disabled = false;
@@ -1397,7 +1432,27 @@ async function downloadAll() {
 
 function markDownloaded(idx) {
   const btn = document.querySelector(`#dli-${idx} .dl-btn`);
-  if (btn) { btn.className = 'dl-btn done'; btn.textContent = '✓ Saved'; }
+  if (!btn || btn.classList.contains('done')) return;
+  btn.className = 'dl-btn done'; btn.textContent = '✓ Saved';
+  checkAllDownloaded();
+}
+
+function checkAllDownloaded() {
+  if (!currentSheets.length) return;
+  const done = document.querySelectorAll('#dlList .dl-btn.done').length;
+  if (done >= currentSheets.length) consumeDownload();
+}
+
+async function consumeDownload() {
+  const token = currentDownloadToken;
+  if (!token) return;
+  currentDownloadToken = null;
+  try {
+    await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'consume-download', downloadToken: token })
+    });
+  } catch(e) {}
 }
 
 /* ── Navigation ── */
@@ -1419,8 +1474,21 @@ function goHome() {
   stopPolling();
   clearInterval(countdownTimer);
   purchaseId = null;
+  currentDownloadToken = null;
+  pendingLookupData = null;
+  // Reset download screen for next use
+  document.getElementById('dlPreState').style.display = 'block';
+  document.getElementById('dlDoneState').style.display = 'none';
+  // Collapse and clear the track widget
+  document.getElementById('trackResult').style.display = 'none';
+  document.getElementById('trackHeader').classList.remove('open');
   showResumeBanner();
   startCardCountdowns();
+  // Background-refresh the games list so sold counts are current
+  fetch('/api/marketplace').then(r => r.json()).then(d => {
+    games = d.games || [];
+    renderGames();
+  }).catch(() => {});
 }
 
 /* ── Helpers ── */
@@ -1432,7 +1500,7 @@ function toast(msg) {
 }
 
 function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 init();

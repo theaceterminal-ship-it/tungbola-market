@@ -235,8 +235,11 @@ module.exports = async function(req, res) {
     if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
     const purchase = await kv.get(`tb:mkt:purchase:${purchaseId}`);
     if (!purchase) return res.status(404).json({ error: 'Purchase not found or expired' });
-    if (purchase.status === 'approved')
+    if (purchase.status === 'approved') {
+      if (purchase.downloaded)
+        return res.json({ status: 'downloaded', quantity: purchase.quantity });
       return res.json({ status: 'approved', downloadToken: purchase.downloadToken, quantity: purchase.quantity });
+    }
     return res.json({ status: purchase.status });
   }
 
@@ -300,6 +303,8 @@ module.exports = async function(req, res) {
     const fresh = await kv.get(`tb:mkt:purchase:${match.purchaseId}`);
     if (!fresh) return res.status(404).json({ error: 'Order has expired' });
     if (String(fresh.pin) !== String(pin)) return res.status(401).json({ error: 'Incorrect PIN' });
+    if (fresh.downloaded)
+      return res.json({ purchaseId: fresh.purchaseId, status: 'downloaded', gameName: fresh.gameName, quantity: fresh.quantity, amount: fresh.amount, playerName: fresh.playerName });
     return res.json({
       purchaseId: fresh.purchaseId, status: fresh.status,
       gameName: fresh.gameName, quantity: fresh.quantity, amount: fresh.amount,
@@ -317,6 +322,30 @@ module.exports = async function(req, res) {
     const dl = await kv.get(`tb:mkt:dl:${downloadToken}`);
     if (!dl) return res.status(404).json({ error: 'Download link expired or invalid. Contact admin.' });
     return res.json({ ok: true, sheets: dl.sheets, gameName: dl.gameName });
+  }
+
+  /* ── Player: consume (invalidate) download token after sheets are saved ── */
+  if (action === 'consume-download') {
+    if (await rateLimit(req, 'consumedl', 30, 300))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { downloadToken } = body;
+    if (!downloadToken) return res.status(400).json({ error: 'Token required' });
+    const dl = await kv.get(`tb:mkt:dl:${downloadToken}`);
+    if (dl) {
+      await kv.del(`tb:mkt:dl:${downloadToken}`);
+      if (dl.purchaseId) {
+        const purchase = await kv.get(`tb:mkt:purchase:${dl.purchaseId}`);
+        if (purchase) {
+          purchase.downloaded = true;
+          purchase.downloadedAt = Date.now();
+          await kv.set(`tb:mkt:purchase:${dl.purchaseId}`, purchase, { ex: 21600 });
+          const plist = await kv.get('tb:mkt:purchases') || [];
+          const pIdx = plist.findIndex(p => p.purchaseId === dl.purchaseId);
+          if (pIdx >= 0) { plist[pIdx].downloaded = true; await kv.set('tb:mkt:purchases', plist); }
+        }
+      }
+    }
+    return res.json({ ok: true });
   }
 
   /* ── Admin: approve purchase → assign sheets → generate download token ── */
@@ -355,7 +384,7 @@ module.exports = async function(req, res) {
     const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
 
     const dlToken = genToken();
-    await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: sheetList, gameName: game.name, purchaseId }, { ex: 172800 });
+    await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: sheetList, gameName: game.name, purchaseId }, { ex: 21600 });
 
     const newSold = [...(game.soldSheetNums || []), ...assigned.map(s => s.n)];
     game.soldSheetNums = newSold; game.soldCount = newSold.length;
@@ -368,7 +397,7 @@ module.exports = async function(req, res) {
     purchase.status = 'approved'; purchase.downloadToken = dlToken;
     purchase.approvedAt = Date.now();
     purchase.sheetNums = assigned.map(s => s.n);
-    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 172800 });
+    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 21600 });
 
     const plist = await kv.get('tb:mkt:purchases') || [];
     const pIdx = plist.findIndex(p => p.purchaseId === purchaseId);

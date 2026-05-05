@@ -251,7 +251,7 @@ module.exports = async function(req, res) {
     }
 
     const dlToken = genToken();
-    await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: assigned.map(s => ({ n: s.n, filename: s.f, url: s.u })), gameName: game.name, purchaseId }, { ex: 172800 });
+    await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: assigned.map(s => ({ n: s.n, filename: s.f, url: s.u })), gameName: game.name, purchaseId }, { ex: 21600 });
 
     const newSold = [...(game.soldSheetNums || []), ...assigned.map(s => s.n)];
     game.soldSheetNums = newSold; game.soldCount = newSold.length;
@@ -262,7 +262,7 @@ module.exports = async function(req, res) {
 
     purchase.status = 'approved'; purchase.downloadToken = dlToken;
     purchase.approvedAt = Date.now(); purchase.sheetNums = assigned.map(s => s.n);
-    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 172800 });
+    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 21600 });
     const plist = await kv.get('tb:mkt:purchases') || [];
     const pIdx = plist.findIndex(p => p.purchaseId === purchaseId);
     if (pIdx >= 0) { plist[pIdx] = purchase; await kv.set('tb:mkt:purchases', plist); }
