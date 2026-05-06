@@ -13,7 +13,6 @@
   --primary:#6750A4;--primary-light:#EADDFF;
   --error:#B3261E;--success:#2E7D32;--warn:#F57F17;
   --muted:#49454F;--on-s:#1C1B1F;
-  --gold:#F59E0B;--gold-light:#FEF3C7;
   --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-md:0 4px 16px rgba(0,0,0,.13);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -29,366 +28,179 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   position:fixed;top:0;left:0;right:0;z-index:100
 }
 .hdr-left{display:flex;align-items:center;gap:10px}
-.hdr-logo{font-size:18px;font-weight:900;letter-spacing:-.5px}
+.hdr-logo{font-size:18px;font-weight:900;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
 .hdr-tag{font-size:12px;opacity:.8;background:rgba(255,255,255,.15);padding:3px 9px;border-radius:12px}
-.hdr-back{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;
+.hdr-right{display:flex;align-items:center;gap:8px}
+.hdr-track-btn{
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.25);color:#fff;
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer
+}
+.hdr-back{
+  background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;
   padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-  font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+  font-family:inherit;display:inline-flex;align-items:center;gap:4px
+}
 
 /* ── SCREENS ── */
 #app{position:fixed;top:58px;left:0;right:0;bottom:0;overflow:hidden}
 .screen{
   position:absolute;top:0;left:0;right:0;bottom:0;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
-  background:var(--bg);
-  display:none;
+  background:var(--bg);display:none;
 }
 .screen.visible{display:block;animation:scrIn .26s cubic-bezier(.4,0,.2,1) both}
 .screen.back.visible{animation:scrInBack .26s cubic-bezier(.4,0,.2,1) both}
 @keyframes scrIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
 @keyframes scrInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:translateX(0)}}
 
-/* ── HOME: GAME CARDS ── */
+/* screenSheets uses flex so override display */
+#screenSheets{display:none;flex-direction:column}
+#screenSheets.visible{display:flex}
+#screenSheets.back.visible{display:flex}
+
+/* ── HOME ── */
 #screenHome{padding:14px}
-.section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
-  letter-spacing:.7px;margin-bottom:14px;padding-top:2px}
-
-.game-card{
-  position:relative;border-radius:24px;overflow:hidden;
-  cursor:pointer;margin-bottom:18px;
-  box-shadow:0 8px 28px rgba(103,80,164,.3),0 0 0 1px rgba(103,80,164,.08);
-  transform:translateY(0);transition:transform .18s,box-shadow .18s;
-  -webkit-user-select:none;user-select:none;
-  background:#1a0533
-}
-.game-card:active{transform:scale(.975);box-shadow:0 4px 14px rgba(103,80,164,.2)}
-.game-card-thumb{
-  width:100%;height:220px;object-fit:cover;display:block;opacity:.92;
-  transition:opacity .2s
-}
-.game-card:active .game-card-thumb{opacity:.8}
-.game-card-thumb-placeholder{
-  height:220px;
-  background:linear-gradient(135deg,#2D0A6E 0%,#4527A0 40%,#7B1FA2 80%,#9C27B0 100%)
-}
-.game-card-overlay{
-  position:absolute;top:0;left:0;right:0;height:220px;
-  background:linear-gradient(to bottom,rgba(10,2,30,.1) 0%,rgba(10,2,30,.45) 45%,rgba(10,2,30,.92) 100%)
-}
-.game-card-top-badges{
-  position:absolute;top:12px;left:12px;right:12px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px
-}
-.countdown-badge{
-  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
-  color:#fff;border-radius:20px;padding:5px 11px;
-  font-size:11px;font-weight:700;letter-spacing:.2px;
-  display:flex;align-items:center;gap:5px;flex-shrink:0
-}
-.countdown-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;
-  animation:pulse 1.4s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
-.price-badge-top{
-  background:rgba(255,255,255,.18);backdrop-filter:blur(6px);
-  color:#fff;border-radius:20px;padding:5px 12px;
-  font-size:12px;font-weight:700
-}
-
-.game-card-info{
-  position:absolute;bottom:0;left:0;right:0;padding:14px 16px 0
-}
-.game-card-name{font-size:20px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:3px}
-.game-card-date{font-size:12px;color:rgba(255,255,255,.75);margin-bottom:10px}
-
-/* full house highlight on card */
-.card-fullhouse{
-  background:linear-gradient(90deg,rgba(180,83,9,.9),rgba(220,38,38,.85));
-  border-radius:14px;padding:9px 13px;margin-bottom:8px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  border:1px solid rgba(253,230,138,.3);
-  backdrop-filter:blur(4px)
-}
-.card-fullhouse-label{font-size:10px;font-weight:800;color:rgba(253,230,138,.9);text-transform:uppercase;letter-spacing:.9px}
-.card-fullhouse-val{font-size:19px;font-weight:900;color:#FDE68A;text-shadow:0 1px 4px rgba(0,0,0,.4)}
-.card-more-prizes{
-  font-size:11px;color:rgba(255,255,255,.6);margin-bottom:8px;
-  display:flex;flex-wrap:wrap;gap:5px
-}
-.card-other-prize-chip{
-  background:rgba(255,255,255,.12);border-radius:20px;padding:3px 9px;
-  font-size:11px;font-weight:600;color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.15)
-}
-
-.game-card-bottom{
-  background:rgba(0,0,0,.35);backdrop-filter:blur(4px);
-  border-top:1px solid rgba(255,255,255,.1);
-  padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px
-}
-.sheet-stats{display:flex;gap:8px;align-items:center}
-.stat-pill{
-  border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;
-  display:flex;align-items:center;gap:4px
-}
-.stat-pill.avail{background:rgba(74,222,128,.2);color:#4ADE80}
-.stat-pill.sold{background:rgba(248,113,113,.2);color:#F87171}
-.card-buy-btn{
-  background:#fff;color:var(--primary);
-  border:none;border-radius:22px;padding:10px 20px;
-  font-size:13px;font-weight:800;cursor:pointer;
-  font-family:inherit;flex-shrink:0;white-space:nowrap;
-  box-shadow:0 2px 8px rgba(0,0,0,.2)
-}
-.sold-out-overlay{
-  position:absolute;inset:0;
-  background:rgba(0,0,0,.6);
-  display:flex;align-items:center;justify-content:center;
-  border-radius:24px
-}
-.sold-out-label{font-size:22px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:2px}
-
+.section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px}
+.loading-txt{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
 .empty-state{text-align:center;padding:60px 20px 40px;color:var(--muted)}
 .empty-ico{font-size:52px;margin-bottom:12px}
 .empty-txt{font-size:16px;font-weight:700;color:var(--on-s)}
-.empty-sub{font-size:13px;margin-top:6px;opacity:.7;line-height:1.5}
-.loading-txt{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
+.empty-sub{font-size:13px;margin-top:6px;line-height:1.5}
 
-/* ── Pending order resume banner ── */
-.resume-banner{
-  background:linear-gradient(135deg,#1E3A5F,#1565C0);
-  border-radius:18px;padding:14px 16px;margin-bottom:16px;
-  display:flex;align-items:center;gap:12px;
-  box-shadow:0 4px 16px rgba(21,101,192,.3)
-}
-.resume-icon{font-size:28px;flex-shrink:0}
-.resume-body{flex:1;min-width:0}
-.resume-title{font-size:13px;font-weight:800;color:#fff;margin-bottom:2px}
-.resume-sub{font-size:11px;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.resume-btn{background:#fff;color:#1565C0;border:none;border-radius:12px;
-  padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;white-space:nowrap}
-
-/* ── Track My Order card ── */
-.track-card{
-  background:var(--surface);border-radius:18px;box-shadow:var(--shadow);
-  margin-bottom:16px;overflow:hidden
-}
-.track-card-header{
-  padding:13px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;
-  border-bottom:1px solid transparent;transition:border-color .2s
-}
-.track-card-header.open{border-bottom-color:var(--border)}
-.track-card-title{font-size:13px;font-weight:700;color:var(--on-s);display:flex;align-items:center;gap:6px}
-.track-card-chevron{font-size:11px;color:var(--muted);transition:transform .2s}
-.track-card-header.open .track-card-chevron{transform:rotate(180deg)}
-.track-body{padding:14px 16px;display:none}
-.track-card-header.open + .track-body{display:block}
-.track-row{display:flex;gap:8px;margin-bottom:10px}
-.track-field{flex:1;padding:11px 13px;border:2px solid var(--border);border-radius:11px;
-  font-size:14px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
-.track-field:focus{border-color:var(--primary)}
-.track-btn{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;
-  border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
-  transition:opacity .2s}
-.track-btn:disabled{opacity:.5;cursor:not-allowed}
-.track-result{margin-top:12px;padding:12px;border-radius:12px;font-size:13px;font-weight:600;text-align:center}
-.track-result.pending{background:#FFF8E1;color:var(--warn)}
-.track-result.approved{background:#E8F5E9;color:var(--success)}
-.track-result.error{background:#FFEBEE;color:var(--error)}
-
-/* ── BUY SCREEN ── */
-#screenBuy{padding:0;padding-bottom:100px}
-
-.buy-hero{
-  position:relative;overflow:hidden;flex-shrink:0;
-  min-height:360px
-}
-.buy-hero-bg{
-  position:absolute;inset:-20px;
-  background:linear-gradient(135deg,#2D0A6E,#7B1FA2)
-}
-.buy-hero-bg img{
-  width:calc(100% + 40px);height:calc(100% + 40px);
-  object-fit:cover;display:block;filter:blur(3px);
-  transform:scale(1.06)
-}
-.buy-hero-overlay{
-  position:absolute;inset:0;
-  background:linear-gradient(to bottom,rgba(10,2,30,.2) 0%,rgba(10,2,30,.65) 55%,rgba(10,2,30,.97) 100%)
-}
-.buy-hero-content{
-  position:relative;z-index:1;padding:16px;
-  display:flex;flex-direction:column;gap:0
-}
-.buy-back-btn{
-  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.28);color:#fff;
-  padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-  font-family:inherit;display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
-  margin-bottom:16px
-}
-.buy-hero-countdown{
-  display:inline-flex;align-items:center;gap:6px;
-  background:rgba(0,0,0,.45);backdrop-filter:blur(6px);
-  border-radius:20px;padding:5px 12px;margin-bottom:8px;
-  font-size:12px;font-weight:700;color:#fff;align-self:flex-start
-}
-.buy-hero-name{font-size:26px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px;word-break:break-word;overflow-wrap:break-word}
-.buy-hero-date{font-size:13px;color:rgba(255,255,255,.75);margin-bottom:14px}
-
-/* Hero prize strip */
-.hero-prize-strip{margin-bottom:4px}
-.hero-fh1-block{
-  background:linear-gradient(90deg,rgba(146,64,14,.9),rgba(185,28,28,.85));
-  border-radius:16px;padding:12px 16px;margin-bottom:8px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  border:1px solid rgba(253,230,138,.35)
-}
-.hero-fh2-block{
-  background:linear-gradient(90deg,rgba(91,33,182,.8),rgba(124,58,237,.75));
-  border-radius:12px;padding:9px 14px;margin-bottom:8px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  border:1px solid rgba(196,181,253,.3)
-}
-.hero-fh-left{flex:1;min-width:0}
-.hero-fh-eyebrow{font-size:10px;font-weight:800;color:rgba(253,230,138,.85);text-transform:uppercase;letter-spacing:.9px;margin-bottom:2px;display:flex;align-items:center;gap:4px}
-.hero-fh2-eyebrow{font-size:11px;font-weight:700;color:rgba(196,181,253,.9);display:flex;align-items:center;gap:4px}
-.hero-fh-name{font-size:15px;font-weight:800;color:#fff}
-.hero-fh1-val{font-size:24px;font-weight:900;color:#FDE68A;text-shadow:0 1px 6px rgba(0,0,0,.4);flex-shrink:0}
-.hero-fh2-val{font-size:20px;font-weight:900;color:#C4B5FD;flex-shrink:0}
-.hero-line-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
-.hero-line-chip{
-  background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.3);
-  border-radius:12px;padding:7px 10px;flex:1;min-width:70px;
-  display:flex;flex-direction:column;align-items:center;gap:2px
-}
-.hero-line-chip-name{font-size:10px;font-weight:700;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.5px;text-align:center}
-.hero-line-chip-val{font-size:13px;font-weight:900;color:#6EE7B7;text-align:center}
-.hero-other-prizes{
-  display:flex;flex-wrap:wrap;gap:6px;padding-bottom:16px
-}
-.hero-other-chip{
-  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);
-  border-radius:20px;padding:5px 12px;
-  font-size:12px;font-weight:600;color:#fff;
-  display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px)
-}
-.hero-other-chip-val{font-weight:800;color:#C4B5FD}
-
-.buy-body{padding:14px;max-width:520px;margin:0 auto}
-
-/* Sheet picker card */
-.pick-btn-row{margin-bottom:14px}
-.pick-sheets-btn{
-  width:100%;padding:16px;
-  background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
-  border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;
-  font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;
-  box-shadow:0 4px 16px rgba(103,80,164,.35)
-}
-.pick-sheets-btn:disabled{opacity:.6;cursor:not-allowed}
-
-.picker-card{
-  background:var(--surface);border-radius:20px;box-shadow:var(--shadow-md);
-  padding:16px;margin-bottom:14px;display:none
-}
-.picker-card.open{display:block}
-.picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.picker-title-txt{font-size:14px;font-weight:700;color:var(--on-s)}
-.picker-avail-count{font-size:12px;font-weight:600;color:var(--success)}
-
-.search-wrap{position:relative;margin-bottom:12px}
-.sheet-search{
-  width:100%;padding:11px 14px 11px 38px;
-  border:2px solid var(--border);border-radius:12px;
-  font-size:14px;font-family:inherit;outline:none;background:#fff;
-  transition:border-color .2s
-}
-.sheet-search:focus{border-color:var(--primary)}
-.search-icon{
-  position:absolute;left:12px;top:50%;transform:translateY(-50%);
-  font-size:15px;pointer-events:none;opacity:.5
-}
-
-.picker-legend{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
-.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted)}
-.legend-dot{width:10px;height:10px;border-radius:3px}
-.legend-dot.avail{background:var(--primary-light);border:1.5px solid var(--primary)}
-.legend-dot.picked{background:var(--primary)}
-.legend-dot.sold-dot{background:#FFCDD2;border:1.5px solid var(--error)}
-
-.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:6px;max-height:280px;overflow-y:auto;padding:2px}
-.sheet-chip{
-  height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:700;cursor:pointer;border:2px solid transparent;
-  transition:background .1s,border-color .1s,color .1s;
+/* ── GAME CARDS ── */
+.game-card{
+  position:relative;border-radius:24px;overflow:hidden;cursor:pointer;
+  margin-bottom:20px;background:#1a0533;
+  box-shadow:0 8px 28px rgba(103,80,164,.3),0 0 0 1px rgba(103,80,164,.08);
+  transform:translateY(0);transition:transform .18s,box-shadow .18s;
   -webkit-user-select:none;user-select:none
 }
+.game-card:active{transform:scale(.975)}
+.game-card-thumb{width:100%;height:200px;object-fit:cover;display:block;opacity:.92}
+.game-card-thumb-placeholder{height:200px;background:linear-gradient(135deg,#2D0A6E,#4527A0 40%,#7B1FA2 80%,#9C27B0)}
+.game-card-overlay{position:absolute;top:0;left:0;right:0;height:200px;background:linear-gradient(to bottom,rgba(10,2,30,.05) 0%,rgba(10,2,30,.5) 50%,rgba(10,2,30,.95) 100%)}
+.game-card-top{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.countdown-badge{background:rgba(0,0,0,.5);backdrop-filter:blur(6px);color:#fff;border-radius:20px;padding:5px 11px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
+.countdown-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+
+.game-card-body{padding:14px 16px;background:linear-gradient(to bottom,rgba(10,2,30,.97),#0e0120)}
+.game-card-name{font-size:19px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:3px}
+.game-card-date{font-size:12px;color:rgba(255,255,255,.65);margin-bottom:12px}
+
+.card-prizes{margin-bottom:12px}
+.card-prize-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:10px;margin-bottom:5px}
+.card-prize-row.main{background:linear-gradient(90deg,rgba(146,64,14,.85),rgba(185,28,28,.8));border:1px solid rgba(253,230,138,.3)}
+.card-prize-row.sub{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+.card-prize-name{font-size:11px;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.5px}
+.card-prize-val{font-size:13px;font-weight:900;color:#FDE68A}
+.card-prize-val.alt{color:#C4B5FD}
+
+.game-card-stats{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;
+  border:1px solid rgba(255,255,255,.1);margin-bottom:12px
+}
+.stat-block{text-align:center}
+.stat-val{font-size:15px;font-weight:900;color:#fff}
+.stat-lbl{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+.stat-sep{width:1px;height:28px;background:rgba(255,255,255,.15)}
+
+.card-buy-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-price-tag{font-size:14px;font-weight:800;color:#C4B5FD}
+.card-buy-btn{
+  background:#fff;color:var(--primary);border:none;border-radius:22px;
+  padding:10px 22px;font-size:13px;font-weight:800;cursor:pointer;
+  font-family:inherit;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)
+}
+.sold-out-overlay{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;border-radius:24px}
+.sold-out-label{font-size:22px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:2px}
+
+/* ── SHEET SELECTION ── */
+.sheets-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheets-hero{background:linear-gradient(135deg,#2D0A6E,#7B1FA2);padding:16px}
+.screen-back-btn{
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.28);color:#fff;
+  padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;gap:5px;margin-bottom:12px
+}
+.sheets-game-name{font-size:20px;font-weight:900;color:#fff;margin-bottom:3px}
+.sheets-game-sub{font-size:12px;color:rgba(255,255,255,.7)}
+.sheets-body{padding:14px}
+.sheets-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sheets-hdr-label{font-size:13px;font-weight:700;color:var(--on-s)}
+.sheets-hdr-count{font-size:13px;font-weight:700;color:var(--success)}
+
+.quick-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:var(--primary-light);border-radius:12px;padding:10px 12px}
+.quick-lbl{font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap}
+.quick-input{flex:1;min-width:0;padding:8px 10px;border:2px solid var(--primary);border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;outline:none;color:var(--primary);text-align:center;background:#fff}
+.quick-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:7px}
+.sheet-chip{height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:background .1s,border-color .1s;-webkit-user-select:none;user-select:none}
 .sheet-chip.avail{background:#F4F0FB;color:var(--primary);border-color:var(--border)}
 .sheet-chip.avail:active{background:var(--primary-light);border-color:var(--primary)}
 .sheet-chip.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
-.sheet-chip.sold-chip{background:#450a0a;color:#fca5a5;border-color:#7f1d1d;cursor:not-allowed}
-.sheet-chip.hidden{display:none}
+.sheets-loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+.no-sheets{text-align:center;padding:30px;color:var(--muted);font-size:14px;grid-column:1/-1}
 
-.quick-select-row{
-  display:flex;align-items:center;gap:8px;margin-bottom:12px;
-  background:var(--primary-light);border-radius:12px;padding:10px 12px
+/* Fixed bottom bar */
+.sheets-bottom{
+  flex-shrink:0;background:#fff;border-top:1px solid var(--border);
+  padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));
+  box-shadow:0 -4px 20px rgba(0,0,0,.1)
 }
-.quick-select-label{font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap}
-.quick-select-input{
-  flex:1;min-width:0;padding:8px 10px;border:2px solid var(--primary);border-radius:10px;
-  font-size:14px;font-weight:700;font-family:inherit;outline:none;
-  color:var(--primary);text-align:center;background:#fff
+.sheets-bottom-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.bottom-info{flex:1}
+.bottom-count{font-size:12px;font-weight:600;color:var(--muted)}
+.bottom-amount{font-size:22px;font-weight:900;color:var(--primary);line-height:1.1}
+.continue-btn{
+  background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
+  border:none;border-radius:16px;padding:14px 24px;font-size:15px;font-weight:800;
+  cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;
+  box-shadow:0 4px 14px rgba(103,80,164,.35);transition:opacity .2s
 }
-.quick-select-btn{
-  background:var(--primary);color:#fff;border:none;border-radius:10px;
-  padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
-  white-space:nowrap;flex-shrink:0
-}
+.continue-btn:disabled{opacity:.4;cursor:not-allowed}
 
-.picker-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:6px}
-.picker-count-txt{font-size:13px;font-weight:700;color:var(--primary)}
-.picker-clear-btn{background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline}
+/* ── DETAILS & PAY ── */
+#screenDetails{padding-bottom:40px}
+.details-hero{background:linear-gradient(135deg,#2D0A6E,#7B1FA2);padding:16px;display:flex;align-items:center;gap:12px}
+.details-hero-txt{flex:1}
+.details-title{font-size:17px;font-weight:800;color:#fff}
+.details-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
+.details-body{padding:16px;max-width:480px;margin:0 auto}
 
-.picker-loading-txt{text-align:center;padding:24px 0;font-size:13px;color:var(--muted)}
+.order-summary{background:linear-gradient(135deg,var(--primary),#7C3AED);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
+.os-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.8;margin-bottom:4px}
+.os-game{font-size:16px;font-weight:800;margin-bottom:8px}
+.os-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.os-chip{background:rgba(255,255,255,.2);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700}
+.os-amount-lbl{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.5px}
+.os-amount{font-size:30px;font-weight:900}
 
-/* Fallback stepper */
-.stepper-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px;display:none}
-.field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
-.qty-row{display:flex;align-items:center;gap:12px}
-.qty-btn{width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:#fff;
-  font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;color:var(--primary);transition:background .15s,border-color .15s}
-.qty-btn:active{background:var(--primary-light);border-color:var(--primary)}
-.qty-val{font-size:24px;font-weight:900;color:var(--primary);min-width:44px;text-align:center}
-.qty-max-txt{font-size:12px;color:var(--muted)}
-
-/* Buyer info */
-.info-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+.info-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
 .field-wrap{margin-bottom:14px}
 .field-wrap:last-child{margin-bottom:0}
-.mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;
-  font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
+.field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
 .mkt-field:focus{border-color:var(--primary)}
-.field-hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}
-.pin-row{display:flex;gap:10px}
-.pin-row .mkt-field{letter-spacing:6px;font-size:22px;font-weight:800;text-align:center;max-width:130px}
-
-/* Amount bar */
-.amount-bar{
-  background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
-  border-radius:16px;padding:14px 18px;
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:14px
-}
-.amount-label{font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.8px}
-.amount-value{font-size:28px;font-weight:900}
 
 .err-msg{font-size:13px;color:var(--error);font-weight:500;margin-bottom:10px;text-align:center}
-
 .pay-btn{
   width:100%;padding:17px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;
   border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
   box-shadow:0 4px 14px rgba(5,150,105,.35);transition:opacity .2s
 }
 .pay-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Post-payment confirmation card */
+.confirm-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow-md);padding:28px 20px;text-align:center;margin:16px;display:none}
+.confirm-icon{font-size:52px;margin-bottom:12px}
+.confirm-title{font-size:20px;font-weight:800;color:var(--on-s);margin-bottom:8px}
+.confirm-msg{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:16px}
+.confirm-note{background:var(--primary-light);border-radius:12px;padding:14px;font-size:13px;color:var(--primary);font-weight:600;line-height:1.6;margin-bottom:20px;text-align:left}
+.confirm-home-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
 
 /* ── QR MODAL ── */
 .modal-backdrop{
@@ -409,77 +221,59 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .qr-wrap{display:flex;justify-content:center;margin-bottom:12px}
 .qr-box{background:#fff;border:2px solid var(--border);border-radius:16px;padding:14px;display:inline-block}
 .qr-upi-txt{font-size:11px;color:var(--muted);text-align:center;word-break:break-all;margin-bottom:20px}
-.modal-pay-btn{
-  width:100%;padding:16px;background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;border:none;
-  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
-  transition:opacity .2s
-}
+.modal-pay-btn{width:100%;padding:16px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
 .modal-pay-btn:disabled{opacity:.5;cursor:not-allowed}
-.modal-cancel-link{
-  display:block;text-align:center;margin-top:12px;
-  font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline
-}
+.modal-cancel-link{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline}
 
-/* ── WAIT SCREEN ── */
-#screenWait{text-align:center;padding:40px 24px}
-.wait-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%}
-.wait-card{background:var(--surface);border-radius:24px;box-shadow:var(--shadow-md);padding:40px 28px;max-width:340px;width:100%}
-.wait-spinner{width:56px;height:56px;border-radius:50%;border:4px solid var(--primary-light);
-  border-top-color:var(--primary);animation:spin .8s linear infinite;margin:0 auto 20px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.wait-title{font-size:20px;font-weight:800;margin-bottom:8px}
-.wait-info{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7}
-.wait-cancel{background:transparent;border:2px solid var(--border);color:var(--muted);
-  padding:10px 28px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
-
-/* ── DOWNLOADS SCREEN ── */
-#screenDownloads{max-width:480px;margin:0 auto;padding:16px 16px 40px}
-.dl-hero{
-  background:linear-gradient(135deg,var(--primary),#7C3AED);
-  color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;
-  box-shadow:var(--shadow-md)
+/* ── TRACK MODAL ── */
+.track-modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s
 }
-.dl-hero-ico{margin-bottom:10px;display:flex;align-items:center;justify-content:center;opacity:.9}
+.track-modal-backdrop.open{opacity:1;pointer-events:auto}
+.track-modal-sheet{
+  background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;
+  width:100%;max-width:520px;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)
+}
+.track-modal-backdrop.open .track-modal-sheet{transform:translateY(0)}
+.track-modal-title{font-size:17px;font-weight:800;margin-bottom:4px}
+.track-modal-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+.track-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s;margin-bottom:10px}
+.track-field:focus{border-color:var(--primary)}
+.track-find-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.track-find-btn:disabled{opacity:.5}
+.track-result{margin-top:14px;padding:14px;border-radius:14px;font-size:13px;font-weight:600;text-align:center;display:none;line-height:1.6}
+.track-result.pending{background:#FFF8E1;color:var(--warn)}
+.track-result.ok{background:#E8F5E9;color:var(--success)}
+.track-result.err{background:#FFEBEE;color:var(--error)}
+
+/* ── DOWNLOADS ── */
+#screenDownloads{padding:16px 16px 40px}
+.dl-wrap{max-width:480px;margin:0 auto}
+.dl-hero{background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
 .dl-hero-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .dl-hero-sub{font-size:13px;opacity:.85;line-height:1.5}
-.dl-all-btn{
-  width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;
-  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
-  display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;
-  transition:opacity .2s
-}
+.dl-all-btn{width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;transition:opacity .2s}
 .dl-all-btn:disabled{opacity:.6;cursor:not-allowed}
-.dl-notice{background:#E8F5E9;border-radius:12px;padding:12px 14px;margin-bottom:14px;
-  font-size:13px;color:#2E7D32;line-height:1.6}
+.dl-notice{background:#E8F5E9;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#2E7D32;line-height:1.6}
 .dl-list{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
 .dl-item{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)}
 .dl-item:last-child{border-bottom:none}
-.dl-num{width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);
-  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.dl-num{width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
 .dl-name{flex:1;font-size:14px;font-weight:600}
-.dl-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;
-  padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
-  white-space:nowrap;flex-shrink:0;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.dl-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .dl-btn.done{background:#E8F5E9;color:#2E7D32}
-.open-app-btn{
-  width:100%;padding:15px;background:var(--primary);color:#fff;border:none;
-  border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
-  text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px
-}
+.dl-done-card{background:#E8F5E9;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;display:none}
+.back-home-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
 .muted-note{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;padding:0 8px}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
-  background:#1C1B1F;color:#fff;padding:12px 20px;border-radius:24px;
-  font-size:13px;font-weight:600;z-index:300;transition:transform .25s;
-  white-space:nowrap;max-width:90vw;text-align:center}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1C1B1F;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
-@media(max-width:360px){
-  .game-card-name{font-size:17px}
-  .buy-hero{min-height:320px}
-  .buy-hero-name{font-size:21px}
-}
+@media(max-width:360px){.game-card-name{font-size:17px}.bottom-amount{font-size:18px}}
 </style>
 </head>
 <body>
@@ -492,118 +286,77 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     </div>
     <div class="hdr-tag">Marketplace</div>
   </div>
-  <button class="hdr-back" id="hdrCloseBtn" onclick="closeInParent()" style="border:none;background:rgba(255,255,255,.18)">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-    Back
-  </button>
+  <div class="hdr-right">
+    <button class="hdr-track-btn" onclick="openTrackModal()" title="Track my order">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="hdr-back" onclick="closeInParent()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back
+    </button>
+  </div>
 </div>
 
 <div id="app">
 
-  <!-- HOME -->
+  <!-- SCREEN 1: HOME -->
   <div class="screen visible" id="screenHome">
-    <!-- Pending order resume banner (shown if localStorage has an order) -->
-    <div class="resume-banner" id="resumeBanner" style="display:none">
-      <div class="resume-icon">🎟</div>
-      <div class="resume-body">
-        <div class="resume-title" id="resumeTitle">Order in progress</div>
-        <div class="resume-sub" id="resumeSub"></div>
-      </div>
-      <button class="resume-btn" onclick="resumeOrder()">Check Status</button>
-    </div>
-
-    <!-- Track my order (collapsible) -->
-    <div class="track-card">
-      <div class="track-card-header" id="trackHeader" onclick="toggleTrack()">
-        <div class="track-card-title">🔍 Track my order</div>
-        <span class="track-card-chevron">▼</span>
-      </div>
-      <div class="track-body" id="trackBody">
-        <div class="track-row">
-          <input class="track-field" id="trackPhone" type="tel" placeholder="Your phone number" maxlength="20">
-          <input class="track-field" id="trackPin" type="tel" placeholder="PIN" maxlength="4" inputmode="numeric" autocomplete="off" style="max-width:90px;letter-spacing:4px;font-weight:800;text-align:center">
-        </div>
-        <button class="track-btn" id="trackBtn" onclick="lookupOrder()">Find My Order →</button>
-        <div class="track-result" id="trackResult" style="display:none"></div>
-      </div>
-    </div>
-
     <div class="loading-txt" id="homeLoading">Loading games…</div>
     <div id="gamesContainer" style="display:none"></div>
   </div>
 
-  <!-- BUY -->
-  <div class="screen" id="screenBuy">
-
-    <!-- Hero banner (contains prizes overlay) -->
-    <div class="buy-hero" id="buyHero">
-      <div class="buy-hero-bg" id="buyHeroBg"></div>
-      <div class="buy-hero-overlay"></div>
-      <div class="buy-hero-content">
-        <button class="buy-back-btn" onclick="goHome()">← Back</button>
-        <div class="buy-hero-countdown" id="buyHeroCountdown" style="display:none">
-          <span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite;display:inline-block"></span>
-          <span id="buyCountdownTxt"></span>
+  <!-- SCREEN 2: SHEET SELECTION -->
+  <div class="screen" id="screenSheets">
+    <div class="sheets-scroll">
+      <div class="sheets-hero">
+        <button class="screen-back-btn" onclick="goHome()">← Back</button>
+        <div class="sheets-game-name" id="sheetsGameName"></div>
+        <div class="sheets-game-sub" id="sheetsGameSub"></div>
+      </div>
+      <div class="sheets-body">
+        <div class="sheets-hdr">
+          <span class="sheets-hdr-label">Available Sheets</span>
+          <span class="sheets-hdr-count" id="sheetsAvailCount"></span>
         </div>
-        <div class="buy-hero-name" id="buyHeroName"></div>
-        <div class="buy-hero-date" id="buyHeroDate"></div>
-        <!-- Prizes overlaid in hero -->
-        <div class="hero-prize-strip" id="heroPrizeStrip"></div>
+        <div class="quick-row">
+          <span class="quick-lbl">Quick:</span>
+          <input class="quick-input" id="quickInput" type="number" inputmode="numeric" min="1" placeholder="How many?">
+          <button class="quick-btn" onclick="quickSelect()">Auto →</button>
+        </div>
+        <div id="sheetsLoading" class="sheets-loading">Loading sheets…</div>
+        <div id="sheetsGrid" class="sheet-grid" style="display:none"></div>
+      </div>
+    </div>
+    <div class="sheets-bottom">
+      <div class="sheets-bottom-inner">
+        <div class="bottom-info">
+          <div class="bottom-count" id="bottomCount">No sheets selected</div>
+          <div class="bottom-amount" id="bottomAmount">₹0</div>
+        </div>
+        <button class="continue-btn" id="continueBtn" onclick="goToDetails()" disabled>Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: DETAILS & PAY -->
+  <div class="screen" id="screenDetails">
+    <div class="details-hero">
+      <button class="screen-back-btn" onclick="show('screenSheets',true)">← Back</button>
+      <div class="details-hero-txt">
+        <div class="details-title">Your Details</div>
+        <div class="details-sub" id="detailsSub"></div>
       </div>
     </div>
 
-    <!-- Body -->
-    <div class="buy-body">
-
-      <!-- Pick sheets button -->
-      <div class="pick-btn-row">
-        <button class="pick-sheets-btn" id="pickSheetsBtn" onclick="togglePickerCard()">
-          🎟 Pick Your Sheets
-        </button>
+    <!-- Form (hidden after payment done) -->
+    <div class="details-body" id="detailsForm">
+      <div class="order-summary">
+        <div class="os-label">Order Summary</div>
+        <div class="os-game" id="osGame"></div>
+        <div class="os-chips" id="osChips"></div>
+        <div class="os-amount-lbl">Total</div>
+        <div class="os-amount" id="osAmount"></div>
       </div>
-
-      <!-- Sheet picker -->
-      <div class="picker-card" id="pickerCard">
-        <div class="picker-header">
-          <span class="picker-title-txt">Choose Your Numbers</span>
-          <span class="picker-avail-count" id="pickerAvailCount"></span>
-        </div>
-        <div class="quick-select-row">
-          <span class="quick-select-label">Quick:</span>
-          <input class="quick-select-input" id="quickSelectInput" type="number" inputmode="numeric"
-            min="1" placeholder="How many?" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-          <button class="quick-select-btn" onclick="quickSelectSheets()">Auto-Select →</button>
-        </div>
-        <div class="search-wrap">
-          <span class="search-icon">🔍</span>
-          <input class="sheet-search" id="sheetSearch" type="number" inputmode="numeric"
-            placeholder="Search sheet number…" oninput="filterSheets(this.value)">
-        </div>
-        <div class="picker-legend">
-          <div class="legend-item"><div class="legend-dot avail"></div>Available</div>
-          <div class="legend-item"><div class="legend-dot picked"></div>Picked</div>
-          <div class="legend-item"><div class="legend-dot sold-dot"></div>Sold</div>
-        </div>
-        <div id="pickerLoading" class="picker-loading-txt">Loading sheets…</div>
-        <div id="sheetGrid" class="sheet-grid" style="display:none"></div>
-        <div class="picker-footer" id="pickerFooter" style="display:none">
-          <span class="picker-count-txt" id="pickerCount">None selected</span>
-          <button class="picker-clear-btn" onclick="clearPicker()">Clear all</button>
-        </div>
-      </div>
-
-      <!-- Fallback stepper -->
-      <div class="stepper-card" id="qtyStepper">
-        <div class="field-lbl">Number of Sheets</div>
-        <div class="qty-row" style="margin-top:6px">
-          <button class="qty-btn" onclick="changeQty(-1)">−</button>
-          <div class="qty-val" id="buyQtyVal">1</div>
-          <button class="qty-btn" onclick="changeQty(1)">+</button>
-          <span class="qty-max-txt" id="buyQtyMax"></span>
-        </div>
-      </div>
-
-      <!-- Buyer info -->
       <div class="info-card">
         <div class="field-wrap">
           <div class="field-lbl">Your Name</div>
@@ -613,92 +366,71 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
           <div class="field-lbl">Phone Number</div>
           <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
         </div>
-        <div class="field-wrap">
-          <div class="field-lbl">Set a 4-digit PIN</div>
-          <div class="pin-row">
-            <input class="mkt-field" id="buyPin" type="tel" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off">
-          </div>
-          <div class="field-hint">Remember this PIN — you'll need it to track your order and download your sheets</div>
-        </div>
       </div>
-
-      <!-- Amount -->
-      <div class="amount-bar">
-        <div>
-          <div class="amount-label">Total Amount</div>
-          <div class="amount-value" id="buyAmount">₹5</div>
-        </div>
-        <div style="font-size:32px">💳</div>
-      </div>
-
       <div class="err-msg" id="buyErr" style="display:none"></div>
-      <button class="pay-btn" id="buyPayBtn" onclick="openQRModal()">💳 Pay Now →</button>
-
+      <button class="pay-btn" id="payBtn" onclick="openQRModal()">💳 Pay Now →</button>
     </div>
-  </div>
 
-  <!-- WAIT -->
-  <div class="screen" id="screenWait">
-    <div class="wait-wrap">
-      <div class="wait-card">
-        <div class="wait-spinner"></div>
-        <div class="wait-title">Verifying Payment</div>
-        <div class="wait-info" id="waitInfo">Your payment is being verified. Sheets will be ready shortly.</div>
-        <button class="wait-cancel" onclick="cancelPurchase()">Cancel</button>
+    <!-- Confirmation (shown after payment done, while polling) -->
+    <div class="confirm-card" id="confirmCard">
+      <div class="confirm-icon">🎟️</div>
+      <div class="confirm-title">Order Received!</div>
+      <div class="confirm-msg">Your payment is being verified. Sheets will be assigned within a few minutes.</div>
+      <div class="confirm-note">
+        📲 To download your sheets, tap the <strong>🔍 search icon</strong> in the top-right corner and enter your name &amp; phone number.<br><br>
+        ⏳ Download links stay valid for <strong>6 hours</strong> after approval.
       </div>
+      <button class="confirm-home-btn" onclick="goHome()">← Back to Marketplace</button>
     </div>
   </div>
 
-  <!-- DOWNLOADS -->
+  <!-- SCREEN 4: DOWNLOADS -->
   <div class="screen" id="screenDownloads">
-    <div class="dl-hero">
-      <div class="dl-hero-ico">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <div class="dl-wrap">
+      <div class="dl-hero">
+        <div class="dl-hero-title">🎉 Sheets Ready!</div>
+        <div class="dl-hero-sub" id="dlSubtitle"></div>
       </div>
-      <div class="dl-hero-title">Sheets Ready!</div>
-      <div class="dl-hero-sub" id="dlSubtitle"></div>
-    </div>
-    <!-- pre-download state -->
-    <div id="dlPreState">
       <button class="dl-all-btn" id="dlAllBtn" onclick="downloadAll()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-        Download All Sheets (ZIP)
+        Download All (ZIP)
       </button>
-      <div class="dl-notice">Tap Download All to get all sheets in one ZIP, or save them one by one below.</div>
+      <div class="dl-notice" id="dlNotice">Tap Download All to get a ZIP, or save sheets one by one below.</div>
       <div class="dl-list" id="dlList"></div>
-      <div class="muted-note">Download links expire 6 hours after purchase. Once all sheets are downloaded, the link is permanently closed.</div>
-    </div>
-    <!-- post-download state (shown after ZIP downloaded) -->
-    <div id="dlDoneState" style="display:none;margin-top:8px">
-      <div style="background:#E8F5E9;border-radius:14px;padding:16px;text-align:center;margin-bottom:16px">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:6px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div class="dl-done-card" id="dlDoneCard">
         <div style="font-size:15px;font-weight:800;color:#2E7D32;margin-bottom:4px">Download started!</div>
         <div style="font-size:12px;color:#388E3C">Check your Downloads folder for the ZIP file.</div>
       </div>
-      <button class="open-app-btn" onclick="closeInParent()" style="margin-bottom:12px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Tungbola
-      </button>
-      <button class="dl-all-btn" onclick="goHome()" style="background:var(--primary)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        Buy More Sheets
-      </button>
+      <button class="back-home-btn" onclick="goHome()">← Back to Marketplace</button>
+      <div class="muted-note">Download links expire 6 hours after purchase.</div>
     </div>
-    <a id="openAppBtn" href="#" class="open-app-btn" style="display:none"></a>
   </div>
 
 </div>
 
-<!-- QR Modal -->
-<div class="modal-backdrop" id="qrModal" onclick="handleModalBackdropClick(event)">
+<!-- QR Payment Modal -->
+<div class="modal-backdrop" id="qrModal" onclick="handleQRBackdrop(event)">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title">Scan to Pay</div>
     <div class="modal-sub" id="modalSub"></div>
     <div class="qr-wrap"><div class="qr-box"><div id="qrContainer"></div></div></div>
     <div class="qr-upi-txt" id="qrUpiTxt"></div>
-    <button class="modal-pay-btn" id="modalPaidBtn" onclick="submitPurchase()">✓ I've Paid — Get My Sheets →</button>
+    <button class="modal-pay-btn" id="modalPaidBtn" onclick="submitPurchase()">✓ Payment Done — Get My Sheets →</button>
     <span class="modal-cancel-link" onclick="closeQRModal()">Cancel</span>
+  </div>
+</div>
+
+<!-- Track Order Modal -->
+<div class="track-modal-backdrop" id="trackModal" onclick="handleTrackBackdrop(event)">
+  <div class="track-modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="track-modal-title">🔍 Track My Order</div>
+    <div class="track-modal-sub">Enter your name &amp; phone number to find your order</div>
+    <input class="track-field" id="trackName" type="text" placeholder="Your name" maxlength="50">
+    <input class="track-field" id="trackPhone" type="tel" placeholder="Phone number" maxlength="20">
+    <button class="track-find-btn" id="trackFindBtn" onclick="lookupOrder()">Find My Order →</button>
+    <div class="track-result" id="trackResult"></div>
   </div>
 </div>
 
@@ -708,146 +440,18 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 const TUNGBOLA_URL = 'https://tungbola.vercel.app';
 
 function closeInParent() {
-  if (window.parent !== window) {
-    window.parent.postMessage('closeMarket', 'https://tungbola.vercel.app');
-  } else {
-    window.location.href = TUNGBOLA_URL;
-  }
+  if (window.parent !== window) window.parent.postMessage('closeMarket', TUNGBOLA_URL);
+  else window.location.href = TUNGBOLA_URL;
 }
 
-// Open App button — close panel if in iframe, else navigate
-const _openAppBtn = document.getElementById('openAppBtn');
-_openAppBtn.href = TUNGBOLA_URL;
-_openAppBtn.addEventListener('click', (e) => {
-  if (window.parent !== window) { e.preventDefault(); closeInParent(); }
-});
-
-let cfg = {}, games = [], currentGame = null, buyQty = 1;
-let purchaseId = null, pollTimer = null, countdownTimer = null;
-let currentSheets = [], selectedSheetNums = new Set();
-let pickerMode = false, pickerLoaded = false, pickerOpen = false;
-let currentDownloadToken = null, pollCount = 0, pendingLookupData = null;
-const PICKER_LIMIT = 400;
-const MAX_POLL_COUNT = 72; // 6 minutes at 5s intervals
-
-/* ── localStorage order persistence ── */
-const LS_KEY = 'tb_pending_order';
-
-function saveOrderLocal(data) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
-}
-function clearOrderLocal() {
-  try { localStorage.removeItem(LS_KEY); } catch(e) {}
-}
-function loadOrderLocal() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) { return null; }
-}
-
-function showResumeBanner() {
-  const saved = loadOrderLocal();
-  const banner = document.getElementById('resumeBanner');
-  if (!saved) { banner.style.display = 'none'; return; }
-  document.getElementById('resumeTitle').textContent = `Pending: ${saved.gameName}`;
-  document.getElementById('resumeSub').textContent = `${saved.playerName} · ${saved.qty} sheet${saved.qty!==1?'s':''} · ₹${saved.amount}`;
-  banner.style.display = 'flex';
-}
-
-async function resumeOrder() {
-  const saved = loadOrderLocal();
-  if (!saved) { showResumeBanner(); return; }
-  purchaseId = saved.purchaseId;
-  try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'check-purchase', purchaseId })
-    });
-    if (r.status === 404) {
-      clearOrderLocal(); showResumeBanner();
-      toast('Order expired or not found.'); return;
-    }
-    const data = await r.json();
-    if (data.status === 'approved' && data.downloadToken) {
-      clearOrderLocal(); showResumeBanner();
-      loadDownloads(data.downloadToken); return;
-    }
-    if (data.status === 'downloaded') {
-      clearOrderLocal(); showResumeBanner();
-      toast('Your sheets have already been downloaded.'); return;
-    }
-    document.getElementById('waitInfo').textContent = `${saved.playerName} · ${saved.qty} sheet${saved.qty!==1?'s':''} · ₹${saved.amount} · ${saved.gameName}`;
-    show('screenWait');
-    startPolling();
-  } catch(e) { toast('Network error. Try again.'); }
-}
-
-/* ── Track My Order ── */
-function toggleTrack() {
-  const h = document.getElementById('trackHeader');
-  h.classList.toggle('open');
-  document.getElementById('trackResult').style.display = 'none';
-}
-
-async function lookupOrder() {
-  const phone = document.getElementById('trackPhone').value.trim();
-  const pin = document.getElementById('trackPin').value.trim();
-  const resEl = document.getElementById('trackResult');
-  const btn = document.getElementById('trackBtn');
-  if (!phone || !pin) { toast('Enter your phone number and PIN'); return; }
-  if (!/^\d{4}$/.test(pin)) { toast('PIN must be 4 digits'); return; }
-  btn.disabled = true; btn.textContent = 'Searching…';
-  resEl.style.display = 'none';
-  try {
-    const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'lookup-purchase', phone, pin })
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      resEl.className = 'track-result error';
-      resEl.textContent = data.error || 'No order found';
-      resEl.style.display = 'block';
-    } else if (data.status === 'approved' && data.downloadToken) {
-      resEl.style.display = 'none';
-      loadDownloads(data.downloadToken);
-    } else if (data.status === 'downloaded') {
-      resEl.className = 'track-result approved';
-      resEl.textContent = `✓ Sheets for "${data.gameName}" have already been downloaded. Your session has ended.`;
-      resEl.style.display = 'block';
-    } else {
-      pendingLookupData = { purchaseId: data.purchaseId, playerName: data.playerName, gameName: data.gameName, quantity: data.quantity, amount: data.amount };
-      resEl.className = 'track-result pending';
-      resEl.innerHTML = `⏳ Your order is being verified.<br><strong>${esc(data.gameName)}</strong> · ${parseInt(data.quantity)||0} sheet${data.quantity!==1?'s':''} · ₹${Number(data.amount).toLocaleString('en-IN')}<br><br>`;
-      const watchBtn = document.createElement('button');
-      watchBtn.textContent = 'Watch for approval →';
-      watchBtn.style.cssText = 'background:var(--warn);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit';
-      watchBtn.onclick = () => {
-        if (pendingLookupData) {
-          const d = pendingLookupData;
-          resumePendingFromLookup(d.purchaseId, d.playerName, d.gameName, d.quantity, d.amount);
-        }
-      };
-      resEl.appendChild(watchBtn);
-      resEl.style.display = 'block';
-    }
-  } catch(e) {
-    resEl.className = 'track-result error';
-    resEl.textContent = 'Network error. Try again.';
-    resEl.style.display = 'block';
-  }
-  btn.disabled = false; btn.textContent = 'Find My Order →';
-}
-
-function resumePendingFromLookup(pid, name, gameName, qty, amount) {
-  purchaseId = pid;
-  saveOrderLocal({ purchaseId: pid, playerName: name, gameName, qty, amount });
-  document.getElementById('waitInfo').textContent = `${name} · ${qty} sheet${qty!==1?'s':''} · ₹${amount} · ${gameName}`;
-  show('screenWait');
-  startPolling();
-}
+let cfg = {}, games = [], currentGame = null;
+let availableSheets = [], selectedNums = new Set();
+let purchaseId = null, pollTimer = null, pollCount = 0;
+let currentDownloadToken = null, currentSheets = [];
+const MAX_POLL = 72;
 
 /* ── Init ── */
 async function init() {
-  showResumeBanner();
   try {
     const [cfgR, gamesR] = await Promise.all([fetch('/api/config'), fetch('/api/marketplace')]);
     cfg = await cfgR.json();
@@ -858,27 +462,22 @@ async function init() {
   }
 }
 
-/* ── Countdown helpers ── */
+/* ── Countdown ── */
 function msToCountdown(ms) {
   if (ms <= 0) return null;
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  const h = Math.floor(m / 60);
-  const d = Math.floor(h / 24);
+  const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
   if (d > 0) return `${d}d ${h % 24}h`;
   if (h > 0) return `${h}h ${m % 60}m`;
   if (m > 0) return `${m}m ${s % 60}s`;
   return `${s}s`;
 }
-
 function getGameMs(g) {
   if (!g.gameDateRaw) return null;
   const t = new Date(g.gameDateRaw).getTime();
-  if (isNaN(t)) return null;
-  return t - Date.now();
+  return isNaN(t) ? null : t - Date.now();
 }
 
-/* ── Home: render cards ── */
+/* ── Home ── */
 function renderGames() {
   const loading = document.getElementById('homeLoading');
   const container = document.getElementById('gamesContainer');
@@ -886,83 +485,13 @@ function renderGames() {
   container.style.display = 'block';
 
   if (!games.length) {
-    container.innerHTML = `<div class="empty-state">
-      <div class="empty-ico">🎯</div>
-      <div class="empty-txt">No games available</div>
-      <div class="empty-sub">Check back soon for upcoming Tambola games.</div>
-    </div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-ico">🎯</div><div class="empty-txt">No games available</div><div class="empty-sub">Check back soon for upcoming Tambola games.</div></div>`;
     return;
   }
 
-  container.innerHTML = `<div class="section-label">Available Games (${games.length})</div>` +
-    games.map(g => buildGameCard(g)).join('');
+  container.innerHTML = `<div class="section-label">Available Games (${games.length})</div>` + games.map(buildGameCard).join('');
 
-  // Start live countdown ticks for cards
-  startCardCountdowns();
-}
-
-function buildGameCard(g) {
-  const avail = (g.sheetCount || 0) - (g.soldCount || 0);
-  const full = avail <= 0 && g.sheetCount > 0;
-
-  const thumb = g.thumbnail
-    ? `<img class="game-card-thumb" src="${esc(g.thumbnail)}" alt="" onerror="this.style.display='none'">`
-    : `<div class="game-card-thumb-placeholder"></div>`;
-
-  // Prizes: find full house
-  const prizes = Array.isArray(g.prizes) ? g.prizes : [];
-  const fh = prizes.find(p => /full.?house/i.test(p.name)) || prizes[0];
-  const others = prizes.filter(p => p !== fh);
-
-  const fhVal = fh ? (fh.kind === 'cash' ? `₹${(fh.amount||0).toLocaleString('en-IN')}` : esc(fh.description || fh.name)) : '';
-  const fhHtml = fh ? `<div class="card-fullhouse">
-    <div>
-      <div class="card-fullhouse-label">👑 Full House</div>
-      <div class="card-fullhouse-val">${fhVal}</div>
-    </div>
-    <span style="font-size:22px">🏆</span>
-  </div>` : '';
-
-  const othersHtml = others.length
-    ? `<div class="card-more-prizes">${others.map(p => `<span class="card-other-prize-chip">${esc(p.name)}</span>`).join('')}</div>`
-    : '';
-
-  const msLeft = getGameMs(g);
-  const cdHtml = msLeft && msLeft > 0
-    ? `<div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(msLeft)}</div>`
-    : '';
-  const priceHtml = `<div class="price-badge-top">₹${g.pricePerSheet}/sheet</div>`;
-
-  const statsHtml = g.sheetCount > 0 ? `<div class="sheet-stats">
-    <div class="stat-pill avail">✓ ${avail} left</div>
-    ${g.soldCount ? `<div class="stat-pill sold">🔥 ${g.soldCount} sold</div>` : ''}
-  </div>` : '';
-
-  const buyBtn = !full
-    ? `<button class="card-buy-btn" onclick="event.stopPropagation();selectGame('${g.id}')">Buy Now →</button>`
-    : '';
-
-  return `<div class="game-card" onclick="selectGame('${g.id}')" id="card-${g.id}">
-    ${thumb}
-    <div class="game-card-overlay"></div>
-    <div class="game-card-top-badges">${cdHtml}${priceHtml}</div>
-    <div class="game-card-info">
-      <div class="game-card-name">${esc(g.name)}</div>
-      ${g.gameDate ? `<div class="game-card-date">📅 ${esc(g.gameDate)}</div>` : ''}
-      ${fhHtml}
-      ${othersHtml}
-    </div>
-    <div class="game-card-bottom">
-      ${statsHtml}
-      ${buyBtn}
-    </div>
-    ${full ? `<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>` : ''}
-  </div>`;
-}
-
-function startCardCountdowns() {
-  clearInterval(countdownTimer);
-  countdownTimer = setInterval(() => {
+  setInterval(() => {
     games.forEach(g => {
       const el = document.getElementById(`cd-${g.id}`);
       if (!el) return;
@@ -973,7 +502,54 @@ function startCardCountdowns() {
   }, 1000);
 }
 
-/* ── Select game → Buy screen ── */
+function buildGameCard(g) {
+  const avail = (g.sheetCount || 0) - (g.soldCount || 0);
+  const full = avail <= 0 && g.sheetCount > 0;
+  const prizes = Array.isArray(g.prizes) ? g.prizes : [];
+
+  const thumb = g.thumbnail
+    ? `<img class="game-card-thumb" src="${esc(g.thumbnail)}" alt="" onerror="this.style.display='none'">`
+    : `<div class="game-card-thumb-placeholder"></div>`;
+
+  const ms = getGameMs(g);
+  const cdHtml = ms && ms > 0
+    ? `<div class="game-card-top"><div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}</div></div>`
+    : '';
+
+  const PRIO = [[/^full house$/i,1],[/^second full house$/i,2],[/^third full house$/i,3],[/^upper line$/i,4],[/^middle line$/i,5],[/^bottom line$/i,6],[/^ticket corners$/i,7],[/^sheet corner$/i,8],[/^early [567]$/i,9]];
+  function prio(n){for(const[re,r]of PRIO)if(re.test(n))return r;return 10}
+  function fmtVal(p){return p.kind==='cash'?`&#8377;${(p.amount||0).toLocaleString('en-IN')}`:esc(p.description||'')}
+
+  const sorted = [...prizes].sort((a,b)=>prio(a.name)-prio(b.name));
+  const prizesHtml = sorted.slice(0, 6).map((p,i)=>
+    `<div class="card-prize-row ${i===0?'main':'sub'}">
+      <span class="card-prize-name">${esc(p.name)}</span>
+      <span class="card-prize-val ${i===0?'':'alt'}">${fmtVal(p)}</span>
+    </div>`
+  ).join('');
+
+  return `<div class="game-card" onclick="selectGame('${g.id}')" id="card-${g.id}">
+    ${thumb}
+    <div class="game-card-overlay"></div>
+    ${cdHtml}
+    <div class="game-card-body">
+      <div class="game-card-name">${esc(g.name)}</div>
+      ${g.gameDate?`<div class="game-card-date">📅 ${esc(g.gameDate)}</div>`:''}
+      ${prizesHtml?`<div class="card-prizes">${prizesHtml}</div>`:''}
+      <div class="game-card-stats">
+        <div class="stat-block"><div class="stat-val">&#8377;${g.pricePerSheet}</div><div class="stat-lbl">Per Sheet</div></div>
+        <div class="stat-sep"></div>
+        <div class="stat-block"><div class="stat-val" style="color:#4ADE80">${avail}</div><div class="stat-lbl">Available</div></div>
+        <div class="stat-sep"></div>
+        <div class="stat-block"><div class="stat-val">${g.sheetCount||0}</div><div class="stat-lbl">Total</div></div>
+      </div>
+      ${!full?`<div class="card-buy-row"><span class="card-price-tag">from &#8377;${g.pricePerSheet}</span><button class="card-buy-btn" onclick="event.stopPropagation();selectGame('${g.id}')">Buy Now →</button></div>`:''}
+    </div>
+    ${full?`<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>`:''}
+  </div>`;
+}
+
+/* ── Select game → Sheet picker ── */
 function selectGame(id) {
   currentGame = games.find(g => g.id === id);
   if (!currentGame) return;
@@ -981,151 +557,23 @@ function selectGame(id) {
   const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
   if (avail <= 0) { toast('This game is sold out.'); return; }
 
-  buyQty = 1;
-  selectedSheetNums = new Set();
-  pickerMode = false;
-  pickerLoaded = false;
-  pickerOpen = false;
+  selectedNums = new Set();
+  availableSheets = [];
 
-  // Hero background
-  const bgEl = document.getElementById('buyHeroBg');
-  bgEl.innerHTML = currentGame.thumbnail
-    ? `<img src="${esc(currentGame.thumbnail)}" alt="" onerror="this.style.display='none'">`
-    : '';
+  document.getElementById('sheetsGameName').textContent = currentGame.name;
+  document.getElementById('sheetsGameSub').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : `${avail} sheets available`;
+  document.getElementById('sheetsAvailCount').textContent = '';
+  document.getElementById('sheetsLoading').style.display = 'block';
+  document.getElementById('sheetsGrid').style.display = 'none';
+  document.getElementById('sheetsGrid').innerHTML = '';
+  document.getElementById('quickInput').value = '';
+  updateBottomBar();
 
-  document.getElementById('buyHeroName').textContent = currentGame.name;
-  document.getElementById('buyHeroDate').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : '';
-
-  // Countdown on hero
-  const ms = getGameMs(currentGame);
-  const cdEl = document.getElementById('buyHeroCountdown');
-  const cdTxt = document.getElementById('buyCountdownTxt');
-  if (ms && ms > 0) {
-    cdTxt.textContent = `Starts in ${msToCountdown(ms)}`;
-    cdEl.style.display = 'inline-flex';
-    clearInterval(countdownTimer);
-    countdownTimer = setInterval(() => {
-      const remaining = getGameMs(currentGame);
-      if (!remaining || remaining <= 0) { cdEl.style.display = 'none'; clearInterval(countdownTimer); return; }
-      cdTxt.textContent = `Starts in ${msToCountdown(remaining)}`;
-    }, 1000);
-  } else {
-    cdEl.style.display = 'none';
-  }
-
-  // Prizes (rendered inside hero)
-  buildBuyPrizes(currentGame.prizes || []);
-
-  // Reset picker
-  document.getElementById('pickerCard').className = 'picker-card';
-  document.getElementById('quickSelectInput').value = '';
-  document.getElementById('pickerLoading').style.display = 'block';
-  document.getElementById('sheetGrid').style.display = 'none';
-  document.getElementById('pickerFooter').style.display = 'none';
-  document.getElementById('pickerAvailCount').textContent = '';
-  document.getElementById('sheetSearch').value = '';
-  document.getElementById('qtyStepper').style.display = 'none';
-  document.getElementById('pickSheetsBtn').textContent = '🎟 Pick Your Sheets';
-  document.getElementById('pickSheetsBtn').disabled = false;
-
-  // Reset form
-  document.getElementById('buyErr').style.display = 'none';
-  document.getElementById('buyName').value = '';
-  document.getElementById('buyPhone').value = '';
-  document.getElementById('buyPin').value = '';
-  document.getElementById('buyQtyMax').textContent = `max ${avail}`;
-  updateQtyDisplay();
-
-  show('screenBuy');
+  show('screenSheets');
+  loadSheets(currentGame.id);
 }
 
-function buildBuyPrizes(prizes) {
-  const strip = document.getElementById('heroPrizeStrip');
-  if (!prizes.length) { strip.innerHTML = ''; return; }
-
-  const PRIORITY = [
-    [/^full house$/i, 1],
-    [/^second full house$/i, 2],
-    [/^third full house$/i, 3],
-    [/^upper line$/i, 4],
-    [/^middle line$/i, 5],
-    [/^bottom line$/i, 6],
-    [/^ticket corners$/i, 7],
-    [/^sheet corner$/i, 8],
-    [/^early [567]$/i, 9],
-    [/^jackpot$/i, 10],
-  ];
-  function getPriority(name) {
-    for (const [re, rank] of PRIORITY) if (re.test(name)) return rank;
-    return 10;
-  }
-  function fmtVal(p) {
-    return p.kind === 'cash' ? `&#8377;${(p.amount||0).toLocaleString('en-IN')}` : esc(p.description || '');
-  }
-
-  const sorted = [...prizes].sort((a, b) => getPriority(a.name) - getPriority(b.name));
-  const fullHouses = sorted.filter(p => /full house/i.test(p.name));
-  const lines = sorted.filter(p => /^(upper|middle|bottom) line$/i.test(p.name));
-  const others = sorted.filter(p => !/full house|(upper|middle|bottom) line/i.test(p.name));
-
-  const trophySvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v5a5 5 0 01-10 0V2zM4 4H2v2a4 4 0 004 4V4H4zM20 4h-2v6a4 4 0 004-4V4h-2zM11 13v2.5H8V18h8v-2.5h-3V13a7 7 0 003.46-1.27A7 7 0 0111 13z"/></svg>`;
-  const starSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
-
-  let html = '';
-
-  fullHouses.forEach((p, i) => {
-    if (i === 0) {
-      html += `<div class="hero-fh1-block">
-        <div class="hero-fh-left">
-          <div class="hero-fh-eyebrow">${trophySvg} Biggest Prize</div>
-          <div class="hero-fh-name">${esc(p.name)}</div>
-        </div>
-        <div class="hero-fh1-val">${fmtVal(p)}</div>
-      </div>`;
-    } else {
-      html += `<div class="hero-fh2-block">
-        <div class="hero-fh-left">
-          <div class="hero-fh2-eyebrow">${starSvg} ${esc(p.name)}</div>
-        </div>
-        <div class="hero-fh2-val">${fmtVal(p)}</div>
-      </div>`;
-    }
-  });
-
-  if (lines.length) {
-    html += `<div class="hero-line-row">` + lines.map(p =>
-      `<div class="hero-line-chip">
-        <div class="hero-line-chip-name">${esc(p.name)}</div>
-        <div class="hero-line-chip-val">${fmtVal(p)}</div>
-      </div>`
-    ).join('') + `</div>`;
-  }
-
-  if (others.length) {
-    html += `<div class="hero-other-prizes">` + others.map(p =>
-      `<div class="hero-other-chip">${esc(p.name)}<span class="hero-other-chip-val">${fmtVal(p)}</span></div>`
-    ).join('') + `</div>`;
-  }
-
-  strip.innerHTML = html;
-}
-
-/* ── Sheet picker ── */
-function togglePickerCard() {
-  if (!pickerLoaded) {
-    document.getElementById('pickerCard').classList.add('open');
-    document.getElementById('pickSheetsBtn').textContent = '⏳ Loading sheets…';
-    document.getElementById('pickSheetsBtn').disabled = true;
-    pickerOpen = true;
-    loadSheetPicker(currentGame.id);
-  } else {
-    pickerOpen = !pickerOpen;
-    document.getElementById('pickerCard').className = 'picker-card' + (pickerOpen ? ' open' : '');
-    document.getElementById('pickSheetsBtn').textContent = pickerOpen ? '▲ Hide Sheet Picker' : '🎟 Pick Your Sheets';
-  }
-}
-
-async function loadSheetPicker(gameId) {
+async function loadSheets(gameId) {
   try {
     const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1134,150 +582,100 @@ async function loadSheetPicker(gameId) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Failed');
 
-    pickerLoaded = true;
-    document.getElementById('pickSheetsBtn').disabled = false;
-    document.getElementById('pickSheetsBtn').textContent = '▲ Hide Sheet Picker';
-    document.getElementById('pickerLoading').style.display = 'none';
+    availableSheets = data.available.sort((a, b) => a - b);
+    document.getElementById('sheetsAvailCount').textContent = `${availableSheets.length} available`;
+    document.getElementById('sheetsLoading').style.display = 'none';
 
-    const allNums = [...data.available, ...data.sold].sort((a, b) => a - b);
-
-    if (allNums.length > PICKER_LIMIT) {
-      pickerMode = false;
-      document.getElementById('pickerCard').className = 'picker-card';
-      pickerOpen = false;
-      document.getElementById('pickSheetsBtn').textContent = '🎟 Pick Your Sheets';
-      document.getElementById('qtyStepper').style.display = '';
-      document.getElementById('buyQtyMax').textContent = `max ${data.available.length}`;
-    } else {
-      pickerMode = true;
-      const soldSet = new Set(data.sold);
-      document.getElementById('pickerAvailCount').textContent = `${data.available.length} available`;
-      const grid = document.getElementById('sheetGrid');
-      grid.innerHTML = allNums.map(n =>
-        `<div class="sheet-chip ${soldSet.has(n) ? 'sold-chip' : 'avail'}" id="chip-${n}" data-n="${n}"
-          onclick="toggleChip(${n},${soldSet.has(n)})">${n}</div>`
-      ).join('');
-      grid.style.display = 'grid';
-      document.getElementById('pickerFooter').style.display = 'flex';
-      updatePickerCount();
-    }
+    const grid = document.getElementById('sheetsGrid');
+    grid.innerHTML = availableSheets.length
+      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})">${n}</div>`).join('')
+      : `<div class="no-sheets">No sheets available right now.</div>`;
+    grid.style.display = 'grid';
   } catch(e) {
-    pickerLoaded = false;
-    document.getElementById('pickSheetsBtn').disabled = false;
-    document.getElementById('pickSheetsBtn').textContent = '🎟 Pick Your Sheets';
-    document.getElementById('pickerCard').className = 'picker-card';
-    pickerOpen = false;
-    document.getElementById('qtyStepper').style.display = '';
-    const avail = (currentGame?.sheetCount || 0) - (currentGame?.soldCount || 0);
-    document.getElementById('buyQtyMax').textContent = `max ${avail}`;
+    document.getElementById('sheetsLoading').textContent = 'Failed to load sheets. Go back and try again.';
   }
 }
 
-function filterSheets(val) {
-  const q = val.trim();
-  document.querySelectorAll('#sheetGrid .sheet-chip').forEach(el => {
-    if (!q || el.dataset.n.startsWith(q)) el.classList.remove('hidden');
-    else el.classList.add('hidden');
-  });
-}
-
-function toggleChip(n, isSold) {
-  if (isSold) return;
+function toggleChip(n) {
   const chip = document.getElementById(`chip-${n}`);
   if (!chip) return;
-  if (selectedSheetNums.has(n)) {
-    selectedSheetNums.delete(n);
+  if (selectedNums.has(n)) {
+    selectedNums.delete(n);
     chip.className = 'sheet-chip avail';
   } else {
-    if (selectedSheetNums.size >= 150) { toast('Maximum 150 sheets per purchase'); return; }
-    selectedSheetNums.add(n);
+    if (selectedNums.size >= 150) { toast('Maximum 150 sheets per purchase'); return; }
+    selectedNums.add(n);
     chip.className = 'sheet-chip picked';
   }
-  buyQty = Math.max(1, selectedSheetNums.size);
-  updatePickerCount();
-  updateQtyDisplay();
+  updateBottomBar();
 }
 
-function clearPicker() {
-  selectedSheetNums.clear();
-  document.querySelectorAll('.sheet-chip.picked').forEach(el => el.className = 'sheet-chip avail');
-  buyQty = 1;
-  updatePickerCount();
-  updateQtyDisplay();
-}
-
-function quickSelectSheets() {
-  const n = parseInt(document.getElementById('quickSelectInput').value) || 0;
+function quickSelect() {
+  const n = parseInt(document.getElementById('quickInput').value) || 0;
   if (n <= 0) { toast('Enter how many sheets you want'); return; }
-
-  // Collect all available (not sold, not already picked) chip elements
-  const availNums = [];
-  document.querySelectorAll('#sheetGrid .sheet-chip').forEach(el => {
-    if (!el.classList.contains('sold-chip')) availNums.push(parseInt(el.dataset.n));
-  });
-
-  // Shuffle and pick n
-  for (let i = availNums.length - 1; i > 0; i--) {
+  const pool = [...availableSheets];
+  for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [availNums[i], availNums[j]] = [availNums[j], availNums[i]];
+    [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-
-  // Clear current selection first
-  selectedSheetNums.clear();
+  selectedNums.clear();
   document.querySelectorAll('.sheet-chip.picked').forEach(el => el.className = 'sheet-chip avail');
-
-  const toSelect = availNums.slice(0, Math.min(n, availNums.length));
-  if (toSelect.length < n) toast(`Only ${availNums.length} available — selected all`);
-
-  toSelect.forEach(num => {
-    selectedSheetNums.add(num);
+  const pick = pool.slice(0, Math.min(n, pool.length, 150));
+  if (pick.length < n) toast(`Only ${pool.length} available — selected all`);
+  pick.forEach(num => {
+    selectedNums.add(num);
     const chip = document.getElementById(`chip-${num}`);
     if (chip) chip.className = 'sheet-chip picked';
   });
-
-  buyQty = Math.max(1, selectedSheetNums.size);
-  updatePickerCount();
-  updateQtyDisplay();
-  document.getElementById('quickSelectInput').value = '';
+  document.getElementById('quickInput').value = '';
+  updateBottomBar();
 }
 
-function updatePickerCount() {
-  const n = selectedSheetNums.size;
-  const el = document.getElementById('pickerCount');
-  if (el) el.textContent = n === 0 ? 'None selected (random will be assigned)' : `${n} sheet${n !== 1 ? 's' : ''} selected`;
+function updateBottomBar() {
+  const count = selectedNums.size;
+  const price = (currentGame?.pricePerSheet || 5) * count;
+  document.getElementById('bottomCount').textContent = count === 0 ? 'No sheets selected' : `${count} sheet${count !== 1 ? 's' : ''} selected`;
+  document.getElementById('bottomAmount').textContent = `₹${price.toLocaleString('en-IN')}`;
+  document.getElementById('continueBtn').disabled = count === 0;
 }
 
-function changeQty(delta) {
-  if (!currentGame) return;
-  const avail = (currentGame.sheetCount || 0) - (currentGame.soldCount || 0);
-  buyQty = Math.max(1, Math.min(avail, buyQty + delta));
-  updateQtyDisplay();
-}
+/* ── Continue to details ── */
+function goToDetails() {
+  if (selectedNums.size === 0) { toast('Select at least one sheet'); return; }
+  const count = selectedNums.size;
+  const amount = (currentGame?.pricePerSheet || 5) * count;
+  const nums = Array.from(selectedNums).sort((a, b) => a - b);
+  const shown = nums.slice(0, 20);
+  const extra = nums.length - shown.length;
 
-function updateQtyDisplay() {
-  const qtyEl = document.getElementById('buyQtyVal');
-  if (qtyEl) qtyEl.textContent = buyQty;
-  const effectiveQty = pickerMode && selectedSheetNums.size > 0 ? selectedSheetNums.size : buyQty;
-  const price = (currentGame?.pricePerSheet || 5) * effectiveQty;
-  document.getElementById('buyAmount').textContent = `₹${price.toLocaleString('en-IN')}`;
+  document.getElementById('detailsSub').textContent = `${currentGame.name} · ${count} sheet${count !== 1 ? 's' : ''} · ₹${amount.toLocaleString('en-IN')}`;
+  document.getElementById('osGame').textContent = currentGame.name;
+  document.getElementById('osChips').innerHTML =
+    shown.map(n => `<span class="os-chip">#${n}</span>`).join('') +
+    (extra > 0 ? `<span class="os-chip">+${extra} more</span>` : '');
+  document.getElementById('osAmount').textContent = `₹${amount.toLocaleString('en-IN')}`;
+  document.getElementById('buyName').value = '';
+  document.getElementById('buyPhone').value = '';
+  document.getElementById('buyErr').style.display = 'none';
+  document.getElementById('detailsForm').style.display = 'block';
+  document.getElementById('confirmCard').style.display = 'none';
+  show('screenDetails');
 }
 
 /* ── QR Modal ── */
 function openQRModal() {
   const name = document.getElementById('buyName').value.trim();
   const phone = document.getElementById('buyPhone').value.trim();
-  const pin = document.getElementById('buyPin').value.trim();
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
   if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
   if (!phone) { errEl.textContent = 'Please enter your phone number'; errEl.style.display = 'block'; return; }
-  if (!/^\d{4}$/.test(pin)) { errEl.textContent = 'Please set a 4-digit PIN (numbers only)'; errEl.style.display = 'block'; return; }
 
-  const effectiveQty = pickerMode && selectedSheetNums.size > 0 ? selectedSheetNums.size : buyQty;
-  const amount = (currentGame?.pricePerSheet || 5) * effectiveQty;
+  const count = selectedNums.size;
+  const amount = (currentGame?.pricePerSheet || 5) * count;
   const upiId = cfg.upiId || '';
 
-  document.getElementById('modalSub').textContent = `${effectiveQty} sheet${effectiveQty!==1?'s':''} · ₹${amount.toLocaleString('en-IN')} · ${currentGame?.name || ''}`;
+  document.getElementById('modalSub').textContent = `${count} sheet${count !== 1 ? 's' : ''} · ₹${amount.toLocaleString('en-IN')} · ${currentGame?.name || ''}`;
 
   const qrContainer = document.getElementById('qrContainer');
   qrContainer.innerHTML = '';
@@ -1292,107 +690,98 @@ function openQRModal() {
   }
 
   document.getElementById('modalPaidBtn').disabled = false;
-  document.getElementById('modalPaidBtn').textContent = '✓ I\'ve Paid — Get My Sheets →';
+  document.getElementById('modalPaidBtn').textContent = '✓ Payment Done — Get My Sheets →';
   document.getElementById('qrModal').classList.add('open');
 }
 
-function closeQRModal() {
-  document.getElementById('qrModal').classList.remove('open');
-}
-
-function handleModalBackdropClick(e) {
-  if (e.target === document.getElementById('qrModal')) closeQRModal();
-}
+function closeQRModal() { document.getElementById('qrModal').classList.remove('open'); }
+function handleQRBackdrop(e) { if (e.target === document.getElementById('qrModal')) closeQRModal(); }
 
 async function submitPurchase() {
   const name = document.getElementById('buyName').value.trim();
   const phone = document.getElementById('buyPhone').value.trim();
-  const pin = document.getElementById('buyPin').value.trim();
   const btn = document.getElementById('modalPaidBtn');
-  if (!name) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your name'; document.getElementById('buyErr').style.display = 'block'; return; }
-  if (!phone) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please enter your phone number'; document.getElementById('buyErr').style.display = 'block'; return; }
-  if (!/^\d{4}$/.test(pin)) { closeQRModal(); document.getElementById('buyErr').textContent = 'Please set a 4-digit PIN (numbers only)'; document.getElementById('buyErr').style.display = 'block'; return; }
   btn.disabled = true;
   btn.textContent = 'Submitting…';
   try {
-    const reqNums = pickerMode && selectedSheetNums.size > 0 ? Array.from(selectedSheetNums) : null;
-    const purchaseQty = pickerMode && reqNums ? reqNums.length : buyQty;
+    const nums = Array.from(selectedNums);
     const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'purchase', playerName:name, phone, pin, gameId:currentGame.id, quantity:purchaseQty, requestedSheetNums:reqNums })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'purchase', playerName: name, phone, gameId: currentGame.id, quantity: nums.length, requestedSheetNums: nums })
     });
     const data = await r.json();
     if (!r.ok) {
-      btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Get My Sheets →';
+      btn.disabled = false;
+      btn.textContent = '✓ Payment Done — Get My Sheets →';
       closeQRModal();
-      document.getElementById('buyErr').textContent = data.error || 'Failed';
+      document.getElementById('buyErr').textContent = data.error || 'Failed. Try again.';
       document.getElementById('buyErr').style.display = 'block';
       return;
     }
     purchaseId = data.purchaseId;
-    saveOrderLocal({ purchaseId, playerName: name, gameName: data.gameName, qty: purchaseQty, amount: data.amount });
     closeQRModal();
-    document.getElementById('waitInfo').textContent = `${name} · ${purchaseQty} sheet${purchaseQty>1?'s':''} · ₹${data.amount} · ${data.gameName}`;
-    show('screenWait');
+    showConfirmation();
     startPolling();
   } catch(e) {
-    btn.disabled = false; btn.textContent = '✓ I\'ve Paid — Get My Sheets →';
+    btn.disabled = false;
+    btn.textContent = '✓ Payment Done — Get My Sheets →';
     closeQRModal();
     document.getElementById('buyErr').textContent = 'Network error. Try again.';
     document.getElementById('buyErr').style.display = 'block';
   }
 }
 
-/* ── Polling ── */
+function showConfirmation() {
+  document.getElementById('detailsForm').style.display = 'none';
+  document.getElementById('confirmCard').style.display = 'block';
+  document.getElementById('screenDetails').scrollTop = 0;
+}
+
+/* ── Polling (silent, auto-redirects to downloads if approved) ── */
 function startPolling() { stopPolling(); pollCount = 0; pollTimer = setInterval(poll, 5000); }
 function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
 async function poll() {
   if (!purchaseId) return;
-  pollCount++;
-  if (pollCount > MAX_POLL_COUNT) {
-    stopPolling();
-    document.getElementById('waitInfo').textContent = 'Verification is taking longer than expected. Use "Track My Order" on the home screen to check later, or contact support.';
-    return;
-  }
+  if (++pollCount > MAX_POLL) { stopPolling(); return; }
   try {
     const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'check-purchase', purchaseId })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check-purchase', purchaseId })
     });
-    if (r.status === 404) { stopPolling(); toast('Purchase not found. Try again.'); goHome(); return; }
+    if (r.status === 404) { stopPolling(); return; }
     const data = await r.json();
-    if (data.status === 'approved' && data.downloadToken) { stopPolling(); clearOrderLocal(); loadDownloads(data.downloadToken); }
-    else if (data.status === 'downloaded') { stopPolling(); clearOrderLocal(); toast('Sheets already downloaded.'); goHome(); }
-  } catch(e) {
-    if (pollCount % 3 === 0) toast('Having trouble connecting. Still trying…');
-  }
+    if (data.status === 'approved' && data.downloadToken) {
+      stopPolling();
+      loadDownloads(data.downloadToken);
+    }
+  } catch(e) {}
 }
-
-function cancelPurchase() { stopPolling(); clearOrderLocal(); purchaseId = null; goHome(); }
 
 /* ── Downloads ── */
 async function loadDownloads(token) {
   currentDownloadToken = token;
   try {
     const r = await fetch('/api/marketplace', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'get-downloads', downloadToken:token })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get-downloads', downloadToken: token })
     });
     const data = await r.json();
     if (!r.ok) { toast(data.error || 'Failed to load downloads'); return; }
     currentSheets = data.sheets;
     const count = currentSheets.length;
-    document.getElementById('dlSubtitle').textContent = `${count} sheet${count!==1?'s':''} · ${data.gameName}`;
-    const dlAllBtn = document.getElementById('dlAllBtn');
-    dlAllBtn.textContent = `⬇ Download All ${count} Sheet${count!==1?'s':''} (ZIP)`;
-    dlAllBtn.disabled = false;
-    document.getElementById('dlList').innerHTML = currentSheets.map((s, i) => `
-      <div class="dl-item" id="dli-${i}">
+    document.getElementById('dlSubtitle').textContent = `${count} sheet${count !== 1 ? 's' : ''} ready · ${data.gameName}`;
+    document.getElementById('dlAllBtn').textContent = `⬇ Download All ${count} Sheet${count !== 1 ? 's' : ''} (ZIP)`;
+    document.getElementById('dlAllBtn').disabled = false;
+    document.getElementById('dlList').innerHTML = currentSheets.map((s, i) =>
+      `<div class="dl-item" id="dli-${i}">
         <div class="dl-num">#${s.n}</div>
         <div class="dl-name">Sheet ${s.n}</div>
         <a class="dl-btn" href="${esc(s.url)}" target="_blank" download="sheet-${s.n}.pdf" onclick="markDownloaded(${i})">↓ Save</a>
-      </div>`).join('');
+      </div>`
+    ).join('');
+    document.getElementById('dlDoneCard').style.display = 'none';
+    document.getElementById('dlNotice').style.display = 'block';
     show('screenDownloads');
   } catch(e) { toast('Could not load downloads. Try refreshing.'); }
 }
@@ -1405,28 +794,26 @@ async function downloadAll() {
   try {
     const zip = new JSZip();
     let fetched = 0;
-    btn.textContent = `Fetching sheets…`;
-    await Promise.all(currentSheets.map(async (s) => {
+    await Promise.all(currentSheets.map(async s => {
       const r = await fetch(s.url);
       if (!r.ok) throw new Error(`Sheet #${s.n} not available`);
       zip.file(`sheet-${s.n}.pdf`, await r.arrayBuffer());
-      fetched++;
-      btn.textContent = `Fetching… ${fetched}/${total}`;
+      btn.textContent = `Fetching… ${++fetched}/${total}`;
     }));
     btn.textContent = 'Building ZIP…';
-    const blob = await zip.generateAsync({ type:'blob', compression:'STORE' });
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'tambola-sheets.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    document.getElementById('dlPreState').style.display = 'none';
-    document.getElementById('dlDoneState').style.display = 'block';
+    document.getElementById('dlNotice').style.display = 'none';
+    document.getElementById('dlDoneCard').style.display = 'block';
     consumeDownload();
   } catch(e) {
     toast(e.message || 'Download failed — use individual buttons below.');
     btn.disabled = false;
-    btn.textContent = `⬇ Download All ${total} Sheet${total!==1?'s':''} (ZIP)`;
+    btn.textContent = `⬇ Download All ${total} Sheet${total !== 1 ? 's' : ''} (ZIP)`;
   }
 }
 
@@ -1434,13 +821,7 @@ function markDownloaded(idx) {
   const btn = document.querySelector(`#dli-${idx} .dl-btn`);
   if (!btn || btn.classList.contains('done')) return;
   btn.className = 'dl-btn done'; btn.textContent = '✓ Saved';
-  checkAllDownloaded();
-}
-
-function checkAllDownloaded() {
-  if (!currentSheets.length) return;
-  const done = document.querySelectorAll('#dlList .dl-btn.done').length;
-  if (done >= currentSheets.length) consumeDownload();
+  if (document.querySelectorAll('#dlList .dl-btn:not(.done)').length === 0) consumeDownload();
 }
 
 async function consumeDownload() {
@@ -1455,14 +836,61 @@ async function consumeDownload() {
   } catch(e) {}
 }
 
-/* ── Navigation ── */
-const SCREENS = ['screenHome','screenBuy','screenWait','screenDownloads'];
+/* ── Track Modal ── */
+function openTrackModal() {
+  document.getElementById('trackName').value = '';
+  document.getElementById('trackPhone').value = '';
+  document.getElementById('trackResult').style.display = 'none';
+  document.getElementById('trackResult').className = 'track-result';
+  document.getElementById('trackFindBtn').disabled = false;
+  document.getElementById('trackFindBtn').textContent = 'Find My Order →';
+  document.getElementById('trackModal').classList.add('open');
+}
+function closeTrackModal() { document.getElementById('trackModal').classList.remove('open'); }
+function handleTrackBackdrop(e) { if (e.target === document.getElementById('trackModal')) closeTrackModal(); }
 
+async function lookupOrder() {
+  const name = document.getElementById('trackName').value.trim();
+  const phone = document.getElementById('trackPhone').value.trim();
+  const resEl = document.getElementById('trackResult');
+  const btn = document.getElementById('trackFindBtn');
+  if (!name || !phone) { toast('Enter your name and phone number'); return; }
+  btn.disabled = true; btn.textContent = 'Searching…';
+  resEl.style.display = 'none';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'lookup-purchase', name, phone })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      resEl.className = 'track-result err';
+      resEl.textContent = data.error || 'No order found';
+      resEl.style.display = 'block';
+    } else if (data.status === 'approved' && data.downloadToken) {
+      closeTrackModal();
+      loadDownloads(data.downloadToken);
+    } else if (data.status === 'downloaded') {
+      resEl.className = 'track-result ok';
+      resEl.textContent = `✓ Sheets for "${data.gameName}" were already downloaded. Session closed.`;
+      resEl.style.display = 'block';
+    } else {
+      resEl.className = 'track-result pending';
+      resEl.innerHTML = `⏳ Your order is being verified.<br><strong>${esc(data.gameName)}</strong> · ${data.quantity} sheet${data.quantity !== 1 ? 's' : ''} · ₹${Number(data.amount).toLocaleString('en-IN')}<br><small>Check back in a few minutes.</small>`;
+      resEl.style.display = 'block';
+    }
+  } catch(e) {
+    resEl.className = 'track-result err';
+    resEl.textContent = 'Network error. Try again.';
+    resEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Find My Order →';
+}
+
+/* ── Navigation ── */
+const SCREENS = ['screenHome', 'screenSheets', 'screenDetails', 'screenDownloads'];
 function show(id, back = false) {
-  SCREENS.forEach(s => {
-    const el = document.getElementById(s);
-    el.classList.remove('visible', 'back');
-  });
+  SCREENS.forEach(s => { const el = document.getElementById(s); el.classList.remove('visible', 'back'); });
   const el = document.getElementById(id);
   if (back) el.classList.add('back');
   el.classList.add('visible');
@@ -1470,25 +898,13 @@ function show(id, back = false) {
 }
 
 function goHome() {
-  show('screenHome', true);
   stopPolling();
-  clearInterval(countdownTimer);
   purchaseId = null;
   currentDownloadToken = null;
-  pendingLookupData = null;
-  // Reset download screen for next use
-  document.getElementById('dlPreState').style.display = 'block';
-  document.getElementById('dlDoneState').style.display = 'none';
-  // Collapse and clear the track widget
-  document.getElementById('trackResult').style.display = 'none';
-  document.getElementById('trackHeader').classList.remove('open');
-  showResumeBanner();
-  startCardCountdowns();
-  // Background-refresh the games list so sold counts are current
-  fetch('/api/marketplace').then(r => r.json()).then(d => {
-    games = d.games || [];
-    renderGames();
-  }).catch(() => {});
+  document.getElementById('dlDoneCard').style.display = 'none';
+  document.getElementById('dlNotice').style.display = 'block';
+  show('screenHome', true);
+  fetch('/api/marketplace').then(r => r.json()).then(d => { games = d.games || []; renderGames(); }).catch(() => {});
 }
 
 /* ── Helpers ── */
@@ -1498,7 +914,6 @@ function toast(msg) {
   el.textContent = msg; el.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800);
 }
-
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }

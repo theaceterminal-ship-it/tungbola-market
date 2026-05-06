@@ -167,11 +167,9 @@ module.exports = async function(req, res) {
   if (action === 'purchase') {
     if (await rateLimit(req, 'mktbuy', 10, 3600))
       return res.status(429).json({ error: 'Too many requests. Try again later.' });
-    const { playerName, phone, pin, gameId, quantity, requestedSheetNums } = body;
+    const { playerName, phone, gameId, quantity, requestedSheetNums } = body;
     if (!playerName || !phone || !gameId || !quantity)
       return res.status(400).json({ error: 'playerName, phone, gameId, quantity required' });
-    if (!/^\d{4}$/.test(String(pin || '')))
-      return res.status(400).json({ error: 'pin must be 4 digits' });
 
     const games = await kv.get('tb:mkt:games') || [];
     const gameMeta = games.find(g => g.id === gameId);
@@ -191,7 +189,6 @@ module.exports = async function(req, res) {
     const purchase = {
       purchaseId, playerName: String(playerName).trim().slice(0, 50),
       phone: String(phone).trim().slice(0, 20),
-      pin: String(pin),
       gameId, gameName: gameMeta.name, quantity: qty, amount,
       requestedSheetNums: reqNums,
       status: 'pending', createdAt: Date.now()
@@ -293,16 +290,18 @@ module.exports = async function(req, res) {
   if (action === 'lookup-purchase') {
     if (await rateLimit(req, 'lookuppurchase', 10, 60))
       return res.status(429).json({ error: 'Too many requests. Try again in a minute.' });
-    const { phone, pin } = body;
-    if (!phone || !pin) return res.status(400).json({ error: 'Phone and PIN required' });
-    if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ error: 'Invalid PIN format' });
+    const { name, phone } = body;
+    if (!name || !phone) return res.status(400).json({ error: 'Name and phone required' });
     const purchases = await kv.get('tb:mkt:purchases') || [];
-    const norm = s => String(s || '').trim().replace(/\D/g, '');
-    const match = purchases.find(p => norm(p.phone) === norm(phone));
-    if (!match) return res.status(404).json({ error: 'No order found for that phone number' });
+    const normPhone = s => String(s || '').trim().replace(/\D/g, '');
+    const normName = s => String(s || '').trim().toLowerCase();
+    const match = purchases.find(p =>
+      normPhone(p.phone) === normPhone(phone) &&
+      normName(p.playerName) === normName(name)
+    );
+    if (!match) return res.status(404).json({ error: 'No order found for that name and phone number' });
     const fresh = await kv.get(`tb:mkt:purchase:${match.purchaseId}`);
     if (!fresh) return res.status(404).json({ error: 'Order has expired' });
-    if (String(fresh.pin) !== String(pin)) return res.status(401).json({ error: 'Incorrect PIN' });
     if (fresh.downloaded)
       return res.json({ purchaseId: fresh.purchaseId, status: 'downloaded', gameName: fresh.gameName, quantity: fresh.quantity, amount: fresh.amount, playerName: fresh.playerName });
     return res.json({
