@@ -22,10 +22,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 /* ── HEADER ── */
 .mkt-header{
-  background:linear-gradient(135deg,#7B0000 0%,#B91C1C 60%,#9B1C1C 100%);
+  background:linear-gradient(135deg,#4527A0 0%,#6750A4 60%,#7B1FA2 100%);
   color:#fff;padding:0 16px;height:58px;
   display:flex;align-items:center;justify-content:space-between;
-  box-shadow:0 2px 12px rgba(183,28,28,.45);
+  box-shadow:0 2px 12px rgba(103,80,164,.45);
   position:fixed;top:0;left:0;right:0;z-index:100
 }
 .hdr-left{display:flex;align-items:center;gap:10px}
@@ -82,7 +82,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 /* Hero — cream area with big game name */
 .poster-hero{
   background:var(--gold-lt);
-  min-height:160px;padding:14px 14px 10px;
+  min-height:200px;padding:14px 14px 10px;
   position:relative;text-align:center;overflow:hidden
 }
 .poster-hero-bg{
@@ -155,9 +155,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 }
 .prize-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.07)}
 .prize-row:last-child{border-bottom:none}
+.prize-row.main{background:rgba(255,215,0,.13);border-radius:6px;padding:6px 5px;border-bottom:1px solid rgba(255,215,0,.25);margin-bottom:2px}
 .pr-icon{font-size:12px;margin-right:4px;flex-shrink:0}
 .pr-name{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.3px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr-val{font-size:10px;font-weight:900;color:#FCD34D;flex-shrink:0;margin-left:6px}
+.prize-row.main .pr-icon{font-size:16px}
+.prize-row.main .pr-name{font-size:11px;font-weight:900;color:#fff}
+.prize-row.main .pr-val{font-size:14px;font-weight:900;color:#FCD34D}
 /* Entry tiers */
 .entry-tier{
   display:flex;align-items:center;justify-content:space-between;
@@ -166,9 +170,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .et-qty{font-size:10px;font-weight:900;color:#fff}
 .et-price{font-size:13px;font-weight:900;color:#FCD34D}
 .entry-limited{
-  background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.25);
+  background:rgba(255,255,255,.1);border:none;
   border-radius:6px;padding:5px 7px;margin-top:4px;
-  font-size:9px;font-weight:700;color:#FCD34D;text-align:center;line-height:1.4
+  font-size:10px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;line-height:1.4
 }
 
 /* CTA bar */
@@ -194,7 +198,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 /* ── SHEET SELECTION ── */
 .sheets-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.sheets-hero{background:linear-gradient(135deg,#7B0000,#B91C1C);padding:16px}
+.sheets-hero{background:linear-gradient(135deg,#4527A0,#6750A4);padding:16px}
 .screen-back-btn{
   background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.28);color:#fff;
   padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
@@ -207,38 +211,32 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .sheets-hdr-label{font-size:13px;font-weight:700;color:var(--on-s)}
 .sheets-hdr-count{font-size:13px;font-weight:700;color:var(--success)}
 
-.quick-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:#FEE2E2;border-radius:12px;padding:10px 12px}
-.quick-lbl{font-size:12px;font-weight:700;color:#991B1B;white-space:nowrap}
-.quick-input{flex:1;min-width:0;padding:8px 10px;border:2px solid #B91C1C;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;outline:none;color:#991B1B;text-align:center;background:#fff}
-.quick-btn{background:#B91C1C;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.search-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:#EDE7F6;border-radius:12px;padding:10px 12px}
+.search-input{flex:1;min-width:0;padding:8px 10px;border:2px solid #6750A4;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;outline:none;color:#4527A0;background:#fff}
+.search-input::placeholder{font-weight:400;color:#9E9E9E}
+.search-clear{background:#6750A4;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
 
 /* PDF icon sheet chips */
 .sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px}
 .sheet-chip{
-  height:84px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
+  border-radius:14px;padding:8px 4px 7px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;
   cursor:pointer;position:relative;
-  box-shadow:0 4px 12px rgba(183,28,28,.38);
+  box-shadow:0 4px 12px rgba(183,28,28,.32);
   transition:transform .12s,box-shadow .12s;
   -webkit-user-select:none;user-select:none
 }
 .sheet-chip.avail{background:linear-gradient(145deg,#EF4444 0%,#B91C1C 100%)}
 .sheet-chip.avail:active{transform:scale(.9)}
 .sheet-chip.picked{
-  background:linear-gradient(145deg,#EF4444 0%,#B91C1C 100%);
-  outline:3px solid #FBBF24;outline-offset:2px
+  background:linear-gradient(145deg,#60A5FA 0%,#1D4ED8 100%);
+  outline:3px solid #3B82F6;outline-offset:2px;
+  box-shadow:0 4px 12px rgba(59,130,246,.45)
 }
-.chip-doc{width:60%;height:72%;filter:drop-shadow(2px 3px 5px rgba(0,0,0,.28))}
+.chip-doc{width:38px;height:47px;flex-shrink:0;filter:drop-shadow(1px 2px 3px rgba(0,0,0,.22))}
 .chip-num{
-  position:absolute;font-size:13px;font-weight:900;
-  color:#991B1B;text-align:center;margin-top:4px;line-height:1
-}
-.sheet-chip.picked::after{
-  content:'✓';position:absolute;top:-7px;right:-7px;
-  width:18px;height:18px;background:#FBBF24;border-radius:50%;
-  font-size:11px;font-weight:900;color:#78350F;
-  line-height:18px;text-align:center;
-  box-shadow:0 2px 5px rgba(0,0,0,.28)
+  font-size:11px;font-weight:900;
+  color:#fff;text-align:center;line-height:1
 }
 .sheets-loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
 .no-sheets{text-align:center;padding:30px;color:var(--muted);font-size:14px;grid-column:1/-1}
@@ -252,24 +250,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .sheets-bottom-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .bottom-info{flex:1}
 .bottom-count{font-size:12px;font-weight:600;color:var(--muted)}
-.bottom-amount{font-size:22px;font-weight:900;color:#B91C1C;line-height:1.1}
+.bottom-amount{font-size:22px;font-weight:900;color:#6750A4;line-height:1.1}
 .continue-btn{
-  background:linear-gradient(135deg,#B91C1C,#7B0000);color:#fff;
+  background:linear-gradient(135deg,#6750A4,#4527A0);color:#fff;
   border:none;border-radius:16px;padding:14px 24px;font-size:15px;font-weight:800;
   cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;
-  box-shadow:0 4px 14px rgba(183,28,28,.38);transition:opacity .2s
+  box-shadow:0 4px 14px rgba(103,80,164,.38);transition:opacity .2s
 }
 .continue-btn:disabled{opacity:.4;cursor:not-allowed}
 
 /* ── DETAILS & PAY ── */
 #screenDetails{padding-bottom:40px}
-.details-hero{background:linear-gradient(135deg,#7B0000,#B91C1C);padding:16px;display:flex;align-items:center;gap:12px}
+.details-hero{background:linear-gradient(135deg,#4527A0,#6750A4);padding:16px;display:flex;align-items:center;gap:12px}
 .details-hero-txt{flex:1}
 .details-title{font-size:17px;font-weight:800;color:#fff}
 .details-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
 .details-body{padding:16px;max-width:480px;margin:0 auto}
 
-.order-summary{background:linear-gradient(135deg,#7B0000,#B91C1C);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
+.order-summary{background:linear-gradient(135deg,#4527A0,#6750A4);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
 .os-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.8;margin-bottom:4px}
 .os-game{font-size:16px;font-weight:800;margin-bottom:8px}
 .os-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -282,7 +280,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .field-wrap:last-child{margin-bottom:0}
 .field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
-.mkt-field:focus{border-color:#B91C1C}
+.mkt-field:focus{border-color:#6750A4}
 
 .err-msg{font-size:13px;color:var(--error);font-weight:500;margin-bottom:10px;text-align:center}
 .pay-btn{
@@ -296,8 +294,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .confirm-icon{font-size:52px;margin-bottom:12px}
 .confirm-title{font-size:20px;font-weight:800;color:var(--on-s);margin-bottom:8px}
 .confirm-msg{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:16px}
-.confirm-note{background:#FEE2E2;border-radius:12px;padding:14px;font-size:13px;color:#991B1B;font-weight:600;line-height:1.6;margin-bottom:20px;text-align:left}
-.confirm-home-btn{width:100%;padding:14px;background:#B91C1C;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.confirm-note{background:#EDE7F6;border-radius:12px;padding:14px;font-size:13px;color:#4527A0;font-weight:600;line-height:1.6;margin-bottom:20px;text-align:left}
+.confirm-home-btn{width:100%;padding:14px;background:#6750A4;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
 
 /* ── QR MODAL ── */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -322,8 +320,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .track-modal-title{font-size:17px;font-weight:800;margin-bottom:4px}
 .track-modal-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
 .track-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s;margin-bottom:10px}
-.track-field:focus{border-color:#B91C1C}
-.track-find-btn{width:100%;padding:14px;background:#B91C1C;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.track-field:focus{border-color:#6750A4}
+.track-find-btn{width:100%;padding:14px;background:#6750A4;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
 .track-find-btn:disabled{opacity:.5}
 .track-result{margin-top:14px;padding:14px;border-radius:14px;font-size:13px;font-weight:600;text-align:center;display:none;line-height:1.6}
 .track-result.pending{background:#FFF8E1;color:var(--warn)}
@@ -333,7 +331,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 /* ── DOWNLOADS ── */
 #screenDownloads{padding:16px 16px 40px}
 .dl-wrap{max-width:480px;margin:0 auto}
-.dl-hero{background:linear-gradient(135deg,#7B0000,#B91C1C);color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
+.dl-hero{background:linear-gradient(135deg,#4527A0,#6750A4);color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
 .dl-hero-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .dl-hero-sub{font-size:13px;opacity:.85;line-height:1.5}
 .dl-all-btn{width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;transition:opacity .2s}
@@ -342,16 +340,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .dl-list{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
 .dl-item{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)}
 .dl-item:last-child{border-bottom:none}
-.dl-num{width:40px;height:40px;border-radius:50%;background:#FEE2E2;color:#B91C1C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.dl-num{width:40px;height:40px;border-radius:50%;background:#EDE7F6;color:#6750A4;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
 .dl-name{flex:1;font-size:14px;font-weight:600}
-.dl-btn{background:#B91C1C;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.dl-btn{background:#6750A4;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .dl-btn.done{background:#E8F5E9;color:#2E7D32}
 .dl-done-card{background:#E8F5E9;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;display:none}
-.back-home-btn{width:100%;padding:14px;background:#B91C1C;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.back-home-btn{width:100%;padding:14px;background:#6750A4;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
 .muted-note{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;padding:0 8px}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#7B0000;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#4527A0;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
 @media(max-width:360px){.poster-title{font-size:24px}.bottom-amount{font-size:18px}}
@@ -368,10 +366,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div class="hdr-tag">Marketplace</div>
   </div>
   <div class="hdr-right">
-    <button class="hdr-track-btn" onclick="openTrackModal()" title="Track my order">
+    <button id="hdrTrackBtn" class="hdr-track-btn" onclick="openTrackModal()" title="Track my order">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </button>
-    <button class="hdr-back" onclick="closeInParent()">
+    <button id="hdrBackBtn" class="hdr-back" onclick="closeInParent()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       Back
     </button>
@@ -399,10 +397,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
           <span class="sheets-hdr-label">Available Sheets</span>
           <span class="sheets-hdr-count" id="sheetsAvailCount"></span>
         </div>
-        <div class="quick-row">
-          <span class="quick-lbl">Quick:</span>
-          <input class="quick-input" id="quickInput" type="number" inputmode="numeric" min="1" placeholder="How many?">
-          <button class="quick-btn" onclick="quickSelect()">Auto →</button>
+        <div class="search-row">
+          <input class="search-input" id="sheetSearch" type="number" inputmode="numeric" placeholder="Search sheet number…" oninput="searchSheet()">
+          <button class="search-clear" onclick="clearSheetSearch()">✕</button>
         </div>
         <div id="sheetsLoading" class="sheets-loading">Loading sheets…</div>
         <div id="sheetsGrid" class="sheet-grid" style="display:none"></div>
@@ -587,6 +584,19 @@ function renderGames() {
   }, 1000);
 }
 
+/* ── Format join time from HH:MM (time input) to 12h display ── */
+function formatJoinTime(t) {
+  if (!t) return null;
+  const m = String(t).match(/^(\d{1,2}):(\d{2})$/);
+  if (m) {
+    const h = parseInt(m[1]), min = parseInt(m[2]);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(min).padStart(2,'0')} ${ampm}`;
+  }
+  return String(t).toUpperCase();
+}
+
 /* ── Client-side amount calculation (mirrors server calcAmount) ── */
 function calcClientAmount(game, qty) {
   if (!qty) return 0;
@@ -633,7 +643,7 @@ function buildGameCard(g) {
 
   /* ── Date / time ── */
   const { dateStr, timeStr } = parsePosterDateTime(g);
-  const joinTimeStr = g.joinTime ? String(g.joinTime).toUpperCase() : null;
+  const joinTimeStr = g.joinTime ? formatJoinTime(g.joinTime) : null;
 
   const infoItems = [];
   if (dateStr) infoItems.push({ icon:'📅', lbl:'DATE', val:dateStr });
@@ -654,7 +664,8 @@ function buildGameCard(g) {
   const sorted = [...prizes].sort((a,b)=>prio(a.name)-prio(b.name));
   const prizesHtml = sorted.slice(0,6).map((p,i)=>{
     const pr = prio(p.name);
-    return `<div class="prize-row">
+    const mainCls = i === 0 ? ' main' : '';
+    return `<div class="prize-row${mainCls}">
       <span class="pr-icon">${PRIZE_ICONS[pr]||'⭐'}</span>
       <span class="pr-name">${esc(p.name)}</span>
       <span class="pr-val">${fmtVal(p)}</span>
@@ -670,7 +681,7 @@ function buildGameCard(g) {
   } else {
     tiersHtml = `<div class="entry-tier"><span class="et-qty">PER SHEET</span><span class="et-price">&#8377;${g.pricePerSheet}</span></div>`;
   }
-  tiersHtml += `<div class="entry-limited">👥 ${avail} SEATS LEFT<br>BOOK NOW &amp; WIN!</div>`;
+  tiersHtml += `<div class="entry-limited">${avail} sheets remaining</div>`;
 
   /* ── Bingo balls (decorative) ── */
   const seed = g.id ? g.id.charCodeAt(0) : 0;
@@ -721,7 +732,7 @@ function buildGameCard(g) {
     <div class="poster-cta">⬇ TAP TO PICK YOUR LUCKY SHEET ⬇</div>
 
     <button class="share-btn" onclick="event.stopPropagation();shareGame('${g.id}')" title="Share">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6750A4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </button>
 
     ${full?`<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>`:''}
@@ -740,12 +751,12 @@ function selectGame(id) {
   availableSheets = [];
 
   document.getElementById('sheetsGameName').textContent = currentGame.name;
-  document.getElementById('sheetsGameSub').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : `${avail} sheets available`;
+  document.getElementById('sheetsGameSub').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : `${avail} sheets remaining`;
   document.getElementById('sheetsAvailCount').textContent = '';
   document.getElementById('sheetsLoading').style.display = 'block';
   document.getElementById('sheetsGrid').style.display = 'none';
   document.getElementById('sheetsGrid').innerHTML = '';
-  document.getElementById('quickInput').value = '';
+  document.getElementById('sheetSearch').value = '';
   updateBottomBar();
 
   show('screenSheets');
@@ -762,12 +773,12 @@ async function loadSheets(gameId) {
     if (!r.ok) throw new Error(data.error || 'Failed');
 
     availableSheets = data.available.sort((a, b) => a - b);
-    document.getElementById('sheetsAvailCount').textContent = `${availableSheets.length} available`;
+    document.getElementById('sheetsAvailCount').textContent = `${availableSheets.length} remaining`;
     document.getElementById('sheetsLoading').style.display = 'none';
 
     const grid = document.getElementById('sheetsGrid');
     grid.innerHTML = availableSheets.length
-      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})"><svg class="chip-doc" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg"><path d="M0 2 Q0 0 2 0 H32 L46 14 V56 Q46 58 44 58 H2 Q0 58 0 56 Z" fill="#FEF9EC"/><path d="M32 0 L46 14 H34 Q32 14 32 12 Z" fill="rgba(140,20,20,0.38)"/></svg><span class="chip-num">${n}</span></div>`).join('')
+      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})"><svg class="chip-doc" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg"><path d="M0 2 Q0 0 2 0 H32 L46 14 V56 Q46 58 44 58 H2 Q0 58 0 56 Z" fill="#FEF9EC"/><path d="M32 0 L46 14 H34 Q32 14 32 12 Z" fill="rgba(140,20,20,0.38)"/><text x="23" y="40" text-anchor="middle" fill="#9B1C1C" font-size="9" font-weight="900" font-family="Inter,system-ui,sans-serif">PDF</text></svg><span class="chip-num">${n}</span></div>`).join('')
       : `<div class="no-sheets">No sheets available right now.</div>`;
     grid.style.display = 'grid';
   } catch(e) {
@@ -789,25 +800,17 @@ function toggleChip(n) {
   updateBottomBar();
 }
 
-function quickSelect() {
-  const n = parseInt(document.getElementById('quickInput').value) || 0;
-  if (n <= 0) { toast('Enter how many sheets you want'); return; }
-  const pool = [...availableSheets];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  selectedNums.clear();
-  document.querySelectorAll('.sheet-chip.picked').forEach(el => el.className = 'sheet-chip avail');
-  const pick = pool.slice(0, Math.min(n, pool.length, 150));
-  if (pick.length < n) toast(`Only ${pool.length} available — selected all`);
-  pick.forEach(num => {
-    selectedNums.add(num);
-    const chip = document.getElementById(`chip-${num}`);
-    if (chip) chip.className = 'sheet-chip picked';
+function searchSheet() {
+  const val = document.getElementById('sheetSearch').value.trim();
+  document.querySelectorAll('.sheet-chip').forEach(chip => {
+    const n = chip.dataset.n || '';
+    chip.style.display = (!val || n === val || n.startsWith(val)) ? '' : 'none';
   });
-  document.getElementById('quickInput').value = '';
-  updateBottomBar();
+}
+
+function clearSheetSearch() {
+  document.getElementById('sheetSearch').value = '';
+  document.querySelectorAll('.sheet-chip').forEach(chip => { chip.style.display = ''; });
 }
 
 function updateBottomBar() {
@@ -1074,6 +1077,13 @@ function show(id, back = false) {
   if (back) el.classList.add('back');
   el.classList.add('visible');
   el.scrollTop = 0;
+  updateHeaderForScreen(id);
+}
+
+function updateHeaderForScreen(id) {
+  const onHome = id === 'screenHome';
+  document.getElementById('hdrTrackBtn').style.display = onHome ? '' : 'none';
+  document.getElementById('hdrBackBtn').style.display = onHome ? '' : 'none';
 }
 
 function goHome() {

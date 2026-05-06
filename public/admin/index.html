@@ -1113,7 +1113,7 @@ function renderGameForm(g) {
       <div class="fg"><label class="lbl">Date &amp; Time</label>
         <input type="datetime-local" id="gcfDateTime" value="${isEdit&&g.gameDateRaw?g.gameDateRaw:''}"></div>
       <div class="fg narrow"><label class="lbl">Join Time</label>
-        <input type="text" id="gcfJoinTime" placeholder="e.g. 7:30 PM" maxlength="20" value="${isEdit?esc(g.joinTime||''):''}"></div>
+        <input type="time" id="gcfJoinTime" value="${isEdit?esc(g.joinTime||''):''}"></div>
       <div class="fg"><label class="lbl">Thumbnail</label>
         <div class="thumb-area" onclick="document.getElementById('gcfThumbFile').click()">
           ${thumbSrc?`<img id="gcfThumbPreview" src="${esc(thumbSrc)}">`:`${ico('img')}<span>Click to upload</span>`}
