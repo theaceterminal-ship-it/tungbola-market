@@ -97,7 +97,7 @@ module.exports = async function(req, res) {
   if (action === 'create-game') {
     if (await rateLimit(req, `op-cg:${operator.id}`, 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail } = body;
+    const { name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
     if (!name) return res.status(400).json({ error: 'Game name required' });
 
     const id = genId();
@@ -106,7 +106,9 @@ module.exports = async function(req, res) {
       name: String(name).trim().slice(0, 80),
       gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
       gameDateRaw: gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null,
+      joinTime: joinTime ? String(joinTime).trim().slice(0, 20) : null,
       pricePerSheet: Math.max(1, Number(pricePerSheet) || 5),
+      pricingTiers: Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [],
       description: String(description || '').trim().slice(0, 200),
       prizes: Array.isArray(prizes) ? prizes.slice(0, 12) : [],
       thumbnail: thumbnail ? String(thumbnail).slice(0, 500) : null,
@@ -122,7 +124,7 @@ module.exports = async function(req, res) {
 
   /* ── Edit game ── */
   if (action === 'edit-game') {
-    const { gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail } = body;
+    const { gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
     const game = await kv.get(`tb:mkt:game:${gameId}`);
     if (!game) return res.status(404).json({ error: 'Game not found' });
@@ -131,7 +133,9 @@ module.exports = async function(req, res) {
     if (name !== undefined) game.name = String(name).trim().slice(0, 80);
     if (gameDate !== undefined) game.gameDate = gameDate ? String(gameDate).trim().slice(0, 40) : null;
     if (gameDateRaw !== undefined) game.gameDateRaw = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
+    if (joinTime !== undefined) game.joinTime = joinTime ? String(joinTime).trim().slice(0, 20) : null;
     if (pricePerSheet !== undefined) game.pricePerSheet = Math.max(1, Number(pricePerSheet) || 5);
+    if (pricingTiers !== undefined) game.pricingTiers = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
     if (description !== undefined) game.description = String(description || '').trim().slice(0, 200);
     if (prizes !== undefined) game.prizes = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
     if (thumbnail !== undefined) game.thumbnail = thumbnail ? String(thumbnail).slice(0, 500) : null;
@@ -174,7 +178,9 @@ module.exports = async function(req, res) {
     const idx = games.findIndex(g => g.id === gameId);
     const compact = {
       id: game.id, operatorId: game.operatorId, operatorName: game.operatorName,
-      name: game.name, gameDate: game.gameDate, pricePerSheet: game.pricePerSheet,
+      name: game.name, gameDate: game.gameDate, gameDateRaw: game.gameDateRaw || null,
+      joinTime: game.joinTime || null,
+      pricePerSheet: game.pricePerSheet, pricingTiers: game.pricingTiers || [],
       description: game.description, prizes: game.prizes, thumbnail: game.thumbnail || null,
       status: game.status, sheetCount: game.sheetCount, soldCount: game.soldCount, createdAt: game.createdAt
     };

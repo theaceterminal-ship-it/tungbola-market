@@ -13,6 +13,7 @@
   --primary:#6750A4;--primary-light:#EADDFF;
   --error:#B3261E;--success:#2E7D32;--warn:#F57F17;
   --muted:#49454F;--on-s:#1C1B1F;
+  --red:#B91C1C;--red-dark:#7B0000;--gold:#D97706;--gold-lt:#FEF9EC;
   --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-md:0 4px 16px rgba(0,0,0,.13);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -21,18 +22,18 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 /* ── HEADER ── */
 .mkt-header{
-  background:linear-gradient(135deg,#4527A0 0%,var(--primary) 60%,#7B1FA2 100%);
+  background:linear-gradient(135deg,#7B0000 0%,#B91C1C 60%,#9B1C1C 100%);
   color:#fff;padding:0 16px;height:58px;
   display:flex;align-items:center;justify-content:space-between;
-  box-shadow:0 2px 12px rgba(103,80,164,.4);
+  box-shadow:0 2px 12px rgba(183,28,28,.45);
   position:fixed;top:0;left:0;right:0;z-index:100
 }
 .hdr-left{display:flex;align-items:center;gap:10px}
 .hdr-logo{font-size:18px;font-weight:900;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
-.hdr-tag{font-size:12px;opacity:.8;background:rgba(255,255,255,.15);padding:3px 9px;border-radius:12px}
+.hdr-tag{font-size:12px;opacity:.85;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:12px}
 .hdr-right{display:flex;align-items:center;gap:8px}
 .hdr-track-btn{
-  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.25);color:#fff;
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;
   width:36px;height:36px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;cursor:pointer
 }
@@ -54,7 +55,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 @keyframes scrIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
 @keyframes scrInBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:translateX(0)}}
 
-/* screenSheets uses flex so override display */
 #screenSheets{display:none;flex-direction:column}
 #screenSheets.visible{display:flex}
 #screenSheets.back.visible{display:flex}
@@ -68,80 +68,178 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .empty-txt{font-size:16px;font-weight:700;color:var(--on-s)}
 .empty-sub{font-size:13px;margin-top:6px;line-height:1.5}
 
-/* ── GAME CARDS ── */
+/* ── POSTER GAME CARD ── */
 .game-card{
-  position:relative;border-radius:24px;overflow:hidden;cursor:pointer;
-  margin-bottom:20px;background:#1a0533;
-  box-shadow:0 8px 28px rgba(103,80,164,.3),0 0 0 1px rgba(103,80,164,.08);
+  border-radius:20px;overflow:hidden;cursor:pointer;
+  margin-bottom:20px;
+  box-shadow:0 8px 32px rgba(0,0,0,.22),0 2px 8px rgba(0,0,0,.1);
+  background:var(--gold-lt);
   transform:translateY(0);transition:transform .18s,box-shadow .18s;
-  -webkit-user-select:none;user-select:none
+  -webkit-user-select:none;user-select:none;position:relative
 }
 .game-card:active{transform:scale(.975)}
-.game-card-thumb{width:100%;height:200px;object-fit:cover;display:block;opacity:.92}
-.game-card-thumb-placeholder{height:200px;background:linear-gradient(135deg,#2D0A6E,#4527A0 40%,#7B1FA2 80%,#9C27B0)}
-.game-card-overlay{position:absolute;top:0;left:0;right:0;height:200px;background:linear-gradient(to bottom,rgba(10,2,30,.05) 0%,rgba(10,2,30,.5) 50%,rgba(10,2,30,.95) 100%)}
-.game-card-top{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.countdown-badge{background:rgba(0,0,0,.5);backdrop-filter:blur(6px);color:#fff;border-radius:20px;padding:5px 11px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
-.countdown-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite}
+
+/* Hero — cream area with big game name */
+.poster-hero{
+  background:var(--gold-lt);
+  min-height:160px;padding:14px 14px 10px;
+  position:relative;text-align:center;overflow:hidden
+}
+.poster-hero-bg{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center;
+  opacity:.22
+}
+.poster-hero-content{position:relative;z-index:1}
+.poster-stars{color:#F59E0B;font-size:16px;letter-spacing:6px;margin-bottom:6px}
+.poster-title{
+  font-size:clamp(24px,9vw,42px);font-weight:900;
+  color:#C62828;text-transform:uppercase;
+  line-height:.95;letter-spacing:-1px;
+  text-shadow:3px 3px 0 #7B0000,2px 2px 0 #7B0000,1px 1px 0 #7B0000;
+  -webkit-text-stroke:.5px #991B1B;padding:0 4px;word-break:break-word
+}
+.poster-banner{
+  background:linear-gradient(90deg,#92400E,#D97706,#F59E0B,#D97706,#92400E);
+  margin:8px -14px 0;padding:5px 14px
+}
+.poster-banner-text{
+  font-size:16px;font-weight:900;color:#fff;
+  letter-spacing:5px;text-align:center;
+  text-shadow:1px 1px 3px rgba(0,0,0,.45)
+}
+.poster-tagline{font-size:10px;font-weight:800;color:#7B0000;letter-spacing:3px;margin-top:5px;text-align:center}
+
+/* Bingo balls */
+.poster-ball{
+  position:absolute;width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:900;color:#fff;z-index:2;
+  box-shadow:inset -3px -3px 6px rgba(0,0,0,.3),inset 2px 2px 4px rgba(255,255,255,.35),0 3px 8px rgba(0,0,0,.3)
+}
+.pb1{background:radial-gradient(circle at 35% 35%,#f87171,#DC2626);top:10px;left:10px}
+.pb2{background:radial-gradient(circle at 35% 35%,#a78bfa,#5B21B6);top:10px;right:10px}
+.pb3{background:radial-gradient(circle at 35% 35%,#34d399,#047857);top:46px;right:8px}
+.pb4{background:radial-gradient(circle at 35% 35%,#60a5fa,#1D4ED8);top:46px;left:8px}
+.pb-num{font-size:10px;font-weight:900}
+
+/* Countdown */
+.countdown-badge{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(124,8,8,.75);backdrop-filter:blur(6px);color:#fff;
+  border-radius:20px;padding:4px 10px;font-size:10px;font-weight:700;
+  display:flex;align-items:center;gap:5px;white-space:nowrap;z-index:3
+}
+.countdown-dot{width:5px;height:5px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
 
-.game-card-body{padding:14px 16px;background:linear-gradient(to bottom,rgba(10,2,30,.97),#0e0120)}
-.game-card-name{font-size:19px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:3px}
-.game-card-date{font-size:12px;color:rgba(255,255,255,.65);margin-bottom:12px}
+/* Info strip */
+.poster-info-strip{
+  display:flex;align-items:stretch;
+  background:#fff;border-top:1px solid rgba(183,28,28,.12);border-bottom:1px solid rgba(183,28,28,.12)
+}
+.pii{flex:1;padding:8px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pii+.pii{border-left:1px solid rgba(183,28,28,.12)}
+.pii-icon{font-size:14px;line-height:1}
+.pii-lbl{font-size:8px;font-weight:700;color:#9B1C1C;text-transform:uppercase;letter-spacing:.5px}
+.pii-val{font-size:11px;font-weight:800;color:#1C1B1F}
 
-.card-prizes{margin-bottom:12px}
-.card-prize-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:10px;margin-bottom:5px}
-.card-prize-row.main{background:linear-gradient(90deg,rgba(146,64,14,.85),rgba(185,28,28,.8));border:1px solid rgba(253,230,138,.3)}
-.card-prize-row.sub{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
-.card-prize-name{font-size:11px;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.5px}
-.card-prize-val{font-size:13px;font-weight:900;color:#FDE68A}
-.card-prize-val.alt{color:#C4B5FD}
-
-.game-card-stats{
+/* Middle: prizes + entry */
+.poster-middle{display:flex;gap:0;background:var(--red-dark)}
+.poster-prizes-col{flex:3;padding:10px 10px 10px 12px;border-right:1px solid rgba(255,255,255,.12)}
+.poster-entry-col{flex:2;padding:10px 12px 10px 10px}
+.col-hdr{
+  font-size:10px;font-weight:900;color:#FCD34D;
+  text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:7px;display:flex;align-items:center;gap:4px
+}
+.prize-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.prize-row:last-child{border-bottom:none}
+.pr-icon{font-size:12px;margin-right:4px;flex-shrink:0}
+.pr-name{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.3px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr-val{font-size:10px;font-weight:900;color:#FCD34D;flex-shrink:0;margin-left:6px}
+/* Entry tiers */
+.entry-tier{
   display:flex;align-items:center;justify-content:space-between;
-  background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;
-  border:1px solid rgba(255,255,255,.1);margin-bottom:12px
+  background:rgba(255,255,255,.1);border-radius:6px;padding:5px 7px;margin-bottom:5px
 }
-.stat-block{text-align:center}
-.stat-val{font-size:15px;font-weight:900;color:#fff}
-.stat-lbl{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
-.stat-sep{width:1px;height:28px;background:rgba(255,255,255,.15)}
+.et-qty{font-size:10px;font-weight:900;color:#fff}
+.et-price{font-size:13px;font-weight:900;color:#FCD34D}
+.entry-limited{
+  background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.25);
+  border-radius:6px;padding:5px 7px;margin-top:4px;
+  font-size:9px;font-weight:700;color:#FCD34D;text-align:center;line-height:1.4
+}
 
-.card-buy-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.card-price-tag{font-size:14px;font-weight:800;color:#C4B5FD}
-.card-buy-btn{
-  background:#fff;color:var(--primary);border:none;border-radius:22px;
-  padding:10px 22px;font-size:13px;font-weight:800;cursor:pointer;
-  font-family:inherit;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2)
+/* CTA bar */
+.poster-cta{
+  background:linear-gradient(90deg,#7B0000,#B91C1C,#7B0000);
+  padding:10px 14px;text-align:center;
+  font-size:11px;font-weight:900;color:#FCD34D;
+  letter-spacing:1.5px;text-transform:uppercase
 }
-.sold-out-overlay{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;border-radius:24px}
+
+/* Share button */
+.share-btn{
+  position:absolute;top:10px;right:10px;z-index:10;
+  background:rgba(255,255,255,.88);border:none;border-radius:50%;
+  width:32px;height:32px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);transition:background .15s
+}
+.share-btn:active{background:#fff}
+
+.sold-out-overlay{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;border-radius:20px}
 .sold-out-label{font-size:22px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:2px}
 
 /* ── SHEET SELECTION ── */
 .sheets-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.sheets-hero{background:linear-gradient(135deg,#2D0A6E,#7B1FA2);padding:16px}
+.sheets-hero{background:linear-gradient(135deg,#7B0000,#B91C1C);padding:16px}
 .screen-back-btn{
   background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.28);color:#fff;
   padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
   font-family:inherit;display:inline-flex;align-items:center;gap:5px;margin-bottom:12px
 }
 .sheets-game-name{font-size:20px;font-weight:900;color:#fff;margin-bottom:3px}
-.sheets-game-sub{font-size:12px;color:rgba(255,255,255,.7)}
+.sheets-game-sub{font-size:12px;color:rgba(255,255,255,.75)}
 .sheets-body{padding:14px}
 .sheets-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .sheets-hdr-label{font-size:13px;font-weight:700;color:var(--on-s)}
 .sheets-hdr-count{font-size:13px;font-weight:700;color:var(--success)}
 
-.quick-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:var(--primary-light);border-radius:12px;padding:10px 12px}
-.quick-lbl{font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap}
-.quick-input{flex:1;min-width:0;padding:8px 10px;border:2px solid var(--primary);border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;outline:none;color:var(--primary);text-align:center;background:#fff}
-.quick-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.quick-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:#FEE2E2;border-radius:12px;padding:10px 12px}
+.quick-lbl{font-size:12px;font-weight:700;color:#991B1B;white-space:nowrap}
+.quick-input{flex:1;min-width:0;padding:8px 10px;border:2px solid #B91C1C;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;outline:none;color:#991B1B;text-align:center;background:#fff}
+.quick-btn{background:#B91C1C;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
 
-.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:7px}
-.sheet-chip{height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:background .1s,border-color .1s;-webkit-user-select:none;user-select:none}
-.sheet-chip.avail{background:#F4F0FB;color:var(--primary);border-color:var(--border)}
-.sheet-chip.avail:active{background:var(--primary-light);border-color:var(--primary)}
-.sheet-chip.picked{background:var(--primary);color:#fff;border-color:var(--primary)}
+/* PDF icon sheet chips */
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px}
+.sheet-chip{
+  height:84px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;
+  box-shadow:0 4px 12px rgba(183,28,28,.38);
+  transition:transform .12s,box-shadow .12s;
+  -webkit-user-select:none;user-select:none
+}
+.sheet-chip.avail{background:linear-gradient(145deg,#EF4444 0%,#B91C1C 100%)}
+.sheet-chip.avail:active{transform:scale(.9)}
+.sheet-chip.picked{
+  background:linear-gradient(145deg,#EF4444 0%,#B91C1C 100%);
+  outline:3px solid #FBBF24;outline-offset:2px
+}
+.chip-doc{width:60%;height:72%;filter:drop-shadow(2px 3px 5px rgba(0,0,0,.28))}
+.chip-num{
+  position:absolute;font-size:13px;font-weight:900;
+  color:#991B1B;text-align:center;margin-top:4px;line-height:1
+}
+.sheet-chip.picked::after{
+  content:'✓';position:absolute;top:-7px;right:-7px;
+  width:18px;height:18px;background:#FBBF24;border-radius:50%;
+  font-size:11px;font-weight:900;color:#78350F;
+  line-height:18px;text-align:center;
+  box-shadow:0 2px 5px rgba(0,0,0,.28)
+}
 .sheets-loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
 .no-sheets{text-align:center;padding:30px;color:var(--muted);font-size:14px;grid-column:1/-1}
 
@@ -154,24 +252,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .sheets-bottom-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .bottom-info{flex:1}
 .bottom-count{font-size:12px;font-weight:600;color:var(--muted)}
-.bottom-amount{font-size:22px;font-weight:900;color:var(--primary);line-height:1.1}
+.bottom-amount{font-size:22px;font-weight:900;color:#B91C1C;line-height:1.1}
 .continue-btn{
-  background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;
+  background:linear-gradient(135deg,#B91C1C,#7B0000);color:#fff;
   border:none;border-radius:16px;padding:14px 24px;font-size:15px;font-weight:800;
   cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;
-  box-shadow:0 4px 14px rgba(103,80,164,.35);transition:opacity .2s
+  box-shadow:0 4px 14px rgba(183,28,28,.38);transition:opacity .2s
 }
 .continue-btn:disabled{opacity:.4;cursor:not-allowed}
 
 /* ── DETAILS & PAY ── */
 #screenDetails{padding-bottom:40px}
-.details-hero{background:linear-gradient(135deg,#2D0A6E,#7B1FA2);padding:16px;display:flex;align-items:center;gap:12px}
+.details-hero{background:linear-gradient(135deg,#7B0000,#B91C1C);padding:16px;display:flex;align-items:center;gap:12px}
 .details-hero-txt{flex:1}
 .details-title{font-size:17px;font-weight:800;color:#fff}
 .details-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
 .details-body{padding:16px;max-width:480px;margin:0 auto}
 
-.order-summary{background:linear-gradient(135deg,var(--primary),#7C3AED);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
+.order-summary{background:linear-gradient(135deg,#7B0000,#B91C1C);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
 .os-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.8;margin-bottom:4px}
 .os-game{font-size:16px;font-weight:800;margin-bottom:8px}
 .os-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -184,7 +282,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .field-wrap:last-child{margin-bottom:0}
 .field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .mkt-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
-.mkt-field:focus{border-color:var(--primary)}
+.mkt-field:focus{border-color:#B91C1C}
 
 .err-msg{font-size:13px;color:var(--error);font-weight:500;margin-bottom:10px;text-align:center}
 .pay-btn{
@@ -194,26 +292,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 }
 .pay-btn:disabled{opacity:.5;cursor:not-allowed}
 
-/* Post-payment confirmation card */
 .confirm-card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow-md);padding:28px 20px;text-align:center;margin:16px;display:none}
 .confirm-icon{font-size:52px;margin-bottom:12px}
 .confirm-title{font-size:20px;font-weight:800;color:var(--on-s);margin-bottom:8px}
 .confirm-msg{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:16px}
-.confirm-note{background:var(--primary-light);border-radius:12px;padding:14px;font-size:13px;color:var(--primary);font-weight:600;line-height:1.6;margin-bottom:20px;text-align:left}
-.confirm-home-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.confirm-note{background:#FEE2E2;border-radius:12px;padding:14px;font-size:13px;color:#991B1B;font-weight:600;line-height:1.6;margin-bottom:20px;text-align:left}
+.confirm-home-btn{width:100%;padding:14px;background:#B91C1C;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
 
 /* ── QR MODAL ── */
-.modal-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;
-  display:flex;align-items:flex-end;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity .25s
-}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .modal-backdrop.open{opacity:1;pointer-events:auto}
-.modal-sheet{
-  background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;
-  width:100%;max-width:520px;
-  transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)
-}
+.modal-sheet{background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;width:100%;max-width:520px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .modal-backdrop.open .modal-sheet{transform:translateY(0)}
 .modal-handle{width:40px;height:4px;border-radius:2px;background:#DDD;margin:0 auto 20px}
 .modal-title{font-size:17px;font-weight:800;text-align:center;margin-bottom:4px}
@@ -226,23 +315,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .modal-cancel-link{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline}
 
 /* ── TRACK MODAL ── */
-.track-modal-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;
-  display:flex;align-items:flex-end;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity .25s
-}
+.track-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .track-modal-backdrop.open{opacity:1;pointer-events:auto}
-.track-modal-sheet{
-  background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;
-  width:100%;max-width:520px;
-  transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)
-}
+.track-modal-sheet{background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;width:100%;max-width:520px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .track-modal-backdrop.open .track-modal-sheet{transform:translateY(0)}
 .track-modal-title{font-size:17px;font-weight:800;margin-bottom:4px}
 .track-modal-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
 .track-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s;margin-bottom:10px}
-.track-field:focus{border-color:var(--primary)}
-.track-find-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.track-field:focus{border-color:#B91C1C}
+.track-find-btn{width:100%;padding:14px;background:#B91C1C;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
 .track-find-btn:disabled{opacity:.5}
 .track-result{margin-top:14px;padding:14px;border-radius:14px;font-size:13px;font-weight:600;text-align:center;display:none;line-height:1.6}
 .track-result.pending{background:#FFF8E1;color:var(--warn)}
@@ -252,7 +333,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 /* ── DOWNLOADS ── */
 #screenDownloads{padding:16px 16px 40px}
 .dl-wrap{max-width:480px;margin:0 auto}
-.dl-hero{background:linear-gradient(135deg,var(--primary),#7C3AED);color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
+.dl-hero{background:linear-gradient(135deg,#7B0000,#B91C1C);color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
 .dl-hero-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .dl-hero-sub{font-size:13px;opacity:.85;line-height:1.5}
 .dl-all-btn{width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;transition:opacity .2s}
@@ -261,19 +342,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .dl-list{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
 .dl-item{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)}
 .dl-item:last-child{border-bottom:none}
-.dl-num{width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.dl-num{width:40px;height:40px;border-radius:50%;background:#FEE2E2;color:#B91C1C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
 .dl-name{flex:1;font-size:14px;font-weight:600}
-.dl-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.dl-btn{background:#B91C1C;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .dl-btn.done{background:#E8F5E9;color:#2E7D32}
 .dl-done-card{background:#E8F5E9;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;display:none}
-.back-home-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.back-home-btn{width:100%;padding:14px;background:#B91C1C;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
 .muted-note{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;padding:0 8px}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1C1B1F;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#7B0000;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
-@media(max-width:360px){.game-card-name{font-size:17px}.bottom-amount{font-size:18px}}
+@media(max-width:360px){.poster-title{font-size:24px}.bottom-amount{font-size:18px}}
 </style>
 </head>
 <body>
@@ -457,6 +538,10 @@ async function init() {
     cfg = await cfgR.json();
     games = (await gamesR.json()).games || [];
     renderGames();
+    const deepId = new URLSearchParams(window.location.search).get('game');
+    if (deepId && games.find(x => x.id === deepId)) {
+      setTimeout(() => selectGame(deepId), 350);
+    }
   } catch(e) {
     document.getElementById('homeLoading').textContent = 'Could not load games. Check connection.';
   }
@@ -502,49 +587,143 @@ function renderGames() {
   }, 1000);
 }
 
+/* ── Client-side amount calculation (mirrors server calcAmount) ── */
+function calcClientAmount(game, qty) {
+  if (!qty) return 0;
+  if (Array.isArray(game?.pricingTiers) && game.pricingTiers.length) {
+    const tier = game.pricingTiers.find(t => t.qty === qty);
+    if (tier && tier.price > 0) return tier.price;
+  }
+  return (game?.pricePerSheet || 5) * qty;
+}
+
+/* ── Parse poster date/time from game ── */
+function parsePosterDateTime(g) {
+  if (g.gameDateRaw) {
+    try {
+      const d = new Date(g.gameDateRaw);
+      if (!isNaN(d)) {
+        const dateStr = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }).toUpperCase();
+        const timeStr = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true }).toUpperCase();
+        return { dateStr, timeStr };
+      }
+    } catch(e) {}
+  }
+  if (g.gameDate) {
+    const parts = g.gameDate.split(/\bat\b/i);
+    return { dateStr: (parts[0]||g.gameDate).trim().toUpperCase(), timeStr: (parts[1]||'').trim().toUpperCase() };
+  }
+  return { dateStr: null, timeStr: null };
+}
+
+/* ── Decorative bingo ball numbers ── */
+const BALL_NUMS = [7,18,33,22,45,62,14,77];
+
 function buildGameCard(g) {
   const avail = (g.sheetCount || 0) - (g.soldCount || 0);
   const full = avail <= 0 && g.sheetCount > 0;
   const prizes = Array.isArray(g.prizes) ? g.prizes : [];
+  const tiers = Array.isArray(g.pricingTiers) ? g.pricingTiers : [];
 
-  const thumb = g.thumbnail
-    ? `<img class="game-card-thumb" src="${esc(g.thumbnail)}" alt="" onerror="this.style.display='none'">`
-    : `<div class="game-card-thumb-placeholder"></div>`;
-
+  /* ── Countdown ── */
   const ms = getGameMs(g);
   const cdHtml = ms && ms > 0
-    ? `<div class="game-card-top"><div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}</div></div>`
+    ? `<div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}</div>`
     : '';
 
+  /* ── Date / time ── */
+  const { dateStr, timeStr } = parsePosterDateTime(g);
+  const joinTimeStr = g.joinTime ? String(g.joinTime).toUpperCase() : null;
+
+  const infoItems = [];
+  if (dateStr) infoItems.push({ icon:'📅', lbl:'DATE', val:dateStr });
+  if (joinTimeStr) infoItems.push({ icon:'🕐', lbl:'JOIN TIME', val:joinTimeStr });
+  if (timeStr) infoItems.push({ icon:'⏱', lbl:'GAME TIME', val:timeStr });
+  if (!infoItems.length && g.gameDate) infoItems.push({ icon:'📅', lbl:'DATE', val:esc(g.gameDate).toUpperCase() });
+
+  const infoHtml = infoItems.slice(0,3).map(x =>
+    `<div class="pii"><span class="pii-icon">${x.icon}</span><div class="pii-lbl">${x.lbl}</div><div class="pii-val">${x.val}</div></div>`
+  ).join('');
+
+  /* ── Prize rows ── */
   const PRIO = [[/^full house$/i,1],[/^second full house$/i,2],[/^third full house$/i,3],[/^upper line$/i,4],[/^middle line$/i,5],[/^bottom line$/i,6],[/^ticket corners$/i,7],[/^sheet corner$/i,8],[/^early [567]$/i,9]];
   function prio(n){for(const[re,r]of PRIO)if(re.test(n))return r;return 10}
+  const PRIZE_ICONS = {1:'👑',2:'🥈',3:'🥉',4:'⭐',5:'⭐',6:'⭐',7:'💎',8:'💎',9:'⚡'};
   function fmtVal(p){return p.kind==='cash'?`&#8377;${(p.amount||0).toLocaleString('en-IN')}`:esc(p.description||'')}
 
   const sorted = [...prizes].sort((a,b)=>prio(a.name)-prio(b.name));
-  const prizesHtml = sorted.slice(0, 6).map((p,i)=>
-    `<div class="card-prize-row ${i===0?'main':'sub'}">
-      <span class="card-prize-name">${esc(p.name)}</span>
-      <span class="card-prize-val ${i===0?'':'alt'}">${fmtVal(p)}</span>
-    </div>`
+  const prizesHtml = sorted.slice(0,6).map((p,i)=>{
+    const pr = prio(p.name);
+    return `<div class="prize-row">
+      <span class="pr-icon">${PRIZE_ICONS[pr]||'⭐'}</span>
+      <span class="pr-name">${esc(p.name)}</span>
+      <span class="pr-val">${fmtVal(p)}</span>
+    </div>`;
+  }).join('') || `<div class="prize-row"><span class="pr-name" style="color:rgba(255,255,255,.5)">Prizes TBA</span></div>`;
+
+  /* ── Entry / pricing tiers ── */
+  let tiersHtml = '';
+  if (tiers.length) {
+    tiersHtml = tiers.slice(0,4).map(t=>
+      `<div class="entry-tier"><span class="et-qty">${t.qty} SHEET${t.qty>1?'S':''}</span><span class="et-price">&#8377;${t.price.toLocaleString('en-IN')}</span></div>`
+    ).join('');
+  } else {
+    tiersHtml = `<div class="entry-tier"><span class="et-qty">PER SHEET</span><span class="et-price">&#8377;${g.pricePerSheet}</span></div>`;
+  }
+  tiersHtml += `<div class="entry-limited">👥 ${avail} SEATS LEFT<br>BOOK NOW &amp; WIN!</div>`;
+
+  /* ── Bingo balls (decorative) ── */
+  const seed = g.id ? g.id.charCodeAt(0) : 0;
+  const ballNums = BALL_NUMS.slice(seed % 4, (seed % 4) + 4);
+  const ballColors = [
+    `radial-gradient(circle at 35% 35%,#f87171,#DC2626)`,
+    `radial-gradient(circle at 35% 35%,#a78bfa,#5B21B6)`,
+    `radial-gradient(circle at 35% 35%,#34d399,#047857)`,
+    `radial-gradient(circle at 35% 35%,#60a5fa,#1D4ED8)`
+  ];
+  const ballPos = [
+    'top:8px;left:8px','top:8px;right:48px','top:44px;right:8px','top:44px;left:48px'
+  ];
+  const ballsHtml = ballNums.map((n,i)=>
+    `<div class="poster-ball" style="${ballPos[i]};background:${ballColors[i]}"><span class="pb-num">${n}</span></div>`
   ).join('');
 
+  /* ── Background image ── */
+  const bgStyle = g.thumbnail ? `style="background-image:url('${esc(g.thumbnail)}')"` : '';
+
   return `<div class="game-card" onclick="selectGame('${g.id}')" id="card-${g.id}">
-    ${thumb}
-    <div class="game-card-overlay"></div>
-    ${cdHtml}
-    <div class="game-card-body">
-      <div class="game-card-name">${esc(g.name)}</div>
-      ${g.gameDate?`<div class="game-card-date">📅 ${esc(g.gameDate)}</div>`:''}
-      ${prizesHtml?`<div class="card-prizes">${prizesHtml}</div>`:''}
-      <div class="game-card-stats">
-        <div class="stat-block"><div class="stat-val">&#8377;${g.pricePerSheet}</div><div class="stat-lbl">Per Sheet</div></div>
-        <div class="stat-sep"></div>
-        <div class="stat-block"><div class="stat-val" style="color:#4ADE80">${avail}</div><div class="stat-lbl">Available</div></div>
-        <div class="stat-sep"></div>
-        <div class="stat-block"><div class="stat-val">${g.sheetCount||0}</div><div class="stat-lbl">Total</div></div>
+
+    <div class="poster-hero">
+      ${g.thumbnail?`<div class="poster-hero-bg" ${bgStyle}></div>`:''}
+      ${ballsHtml}
+      ${cdHtml}
+      <div class="poster-hero-content">
+        <div class="poster-stars">★ ★ ★ ★ ★</div>
+        <div class="poster-title">${esc(g.name)}</div>
+        <div class="poster-banner"><div class="poster-banner-text">TAMBOLA</div></div>
+        <div class="poster-tagline">PLAY &bull; WIN &bull; ENJOY</div>
       </div>
-      ${!full?`<div class="card-buy-row"><span class="card-price-tag">from &#8377;${g.pricePerSheet}</span><button class="card-buy-btn" onclick="event.stopPropagation();selectGame('${g.id}')">Buy Now →</button></div>`:''}
     </div>
+
+    ${infoHtml ? `<div class="poster-info-strip">${infoHtml}</div>` : ''}
+
+    <div class="poster-middle">
+      <div class="poster-prizes-col">
+        <div class="col-hdr">🏆 TODAY'S PRIZES</div>
+        ${prizesHtml}
+      </div>
+      <div class="poster-entry-col">
+        <div class="col-hdr">⚡ ENTRY</div>
+        ${tiersHtml}
+      </div>
+    </div>
+
+    <div class="poster-cta">⬇ TAP TO PICK YOUR LUCKY SHEET ⬇</div>
+
+    <button class="share-btn" onclick="event.stopPropagation();shareGame('${g.id}')" title="Share">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
+
     ${full?`<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>`:''}
   </div>`;
 }
@@ -588,7 +767,7 @@ async function loadSheets(gameId) {
 
     const grid = document.getElementById('sheetsGrid');
     grid.innerHTML = availableSheets.length
-      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})">${n}</div>`).join('')
+      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})"><svg class="chip-doc" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg"><path d="M0 2 Q0 0 2 0 H32 L46 14 V56 Q46 58 44 58 H2 Q0 58 0 56 Z" fill="#FEF9EC"/><path d="M32 0 L46 14 H34 Q32 14 32 12 Z" fill="rgba(140,20,20,0.38)"/></svg><span class="chip-num">${n}</span></div>`).join('')
       : `<div class="no-sheets">No sheets available right now.</div>`;
     grid.style.display = 'grid';
   } catch(e) {
@@ -633,7 +812,7 @@ function quickSelect() {
 
 function updateBottomBar() {
   const count = selectedNums.size;
-  const price = (currentGame?.pricePerSheet || 5) * count;
+  const price = calcClientAmount(currentGame, count);
   document.getElementById('bottomCount').textContent = count === 0 ? 'No sheets selected' : `${count} sheet${count !== 1 ? 's' : ''} selected`;
   document.getElementById('bottomAmount').textContent = `₹${price.toLocaleString('en-IN')}`;
   document.getElementById('continueBtn').disabled = count === 0;
@@ -643,7 +822,7 @@ function updateBottomBar() {
 function goToDetails() {
   if (selectedNums.size === 0) { toast('Select at least one sheet'); return; }
   const count = selectedNums.size;
-  const amount = (currentGame?.pricePerSheet || 5) * count;
+  const amount = calcClientAmount(currentGame, count);
   const nums = Array.from(selectedNums).sort((a, b) => a - b);
   const shown = nums.slice(0, 20);
   const extra = nums.length - shown.length;
@@ -672,7 +851,7 @@ function openQRModal() {
   if (!phone) { errEl.textContent = 'Please enter your phone number'; errEl.style.display = 'block'; return; }
 
   const count = selectedNums.size;
-  const amount = (currentGame?.pricePerSheet || 5) * count;
+  const amount = calcClientAmount(currentGame, count);
   const upiId = cfg.upiId || '';
 
   document.getElementById('modalSub').textContent = `${count} sheet${count !== 1 ? 's' : ''} · ₹${amount.toLocaleString('en-IN')} · ${currentGame?.name || ''}`;
@@ -905,6 +1084,36 @@ function goHome() {
   document.getElementById('dlNotice').style.display = 'block';
   show('screenHome', true);
   fetch('/api/marketplace').then(r => r.json()).then(d => { games = d.games || []; renderGames(); }).catch(() => {});
+}
+
+/* ── Share game ── */
+async function shareGame(gameId) {
+  const g = games.find(x => x.id === gameId);
+  if (!g) return;
+  const marketUrl = window.location.origin + window.location.pathname + `?game=${gameId}`;
+  const topPrize = (g.prizes||[]).find(p => /full house/i.test(p.name));
+  const prizeStr = topPrize && topPrize.kind === 'cash' ? `Win up to ₹${(topPrize.amount||0).toLocaleString('en-IN')}! ` : '';
+  const dateStr = g.gameDate ? `📅 ${g.gameDate}\n` : '';
+  const shareText = `🎯 ${g.name}\n${dateStr}💰 ${prizeStr}Sheets from ₹${g.pricePerSheet} each.\n👇 Book your lucky sheet!`;
+  const shareData = { title: g.name, text: shareText, url: marketUrl };
+  if (g.thumbnail && navigator.canShare) {
+    try {
+      const resp = await fetch(g.thumbnail);
+      const blob = await resp.blob();
+      const file = new File([blob], 'game.jpg', { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: g.name, text: shareText, files: [file] });
+        return;
+      }
+    } catch(e) {}
+  }
+  if (navigator.share) {
+    try { await navigator.share(shareData); return; } catch(e) { if (e.name !== 'AbortError') {} }
+  }
+  try {
+    await navigator.clipboard.writeText(`${shareText}\n${marketUrl}`);
+    toast('Link copied to clipboard!');
+  } catch(e) { toast('Share not supported on this browser'); }
 }
 
 /* ── Helpers ── */

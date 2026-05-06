@@ -678,10 +678,11 @@ function ico(name) { return _I[name] || ''; }
 let pwd = '', activeTab = 'sheets';
 let allSheets = [], allGames = [], allPurchases = [], adminSettings = {};
 let selectedSheetIds = new Set();
-let currentGameId = null;    // game shown in detail panel
-let editingGameId = null;    // game being edited (null = create mode)
+let currentGameId = null;
+let editingGameId = null;
 let gameThumbnailUrl = '';
 let purchaseRefreshTimer = null;
+let tierRowCounter = 0;
 
 /* Prize state */
 const PRIZES = [
@@ -1111,6 +1112,8 @@ function renderGameForm(g) {
     <div class="field-row">
       <div class="fg"><label class="lbl">Date &amp; Time</label>
         <input type="datetime-local" id="gcfDateTime" value="${isEdit&&g.gameDateRaw?g.gameDateRaw:''}"></div>
+      <div class="fg narrow"><label class="lbl">Join Time</label>
+        <input type="text" id="gcfJoinTime" placeholder="e.g. 7:30 PM" maxlength="20" value="${isEdit?esc(g.joinTime||''):''}"></div>
       <div class="fg"><label class="lbl">Thumbnail</label>
         <div class="thumb-area" onclick="document.getElementById('gcfThumbFile').click()">
           ${thumbSrc?`<img id="gcfThumbPreview" src="${esc(thumbSrc)}">`:`${ico('img')}<span>Click to upload</span>`}
@@ -1123,6 +1126,11 @@ function renderGameForm(g) {
       <div class="fg"><label class="lbl">Description (optional)</label>
         <textarea id="gcfDesc" placeholder="Extra info…" maxlength="200">${isEdit?esc(g.description||''):''}</textarea></div>
     </div>
+
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px">Variable Pricing Tiers <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(optional — bundle deals)</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Override the flat ₹/sheet price for specific bundle quantities (e.g. 3 sheets for ₹499). Leave empty to use flat price only.</div>
+    <div id="gcfTiersContainer">${buildTiersHtml(isEdit&&g.pricingTiers?g.pricingTiers:[])}</div>
+    <button class="btn btn-ghost btn-xs" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:3px" onclick="addPricingTier()">${ico('plus')} Add Tier</button>
 
     <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Prizes — tick to include</div>
     <div id="gcfPrizesGrid">${buildPrizesHtml()}</div>
@@ -1162,6 +1170,46 @@ function buildPrizesHtml() {
       </div>
     </div>`;
   }).join('');
+}
+
+/* ── Pricing Tiers ── */
+function buildTiersHtml(tiers) {
+  if (!tiers || !tiers.length) { tierRowCounter = 0; return ''; }
+  tierRowCounter = tiers.length;
+  return tiers.map((t, i) =>
+    `<div class="tier-row field-row" id="tr-${i}" style="margin-bottom:6px">
+      <div class="fg narrow"><input type="number" min="1" placeholder="Qty" value="${t.qty}" id="tq-${i}" style="text-align:center"></div>
+      <div style="display:flex;align-items:center;font-size:12px;color:var(--muted);padding-top:10px;white-space:nowrap">sheets for ₹</div>
+      <div class="fg"><input type="number" min="1" placeholder="Price" value="${t.price}" id="tp-${i}"></div>
+      <button class="btn btn-red btn-xs btn-icon" style="margin-top:8px" onclick="this.closest('.tier-row').remove()">×</button>
+    </div>`
+  ).join('');
+}
+
+function addPricingTier() {
+  const id = tierRowCounter++;
+  const container = document.getElementById('gcfTiersContainer');
+  const div = document.createElement('div');
+  div.className = 'tier-row field-row';
+  div.id = `tr-${id}`;
+  div.style.marginBottom = '6px';
+  div.innerHTML = `<div class="fg narrow"><input type="number" min="1" placeholder="Qty" id="tq-${id}" style="text-align:center"></div>
+    <div style="display:flex;align-items:center;font-size:12px;color:var(--muted);padding-top:10px;white-space:nowrap">sheets for ₹</div>
+    <div class="fg"><input type="number" min="1" placeholder="Price" id="tp-${id}"></div>
+    <button class="btn btn-red btn-xs btn-icon" style="margin-top:8px" onclick="this.closest('.tier-row').remove()">×</button>`;
+  container.appendChild(div);
+}
+
+function collectPricingTiers() {
+  const rows = document.querySelectorAll('#gcfTiersContainer .tier-row');
+  const tiers = [];
+  rows.forEach(row => {
+    const id = row.id.replace('tr-', '');
+    const qty = parseInt(document.getElementById(`tq-${id}`)?.value || '0');
+    const price = parseInt(document.getElementById(`tp-${id}`)?.value || '0');
+    if (qty > 0 && price > 0) tiers.push({ qty, price });
+  });
+  return tiers.sort((a, b) => a.qty - b.qty);
 }
 
 function togglePrizeItem(key, enabled) {
@@ -1230,12 +1278,14 @@ async function saveCreateGame() {
   const pricePerSheet = parseInt(document.getElementById('gcfPrice').value)||5;
   const description = document.getElementById('gcfDesc').value.trim();
   const prizes = collectPrizes();
+  const pricingTiers = collectPricingTiers();
+  const joinTime = document.getElementById('gcfJoinTime').value.trim();
   const msgEl = document.getElementById('gcfMsg');
   if (!name) { showMsg(msgEl,'Game name required','err'); return; }
   const gameDate = dt ? new Date(dt).toLocaleString('en-IN',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
   try {
     const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, gameDateRaw:dt||null, pricePerSheet, description, prizes, thumbnail:gameThumbnailUrl||null }) });
+      body: JSON.stringify({ action:'create-game', password:pwd, name, gameDate, gameDateRaw:dt||null, joinTime:joinTime||null, pricePerSheet, pricingTiers, description, prizes, thumbnail:gameThumbnailUrl||null }) });
     const data = await r.json();
     if (!r.ok) { showMsg(msgEl,data.error||'Failed','err'); return; }
     toast(`"${name}" created!`);
@@ -1251,12 +1301,14 @@ async function saveEditGame(gameId) {
   const pricePerSheet = parseInt(document.getElementById('gcfPrice').value)||5;
   const description = document.getElementById('gcfDesc').value.trim();
   const prizes = collectPrizes();
+  const pricingTiers = collectPricingTiers();
+  const joinTime = document.getElementById('gcfJoinTime').value.trim();
   const msgEl = document.getElementById('gcfMsg');
   if (!name) { showMsg(msgEl,'Game name required','err'); return; }
   const gameDate = dt ? new Date(dt).toLocaleString('en-IN',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
   try {
     const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'edit-game', password:pwd, gameId, name, gameDate, gameDateRaw:dt||null, pricePerSheet, description, prizes, thumbnail:gameThumbnailUrl||null }) });
+      body: JSON.stringify({ action:'edit-game', password:pwd, gameId, name, gameDate, gameDateRaw:dt||null, joinTime:joinTime||null, pricePerSheet, pricingTiers, description, prizes, thumbnail:gameThumbnailUrl||null }) });
     const data = await r.json();
     if (!r.ok) { showMsg(msgEl,data.error||'Failed','err'); return; }
     toast(`"${name}" updated!`);

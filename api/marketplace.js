@@ -15,6 +15,14 @@ function genToken() {
   return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
 }
 
+function calcAmount(game, qty) {
+  if (Array.isArray(game.pricingTiers) && game.pricingTiers.length) {
+    const tier = game.pricingTiers.find(t => t.qty === qty);
+    if (tier && tier.price > 0) return tier.price;
+  }
+  return (game.pricePerSheet || 5) * qty;
+}
+
 module.exports = async function(req, res) {
   secureHeaders(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -79,7 +87,7 @@ module.exports = async function(req, res) {
   if (action === 'create-game') {
     if (await rateLimit(req, 'creategame', 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, name, gameDate, pricePerSheet, description, prizes, thumbnail, gameDateRaw } = body;
+    const { password, name, gameDate, pricePerSheet, description, prizes, thumbnail, gameDateRaw, pricingTiers, joinTime } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!name) return res.status(400).json({ error: 'Game name required' });
@@ -90,7 +98,9 @@ module.exports = async function(req, res) {
       name: String(name).trim().slice(0, 80),
       gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
       gameDateRaw: gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null,
+      joinTime: joinTime ? String(joinTime).trim().slice(0, 20) : null,
       pricePerSheet: Math.max(1, Number(pricePerSheet) || 5),
+      pricingTiers: Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [],
       description: String(description || '').trim().slice(0, 200),
       prizes: Array.isArray(prizes) ? prizes.slice(0, 12) : [],
       thumbnail: thumbnail ? String(thumbnail).slice(0, 500) : null,
@@ -133,8 +143,10 @@ module.exports = async function(req, res) {
     await kv.set(`tb:mkt:game:${gameId}`, game);
     const games = await kv.get('tb:mkt:games') || [];
     const idx = games.findIndex(g => g.id === gameId);
-    const compact = { id: game.id, name: game.name, gameDate: game.gameDate,
-      pricePerSheet: game.pricePerSheet, description: game.description, prizes: game.prizes,
+    const compact = { id: game.id, name: game.name, gameDate: game.gameDate, gameDateRaw: game.gameDateRaw || null,
+      joinTime: game.joinTime || null,
+      pricePerSheet: game.pricePerSheet, pricingTiers: game.pricingTiers || [],
+      description: game.description, prizes: game.prizes,
       thumbnail: game.thumbnail || null,
       status: game.status, sheetCount: game.sheetCount, soldCount: game.soldCount, createdAt: game.createdAt };
     if (idx >= 0) games[idx] = compact; else games.unshift(compact);
@@ -181,7 +193,7 @@ module.exports = async function(req, res) {
     if (available < qty)
       return res.status(409).json({ error: `Only ${available} sheet${available !== 1 ? 's' : ''} available` });
 
-    const amount = gameMeta.pricePerSheet * qty;
+    const amount = calcAmount(gameMeta, qty);
     const purchaseId = genId();
     const reqNums = Array.isArray(requestedSheetNums) && requestedSheetNums.length
       ? requestedSheetNums.slice(0, 150).map(Number).filter(n => n >= gameMeta.sheetFrom && n <= gameMeta.sheetTo)
@@ -244,7 +256,7 @@ module.exports = async function(req, res) {
   if (action === 'edit-game') {
     if (await rateLimit(req, 'editgame', 60, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail } = body;
+    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
@@ -253,7 +265,9 @@ module.exports = async function(req, res) {
     if (name !== undefined) game.name = String(name).trim().slice(0, 80);
     if (gameDate !== undefined) game.gameDate = gameDate ? String(gameDate).trim().slice(0, 40) : null;
     if (gameDateRaw !== undefined) game.gameDateRaw = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
+    if (joinTime !== undefined) game.joinTime = joinTime ? String(joinTime).trim().slice(0, 20) : null;
     if (pricePerSheet !== undefined) game.pricePerSheet = Math.max(1, Number(pricePerSheet) || 5);
+    if (pricingTiers !== undefined) game.pricingTiers = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
     if (description !== undefined) game.description = String(description || '').trim().slice(0, 200);
     if (prizes !== undefined) game.prizes = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
     if (thumbnail !== undefined) game.thumbnail = thumbnail ? String(thumbnail).slice(0, 500) : null;
