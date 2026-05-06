@@ -229,9 +229,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .sheet-chip.avail{background:linear-gradient(145deg,#EF4444 0%,#B91C1C 100%)}
 .sheet-chip.avail:active{transform:scale(.9)}
 .sheet-chip.picked{
-  background:linear-gradient(145deg,#60A5FA 0%,#1D4ED8 100%);
-  outline:3px solid #3B82F6;outline-offset:2px;
-  box-shadow:0 4px 12px rgba(59,130,246,.45)
+  background:linear-gradient(145deg,#9C6FE4 0%,#6750A4 100%);
+  outline:3px solid #6750A4;outline-offset:2px;
+  box-shadow:0 4px 12px rgba(103,80,164,.55)
 }
 .chip-doc{width:38px;height:47px;flex-shrink:0;filter:drop-shadow(1px 2px 3px rgba(0,0,0,.22))}
 .chip-num{
@@ -387,11 +387,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   <!-- SCREEN 2: SHEET SELECTION -->
   <div class="screen" id="screenSheets">
     <div class="sheets-scroll">
-      <div class="sheets-hero">
-        <button class="screen-back-btn" onclick="goHome()">← Back</button>
-        <div class="sheets-game-name" id="sheetsGameName"></div>
-        <div class="sheets-game-sub" id="sheetsGameSub"></div>
-      </div>
       <div class="sheets-body">
         <div class="sheets-hdr">
           <span class="sheets-hdr-label">Available Sheets</span>
