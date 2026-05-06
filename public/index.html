@@ -745,8 +745,6 @@ function selectGame(id) {
   selectedNums = new Set();
   availableSheets = [];
 
-  document.getElementById('sheetsGameName').textContent = currentGame.name;
-  document.getElementById('sheetsGameSub').textContent = currentGame.gameDate ? `📅 ${currentGame.gameDate}` : `${avail} sheets remaining`;
   document.getElementById('sheetsAvailCount').textContent = '';
   document.getElementById('sheetsLoading').style.display = 'block';
   document.getElementById('sheetsGrid').style.display = 'none';
