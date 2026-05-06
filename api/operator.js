@@ -225,6 +225,24 @@ module.exports = async function(req, res) {
     return res.json({ ok: true });
   }
 
+  /* ── Upload thumbnail image ── */
+  if (action === 'upload-thumbnail') {
+    const { data, filename } = body;
+    if (!data) return res.status(400).json({ error: 'data required' });
+    let buffer;
+    try { buffer = Buffer.from(data, 'base64'); }
+    catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
+    if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'File too large (max 5MB)' });
+    const ext = String(filename || 'thumb.jpg').split('.').pop().toLowerCase();
+    const ct = ['png','gif','webp','jpeg'].includes(ext) ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'image/jpeg';
+    try {
+      const blob = await put(`tungbola/op-${operator.id}/thumb-${Date.now()}.${ext}`, buffer, { access: 'public', contentType: ct });
+      return res.json({ ok: true, url: blob.url });
+    } catch(e) {
+      return res.status(500).json({ error: `Upload failed: ${e.message}` });
+    }
+  }
+
   /* ── Approve purchase ── */
   if (action === 'approve-purchase') {
     const { purchaseId } = body;
