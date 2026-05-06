@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Tungbola Operator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#6750A4;--pri-dark:#4527A0;--pri-light:#EADDFF;
+  --bg:#F4F0FB;--surface:#fff;--border:#E7E0EC;
+  --muted:#49454F;--on-s:#1C1B1F;
+  --ok:#2E7D32;--ok-bg:#E8F5E9;
+  --err:#B3261E;--err-bg:#FFEBEE;
+  --warn:#E65100;--warn-bg:#FFF3E0;
+  --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-md:0 4px 16px rgba(0,0,0,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--on-s);font-size:14px}
+
+/* ── GATE ── */
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px}
+#gate.hidden{display:none}
+.gate-card{background:var(--surface);border-radius:28px;padding:36px 28px;width:100%;max-width:400px;box-shadow:var(--shadow-md);text-align:center}
+.gate-logo{font-size:52px;margin-bottom:14px}
+.gate-title{font-size:22px;font-weight:900;color:var(--primary);margin-bottom:6px}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.6}
+.gate-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;text-align:left;margin-bottom:6px}
+.gate-input{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:14px;font-size:15px;font-family:inherit;outline:none;margin-bottom:14px;letter-spacing:1px;transition:border-color .2s;text-align:center}
+.gate-input:focus{border-color:var(--primary)}
+.gate-btn{width:100%;padding:15px;background:var(--primary);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.gate-btn:disabled{opacity:.5}
+.gate-err{font-size:13px;color:var(--err);margin-top:12px;min-height:18px}
+
+/* ── APP LAYOUT ── */
+#app{display:none;height:100%;flex-direction:column}
+#app.show{display:flex}
+
+/* Header */
+.op-header{
+  flex-shrink:0;height:56px;
+  background:linear-gradient(135deg,#4527A0,#6750A4,#7B1FA2);
+  display:flex;align-items:center;padding:0 16px;gap:10px;
+  box-shadow:0 2px 10px rgba(0,0,0,.22)
+}
+.op-logo{font-size:16px;font-weight:900;color:#fff;flex:1;display:flex;align-items:center;gap:7px}
+.op-name-pill{font-size:11px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.15);padding:4px 11px;border-radius:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Tab content area */
+.tabs-wrap{flex:1;overflow:hidden;position:relative}
+.tab-pane{
+  position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:var(--bg);display:none;
+  padding:14px 14px calc(68px + env(safe-area-inset-bottom)) 14px
+}
+.tab-pane.active{display:block}
+
+/* Bottom nav */
+.bottom-nav{
+  flex-shrink:0;background:var(--surface);border-top:1.5px solid var(--border);
+  display:grid;grid-template-columns:repeat(5,1fr);
+  padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -2px 12px rgba(0,0,0,.07)
+}
+.nav-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;border:none;background:none;cursor:pointer;font-family:inherit;
+  color:var(--muted);font-size:10px;font-weight:600;padding:10px 4px 8px;
+  position:relative;transition:color .15s;min-height:58px
+}
+.nav-btn.active{color:var(--primary)}
+.nav-ico{font-size:20px;line-height:1;display:block}
+.nav-badge{
+  position:absolute;top:7px;right:calc(50% - 18px);
+  min-width:17px;height:17px;border-radius:9px;
+  background:var(--err);color:#fff;font-size:9px;font-weight:800;
+  display:none;align-items:center;justify-content:center;padding:0 3px
+}
+
+/* ── SHARED COMPONENTS ── */
+.section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:4px 0 12px}
+.card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.card-body{padding:14px 16px}
+.divider{height:1px;background:var(--border);margin:0 -16px}
+.empty-state{text-align:center;padding:52px 20px;color:var(--muted)}
+.empty-ico{font-size:48px;margin-bottom:10px}
+.empty-txt{font-size:15px;font-weight:700;color:var(--on-s);margin-bottom:4px}
+.empty-sub{font-size:13px;line-height:1.5}
+
+/* Stats */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-card{background:var(--surface);border-radius:16px;padding:14px 12px;box-shadow:var(--shadow);text-align:center;cursor:pointer;active:opacity(.8)}
+.stat-val{font-size:26px;font-weight:900;color:var(--primary);line-height:1.1}
+.stat-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.stat-card.red .stat-val{color:var(--err)}
+.stat-card.green .stat-val{color:var(--ok)}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.badge.draft{background:#F3E5F5;color:#4A148C}
+.badge.listed{background:var(--ok-bg);color:var(--ok)}
+.badge.ended{background:#F5F5F5;color:#757575}
+.badge.pending{background:var(--warn-bg);color:var(--warn)}
+.badge.approved{background:var(--ok-bg);color:var(--ok)}
+.badge.rejected{background:var(--err-bg);color:var(--err)}
+.badge.downloaded{background:#E3F2FD;color:#1565C0}
+
+/* Game card */
+.game-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.gc-top{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:12px}
+.gc-thumb{width:52px;height:52px;border-radius:12px;background:var(--pri-light);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px}
+.gc-thumb img{width:100%;height:100%;object-fit:cover}
+.gc-info{flex:1;min-width:0}
+.gc-name{font-size:15px;font-weight:800;color:var(--on-s);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-meta{font-size:11px;color:var(--muted);line-height:1.5}
+.gc-badges{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+.gc-stats{display:flex;gap:10px;padding:8px 16px;border-top:1px solid var(--border);flex-wrap:wrap}
+.gc-stat{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.gc-stat strong{color:var(--on-s);font-weight:700}
+.status-strip{display:flex;gap:6px;padding:8px 16px;border-top:1px solid var(--border)}
+.s-pill{flex:1;padding:8px 4px;border-radius:10px;border:2px solid var(--border);background:none;font-size:10px;font-weight:800;font-family:inherit;cursor:pointer;text-align:center;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);transition:all .15s}
+.s-pill.draft.on{border-color:#4A148C;background:#F3E5F5;color:#4A148C}
+.s-pill.listed.on{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.s-pill.ended.on{border-color:#9E9E9E;background:#F5F5F5;color:#616161}
+.gc-actions{display:flex;gap:6px;padding:10px 16px;border-top:1px solid var(--border)}
+.gc-btn{flex:1;padding:9px 4px;border-radius:10px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;white-space:nowrap}
+.gc-btn.primary{background:var(--pri-light);color:var(--primary)}
+.gc-btn.edit{background:#E3F2FD;color:#1565C0}
+.gc-btn.danger{background:var(--err-bg);color:var(--err)}
+
+/* Purchase card */
+.pur-card{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden}
+.pur-top{padding:12px 14px;display:flex;align-items:center;gap:10px}
+.pur-avatar{width:40px;height:40px;border-radius:50%;background:var(--pri-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--primary);flex-shrink:0;letter-spacing:-.5px}
+.pur-info{flex:1;min-width:0}
+.pur-name{font-size:13px;font-weight:700;color:var(--on-s)}
+.pur-sub{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5}
+.pur-right{text-align:right;flex-shrink:0}
+.pur-amount{font-size:17px;font-weight:900;color:var(--primary)}
+.pur-actions{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px}
+.approve-btn{flex:1;padding:12px;background:var(--ok);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.approve-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Filters */
+.filter-bar{display:flex;gap:8px;margin-bottom:12px}
+.filter-input{flex:1;min-width:0;padding:10px 12px;border:2px solid var(--border);border-radius:12px;font-size:13px;font-family:inherit;outline:none;background:var(--surface);transition:border-color .2s}
+.filter-input:focus{border-color:var(--primary)}
+.filter-select{padding:10px 8px;border:2px solid var(--border);border-radius:12px;font-size:12px;font-family:inherit;outline:none;background:var(--surface);color:var(--on-s);transition:border-color .2s;flex-shrink:0;max-width:110px}
+.filter-select:focus{border-color:var(--primary)}
+.pill-tabs{display:flex;gap:5px;margin-bottom:14px;background:var(--surface);border-radius:14px;padding:4px;box-shadow:var(--shadow)}
+.pill{flex:1;padding:9px 4px;border:none;background:none;border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;color:var(--muted);transition:all .15s;text-align:center}
+.pill.active{background:var(--primary);color:#fff}
+.refresh-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.refresh-txt{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.refresh-btn{padding:6px 12px;background:var(--pri-light);color:var(--primary);border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;display:inline-block;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+
+/* FAB */
+.fab{
+  position:fixed;right:16px;bottom:calc(68px + env(safe-area-inset-bottom) + 14px);
+  width:56px;height:56px;border-radius:50%;
+  background:var(--primary);color:#fff;border:none;font-size:28px;
+  cursor:pointer;box-shadow:0 4px 18px rgba(103,80,164,.5);
+  display:none;align-items:center;justify-content:center;
+  z-index:50;transition:transform .15s,box-shadow .15s;line-height:1
+}
+.fab:active{transform:scale(.92);box-shadow:0 2px 8px rgba(103,80,164,.4)}
+
+/* ── MODAL ── */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.52);
+  z-index:200;display:flex;flex-direction:column;justify-content:flex-end;
+  opacity:0;pointer-events:none;transition:opacity .25s
+}
+.modal-backdrop.open{opacity:1;pointer-events:auto}
+.modal-sheet{
+  background:var(--surface);border-radius:24px 24px 0 0;
+  max-height:93vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+  padding-bottom:calc(16px + env(safe-area-inset-bottom))
+}
+.modal-backdrop.open .modal-sheet{transform:translateY(0)}
+.modal-handle{width:40px;height:4px;background:#DDD;border-radius:2px;margin:14px auto 0}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 8px}
+.modal-title{font-size:17px;font-weight:800}
+.modal-close{width:32px;height:32px;border-radius:50%;background:var(--bg);border:none;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);line-height:1}
+.modal-body{padding:4px 18px 8px}
+
+/* Form */
+.field{margin-bottom:13px}
+.field-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.field-input{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:14px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s;color:var(--on-s)}
+.field-input:focus{border-color:var(--primary)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-textarea{resize:vertical;min-height:68px;line-height:1.5}
+.tier-row{display:flex;gap:7px;align-items:center;margin-bottom:8px}
+.tier-row .field-input{flex:1;min-width:0}
+.del-btn{width:36px;height:36px;border-radius:9px;background:var(--err-bg);color:var(--err);border:none;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;line-height:1}
+.prize-item{background:var(--bg);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.prize-top{display:flex;gap:7px;align-items:center;margin-bottom:8px}
+.prize-top .field-input{flex:1;min-width:0}
+.kind-btn{padding:8px 10px;border-radius:9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;border:2px solid var(--border);background:var(--surface);color:var(--muted);flex-shrink:0;transition:all .15s}
+.kind-btn.on{border-color:var(--primary);background:var(--pri-light);color:var(--primary)}
+.add-row-btn{width:100%;padding:11px;border:2px dashed var(--border);border-radius:12px;background:none;color:var(--primary);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:14px;transition:border-color .2s}
+.add-row-btn:hover{border-color:var(--primary);background:var(--pri-light)}
+.save-btn{width:100%;padding:15px;background:var(--primary);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;transition:opacity .2s}
+.save-btn:disabled{opacity:.5;cursor:not-allowed}
+.form-err{font-size:13px;color:var(--err);text-align:center;margin-bottom:10px;min-height:18px}
+
+/* Sheets tab */
+.sheets-form{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.range-row{display:flex;gap:10px;align-items:center;margin:12px 0}
+.range-input{flex:1;min-width:0;padding:13px 10px;border:2px solid var(--border);border-radius:12px;font-size:16px;font-weight:700;font-family:inherit;outline:none;background:#fff;text-align:center;transition:border-color .2s}
+.range-input:focus{border-color:var(--primary)}
+.range-sep{font-size:20px;color:var(--muted);flex-shrink:0}
+.assign-btn{width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.assign-btn:disabled{opacity:.5}
+.range-info{font-size:12px;color:var(--muted);background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:10px;line-height:1.5}
+.range-info strong{color:var(--on-s)}
+
+/* Settings */
+.settings-card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-lbl{font-size:14px;font-weight:600;color:var(--on-s)}
+.settings-val{font-size:13px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.copy-btn{padding:7px 14px;background:var(--pri-light);color:var(--primary);border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.logout-btn{width:100%;padding:14px;background:var(--err-bg);color:var(--err);border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom) + 10px);left:50%;transform:translateX(-50%) translateY(100px);background:#1C1B1F;color:#fff;padding:11px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:500;transition:transform .25s;white-space:nowrap;max-width:88vw;text-align:center;pointer-events:none}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+@media(max-width:360px){.stat-val{font-size:22px}.gc-btn{font-size:10px}.pur-amount{font-size:15px}}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN GATE ── -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-logo">🎯</div>
+    <div class="gate-title">Operator Panel</div>
+    <div class="gate-sub">Enter your API key to manage your Tungbola games</div>
+    <div class="gate-lbl">API Key</div>
+    <input class="gate-input" id="gateKey" type="text" placeholder="Paste your API key here" autocomplete="off" autocapitalize="none" spellcheck="false">
+    <button class="gate-btn" id="gateBtn" onclick="login()">Access Dashboard →</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+  <header class="op-header">
+    <div class="op-logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      Tungbola
+    </div>
+    <div class="op-name-pill" id="opNamePill">Operator</div>
+  </header>
+
+  <div class="tabs-wrap">
+    <div class="tab-pane active" id="tab-home"><div id="homeContent"></div></div>
+    <div class="tab-pane" id="tab-games"><div id="gamesContent"></div></div>
+    <div class="tab-pane" id="tab-sales"><div id="salesContent"></div></div>
+    <div class="tab-pane" id="tab-sheets"><div id="sheetsContent"></div></div>
+    <div class="tab-pane" id="tab-settings"><div id="settingsContent"></div></div>
+  </div>
+
+  <button class="fab" id="fab" onclick="openGameForm(null)">+</button>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="showTab('home')">
+      <span class="nav-ico">🏠</span>Home
+    </button>
+    <button class="nav-btn" id="nav-games" onclick="showTab('games')">
+      <span class="nav-ico">🎯</span>Games
+    </button>
+    <button class="nav-btn" id="nav-sales" onclick="showTab('sales')">
+      <span class="nav-ico">💰</span>Sales
+      <span class="nav-badge" id="salesBadge"></span>
+    </button>
+    <button class="nav-btn" id="nav-sheets" onclick="showTab('sheets')">
+      <span class="nav-ico">📋</span>Sheets
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="showTab('settings')">
+      <span class="nav-ico">⚙️</span>Settings
+    </button>
+  </nav>
+</div>
+
+<!-- ── GAME FORM MODAL ── -->
+<div class="modal-backdrop" id="gameModal" onclick="backdropClose(event,'gameModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="gameModalTitle">New Game</div>
+      <button class="modal-close" onclick="closeModal('gameModal')">✕</button>
+    </div>
+    <div class="modal-body" id="gameModalBody"></div>
+  </div>
+</div>
+
+<!-- ── ASSIGN SHEETS MODAL ── -->
+<div class="modal-backdrop" id="assignModal" onclick="backdropClose(event,'assignModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Assign Sheets</div>
+      <button class="modal-close" onclick="closeModal('assignModal')">✕</button>
+    </div>
+    <div class="modal-body" id="assignModalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/operator';
+let apiKey = '', operator = null, games = [], purchases = [];
+let activeTab = 'home';
+let salesFilter = 'pending', salesSearch = '', salesGameFilter = '';
+let refreshTimer = null, toastT;
+let editingGame = null, gamePrizes = [], gameTiers = [];
+let prizeCtr = 0, tierCtr = 0;
+
+/* ── API ── */
+async function api(action, extra = {}) {
+  const r = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, apiKey, ...extra })
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+/* ── AUTH ── */
+async function login() {
+  const key = document.getElementById('gateKey').value.trim();
+  const errEl = document.getElementById('gateErr');
+  const btn = document.getElementById('gateBtn');
+  errEl.textContent = '';
+  if (!key) { errEl.textContent = 'Please enter your API key'; return; }
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  apiKey = key;
+  try {
+    const data = await api('get-info');
+    operator = data.operator;
+    games = data.games || [];
+    localStorage.setItem('op_key', key);
+    await loadPurchases();
+    startApp();
+  } catch(e) {
+    apiKey = '';
+    errEl.textContent = e.message || 'Invalid API key';
+    btn.disabled = false; btn.textContent = 'Access Dashboard →';
+  }
+}
+
+function logout() {
+  clearInterval(refreshTimer);
+  localStorage.removeItem('op_key');
+  apiKey = ''; operator = null; games = []; purchases = [];
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('gateKey').value = '';
+  document.getElementById('gateErr').textContent = '';
+  document.getElementById('gateBtn').disabled = false;
+  document.getElementById('gateBtn').textContent = 'Access Dashboard →';
+  activeTab = 'home';
+}
+
+function startApp() {
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').classList.add('show');
+  document.getElementById('opNamePill').textContent = operator?.name || 'Operator';
+  renderAll();
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(async () => {
+    try {
+      await Promise.all([loadGames(), loadPurchases()]);
+      renderCurrent();
+      updateSalesBadge();
+    } catch(e) {}
+  }, 10000);
+}
+
+async function loadGames() {
+  const data = await api('get-info');
+  games = data.games || [];
+}
+
+async function loadPurchases() {
+  const data = await api('get-purchases');
+  purchases = data.purchases || [];
+  updateSalesBadge();
+}
+
+function updateSalesBadge() {
+  const n = purchases.filter(p => p.status === 'pending').length;
+  const badge = document.getElementById('salesBadge');
+  if (n > 0) { badge.textContent = n; badge.style.display = 'flex'; }
+  else badge.style.display = 'none';
+}
+
+/* ── NAV ── */
+function showTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+  document.getElementById('fab').style.display = name === 'games' ? 'flex' : 'none';
+  renderCurrent();
+}
+
+function renderAll() {
+  renderHome(); renderGames(); renderSales(); renderSheets(); renderSettings();
+  document.getElementById('fab').style.display = activeTab === 'games' ? 'flex' : 'none';
+}
+
+function renderCurrent() {
+  if (activeTab === 'home') renderHome();
+  else if (activeTab === 'games') renderGames();
+  else if (activeTab === 'sales') renderSales();
+  else if (activeTab === 'sheets') renderSheets();
+}
+
+/* ── HOME ── */
+function renderHome() {
+  const pending = purchases.filter(p => p.status === 'pending');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayRev = purchases.filter(p => p.status === 'approved' && (p.approvedAt||0) >= today.getTime()).reduce((s,p) => s+(p.amount||0), 0);
+  const totalRev = purchases.filter(p => p.status === 'approved').reduce((s,p) => s+(p.amount||0), 0);
+  const liveGames = games.filter(g => g.status === 'listed');
+
+  let h = `<div class="section-title">Dashboard</div>
+  <div class="stat-row">
+    <div class="stat-card ${pending.length > 0 ? 'red' : 'green'}" onclick="showTab('sales')">
+      <div class="stat-val">${pending.length}</div>
+      <div class="stat-lbl">Pending ▸</div>
+    </div>
+    <div class="stat-card" onclick="showTab('sales')">
+      <div class="stat-val" style="font-size:${todayRev>=10000?'18px':'26px'}">₹${todayRev.toLocaleString('en-IN')}</div>
+      <div class="stat-lbl">Today's Revenue</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-card ${liveGames.length > 0 ? 'green' : ''}" onclick="showTab('games')">
+      <div class="stat-val">${liveGames.length}</div>
+      <div class="stat-lbl">Live Games</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="font-size:${totalRev>=100000?'16px':totalRev>=10000?'20px':'26px'}">₹${totalRev.toLocaleString('en-IN')}</div>
+      <div class="stat-lbl">Total Revenue</div>
+    </div>
+  </div>`;
+
+  if (pending.length > 0) {
+    h += `<div class="section-title" style="color:var(--err)">⚡ Needs Approval (${pending.length})</div>`;
+    pending.slice(0, 3).forEach(p => { h += buildPurCard(p); });
+    if (pending.length > 3) {
+      h += `<div style="text-align:center;margin-bottom:14px">
+        <button onclick="showTab('sales')" style="padding:11px 24px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">See all ${pending.length} pending →</button>
+      </div>`;
+    }
+  }
+
+  if (liveGames.length) {
+    h += `<div class="section-title">Live Games</div>`;
+    liveGames.forEach(g => {
+      const pend = purchases.filter(p => p.gameId === g.id && p.status === 'pending').length;
+      const sold = purchases.filter(p => p.gameId === g.id && p.status === 'approved').reduce((s,p)=>s+(p.amount||0),0);
+      const avail = (g.sheetCount||0) - (g.soldCount||0);
+      h += `<div class="card" onclick="showTab('games')" style="cursor:pointer"><div class="card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:14px;font-weight:800">${esc(g.name)}</span>
+          <span class="badge listed">Live</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">${g.gameDate||'No date'} · ${avail} sheets left · ₹${sold.toLocaleString('en-IN')} collected${pend>0?` · <strong style="color:var(--warn)">${pend} pending</strong>`:''}</div>
+      </div></div>`;
+    });
+  }
+
+  if (!games.length) {
+    h += `<div class="empty-state"><div class="empty-ico">🎯</div><div class="empty-txt">No games yet</div><div class="empty-sub">Go to Games tab and tap + to schedule your first game</div></div>`;
+  }
+
+  document.getElementById('homeContent').innerHTML = h;
+}
+
+/* ── GAMES ── */
+function renderGames() {
+  if (!games.length) {
+    document.getElementById('gamesContent').innerHTML = `<div class="empty-state"><div class="empty-ico">🎯</div><div class="empty-txt">No games yet</div><div class="empty-sub">Tap + to schedule your first Tambola game</div></div>`;
+    return;
+  }
+  let h = `<div class="section-title">My Games (${games.length})</div>`;
+  games.forEach(g => {
+    const pend = purchases.filter(p => p.gameId === g.id && p.status === 'pending').length;
+    const sold = purchases.filter(p => p.gameId === g.id && p.status === 'approved').length;
+    const rev = purchases.filter(p => p.gameId === g.id && p.status === 'approved').reduce((s,p)=>s+(p.amount||0),0);
+    const avail = (g.sheetCount||0) - (g.soldCount||0);
+    const jt = g.joinTime ? ' · Join: ' + formatJoinTime(g.joinTime) : '';
+    h += `<div class="game-card">
+      <div class="gc-top">
+        <div class="gc-thumb">${g.thumbnail ? `<img src="${esc(g.thumbnail)}" onerror="this.style.display='none'">` : '🎯'}</div>
+        <div class="gc-info">
+          <div class="gc-name">${esc(g.name)}</div>
+          <div class="gc-meta">${g.gameDate||'No date set'}${jt}</div>
+          <div class="gc-badges">
+            <span class="badge ${g.status}">${g.status}</span>
+            ${pend > 0 ? `<span class="badge pending">${pend} pending</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="gc-stats">
+        <span class="gc-stat">📋 <strong>${g.sheetCount||0}</strong> sheets</span>
+        <span class="gc-stat">✅ <strong>${sold}</strong> sold</span>
+        <span class="gc-stat">📊 <strong>${avail}</strong> left</span>
+        <span class="gc-stat">💰 <strong>₹${rev.toLocaleString('en-IN')}</strong></span>
+      </div>
+      <div class="status-strip">
+        <button class="s-pill draft${g.status==='draft'?' on':''}" onclick="setStatus('${g.id}','draft')">Draft</button>
+        <button class="s-pill listed${g.status==='listed'?' on':''}" onclick="setStatus('${g.id}','listed')">Live</button>
+        <button class="s-pill ended${g.status==='ended'?' on':''}" onclick="setStatus('${g.id}','ended')">Ended</button>
+      </div>
+      <div class="gc-actions">
+        <button class="gc-btn edit" onclick="openGameFormById('${g.id}')">✏️ Edit</button>
+        <button class="gc-btn primary" onclick="openAssignModal('${g.id}')">📋 Sheets</button>
+        <button class="gc-btn danger" onclick="confirmDelete('${g.id}')">🗑️</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('gamesContent').innerHTML = h;
+}
+
+/* ── SALES ── */
+function renderSales() {
+  const gameOpts = games.map(g => `<option value="${g.id}"${salesGameFilter===g.id?' selected':''}>${esc(g.name)}</option>`).join('');
+  const pending = purchases.filter(p => p.status === 'pending');
+  const filtered = getFilteredPurchases();
+
+  let h = `
+    <div class="refresh-row">
+      <span class="refresh-txt"><span class="live-dot"></span> Auto-refresh 10s</span>
+      <button class="refresh-btn" onclick="doRefresh()">↻ Refresh</button>
+    </div>
+    <div class="filter-bar">
+      <input class="filter-input" placeholder="Name or phone…" value="${esc(salesSearch)}" oninput="salesSearch=this.value;renderSales()">
+      <select class="filter-select" onchange="salesGameFilter=this.value;renderSales()">
+        <option value="">All games</option>${gameOpts}
+      </select>
+    </div>
+    <div class="pill-tabs">
+      <button class="pill${salesFilter==='pending'?' active':''}" onclick="salesFilter='pending';renderSales()">Pending${pending.length?' ('+pending.length+')':''}</button>
+      <button class="pill${salesFilter==='approved'?' active':''}" onclick="salesFilter='approved';renderSales()">Approved</button>
+      <button class="pill${salesFilter==='all'?' active':''}" onclick="salesFilter='all';renderSales()">All</button>
+    </div>`;
+
+  if (!filtered.length) {
+    h += `<div class="empty-state"><div class="empty-ico">${salesFilter==='pending'?'✅':'🛍️'}</div><div class="empty-txt">${salesFilter==='pending'?'No pending orders':'Nothing here'}</div><div class="empty-sub">Orders appear here when players book sheets</div></div>`;
+  } else {
+    filtered.forEach(p => { h += buildPurCard(p); });
+  }
+  document.getElementById('salesContent').innerHTML = h;
+}
+
+function getFilteredPurchases() {
+  let list = [...purchases];
+  if (salesFilter === 'pending') list = list.filter(p => p.status === 'pending');
+  else if (salesFilter === 'approved') list = list.filter(p => p.status === 'approved');
+  if (salesGameFilter) list = list.filter(p => p.gameId === salesGameFilter);
+  if (salesSearch) {
+    const s = salesSearch.toLowerCase();
+    list = list.filter(p => (p.playerName||'').toLowerCase().includes(s) || (p.phone||'').includes(s));
+  }
+  return list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+}
+
+function buildPurCard(p) {
+  const g = games.find(x => x.id === p.gameId);
+  const initials = (p.playerName||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const gameName = g ? esc(g.name) : 'Unknown Game';
+  const nums = (p.sheetNums||p.requestedSheetNums||[]);
+  const numsStr = nums.length ? `Sheets: #${nums.slice(0,4).join(', #')}${nums.length>4?`… +${nums.length-4}more`:''}` : '';
+  return `<div class="pur-card" id="pur-${p.purchaseId}">
+    <div class="pur-top">
+      <div class="pur-avatar">${initials}</div>
+      <div class="pur-info">
+        <div class="pur-name">${esc(p.playerName||'Unknown')}</div>
+        <div class="pur-sub">${esc(p.phone||'')} · ${gameName}<br>${p.quantity} sheet${p.quantity!==1?'s':''} · ${timeAgo(p.createdAt)}${numsStr?'<br>'+numsStr:''}</div>
+      </div>
+      <div class="pur-right">
+        <div class="pur-amount">₹${(p.amount||0).toLocaleString('en-IN')}</div>
+        <div style="margin-top:4px"><span class="badge ${p.status}">${p.status}</span></div>
+      </div>
+    </div>
+    ${p.status==='pending'?`<div class="pur-actions"><button class="approve-btn" id="appr-${p.purchaseId}" onclick="approvePurchase('${p.purchaseId}')">✓ Approve Payment</button></div>`:''}
+  </div>`;
+}
+
+async function doRefresh() {
+  try {
+    await Promise.all([loadGames(), loadPurchases()]);
+    renderSales();
+    renderHome();
+    toast('Refreshed');
+  } catch(e) { toast('Refresh failed'); }
+}
+
+/* ── SHEETS ── */
+function renderSheets() {
+  const opts = games.map(g => `<option value="${g.id}">${esc(g.name)} (${g.sheetCount||0} sheets)</option>`).join('');
+  let h = `
+    <div class="section-title">Assign Sheet Range</div>
+    <div class="sheets-form">
+      <div class="field">
+        <div class="field-lbl">Select Game</div>
+        <select class="field-input" id="sheetGamePick" onchange="updateRangeInfo()">
+          <option value="">Choose a game…</option>${opts}
+        </select>
+      </div>
+      <div class="range-info" id="rangeInfo">Select a game to see current sheet assignment</div>
+      <div class="range-row">
+        <input class="range-input" id="rangeFrom" type="number" inputmode="numeric" placeholder="From" min="1">
+        <span class="range-sep">—</span>
+        <input class="range-input" id="rangeTo" type="number" inputmode="numeric" placeholder="To" min="1">
+      </div>
+      <div class="form-err" id="sheetErr"></div>
+      <button class="assign-btn" onclick="doAssignSheets()">📋 Assign Sheets</button>
+    </div>
+    <div class="section-title">Sheet Status by Game</div>`;
+
+  if (!games.length) {
+    h += `<div class="empty-state"><div class="empty-txt">No games yet</div></div>`;
+  } else {
+    games.forEach(g => {
+      h += `<div class="card"><div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:14px;font-weight:700">${esc(g.name)}</span>
+          <span class="badge ${g.status}">${g.status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">${g.sheetCount ? `#${g.sheetFrom}–#${g.sheetTo} · ${g.sheetCount} total · ${(g.sheetCount||0)-(g.soldCount||0)} remaining` : 'No sheets assigned yet'}</div>
+      </div></div>`;
+    });
+  }
+  document.getElementById('sheetsContent').innerHTML = h;
+}
+
+function updateRangeInfo() {
+  const gId = document.getElementById('sheetGamePick').value;
+  const el = document.getElementById('rangeInfo');
+  if (!gId) { el.textContent = 'Select a game to see current sheet assignment'; return; }
+  const g = games.find(x => x.id === gId);
+  if (!g) return;
+  el.innerHTML = g.sheetCount
+    ? `Current: <strong>#${g.sheetFrom} – #${g.sheetTo}</strong> · ${g.sheetCount} sheets · ${(g.sheetCount||0)-(g.soldCount||0)} remaining`
+    : 'No sheets assigned yet for this game';
+}
+
+async function doAssignSheets() {
+  const gameId = document.getElementById('sheetGamePick').value;
+  const from = parseInt(document.getElementById('rangeFrom').value);
+  const to = parseInt(document.getElementById('rangeTo').value);
+  const errEl = document.getElementById('sheetErr');
+  const btn = document.querySelector('.assign-btn');
+  errEl.textContent = '';
+  if (!gameId) { errEl.textContent = 'Select a game first'; return; }
+  if (!from || !to || from > to) { errEl.textContent = 'Enter a valid range (From ≤ To)'; return; }
+  btn.disabled = true; btn.textContent = 'Assigning…';
+  try {
+    const data = await api('assign-sheets', { gameId, sheetFrom: from, sheetTo: to });
+    toast(`✅ ${data.sheetsFound} sheets assigned`);
+    await loadGames();
+    renderSheets();
+    renderGames();
+    renderHome();
+  } catch(e) {
+    errEl.textContent = e.message || 'Failed to assign sheets';
+  }
+  btn.disabled = false; btn.textContent = '📋 Assign Sheets';
+}
+
+/* ── SETTINGS ── */
+function renderSettings() {
+  const plan = operator?.plan === 'own-sheets' ? 'Plan A — Own Sheets' : 'Plan B — Shared Sheets';
+  const totalRev = purchases.filter(p=>p.status==='approved').reduce((s,p)=>s+(p.amount||0),0);
+  document.getElementById('settingsContent').innerHTML = `
+    <div class="section-title">Account</div>
+    <div class="settings-card">
+      <div class="settings-row"><span class="settings-lbl">Name</span><span class="settings-val">${esc(operator?.name||'—')}</span></div>
+      <div class="settings-row"><span class="settings-lbl">Plan</span><span class="settings-val">${plan}</span></div>
+      <div class="settings-row"><span class="settings-lbl">API Key</span><button class="copy-btn" onclick="copyApiKey()">📋 Copy</button></div>
+    </div>
+    <div class="section-title">Stats</div>
+    <div class="settings-card">
+      <div class="settings-row"><span class="settings-lbl">Total Games</span><span class="settings-val">${games.length}</span></div>
+      <div class="settings-row"><span class="settings-lbl">Total Orders</span><span class="settings-val">${purchases.length}</span></div>
+      <div class="settings-row"><span class="settings-lbl">Total Revenue</span><span class="settings-val">₹${totalRev.toLocaleString('en-IN')}</span></div>
+    </div>
+    <button class="logout-btn" onclick="logout()">Sign Out</button>
+  `;
+}
+
+function copyApiKey() {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(apiKey).then(() => toast('✅ API key copied!')).catch(() => fallbackCopy());
+  } else fallbackCopy();
+}
+function fallbackCopy() {
+  const el = document.getElementById('gateKey');
+  el.value = apiKey; el.select();
+  try { document.execCommand('copy'); toast('API key copied!'); } catch(e) { toast('Could not copy'); }
+}
+
+/* ── GAME FORM ── */
+function openGameFormById(id) { openGameForm(games.find(x => x.id === id) || null); }
+
+function openGameForm(g) {
+  editingGame = g || null;
+  gamePrizes = g?.prizes ? JSON.parse(JSON.stringify(g.prizes)) : [];
+  gameTiers = g?.pricingTiers ? JSON.parse(JSON.stringify(g.pricingTiers)) : [];
+  prizeCtr = 0; tierCtr = 0;
+  document.getElementById('gameModalTitle').textContent = g ? 'Edit Game' : 'New Game';
+  document.getElementById('gameModalBody').innerHTML = buildGameForm(g);
+  openModal('gameModal');
+}
+
+function buildGameForm(g) {
+  const ie = !!g;
+  return `
+    <div class="form-err" id="gameErr"></div>
+    <div class="field">
+      <div class="field-lbl">Game Name *</div>
+      <input class="field-input" id="gfName" type="text" placeholder="e.g. Diwali Special Tambola" maxlength="80" value="${ie?esc(g.name):''}">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <div class="field-lbl">Date &amp; Time</div>
+        <input class="field-input" id="gfDateTime" type="datetime-local" value="${ie&&g.gameDateRaw?g.gameDateRaw:''}">
+      </div>
+      <div class="field">
+        <div class="field-lbl">Join Time</div>
+        <input class="field-input" id="gfJoinTime" type="time" value="${ie?esc(g.joinTime||''):''}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <div class="field-lbl">Price per Sheet (₹)</div>
+        <input class="field-input" id="gfPrice" type="number" inputmode="numeric" min="1" value="${ie?g.pricePerSheet:5}">
+      </div>
+      <div class="field">
+        <div class="field-lbl">Thumbnail URL</div>
+        <input class="field-input" id="gfThumb" type="url" placeholder="https://…" value="${ie?esc(g.thumbnail||''):''}">
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-lbl">Description (optional)</div>
+      <textarea class="field-input field-textarea" id="gfDesc" maxlength="200" placeholder="Extra info for players…">${ie?esc(g.description||''):''}</textarea>
+    </div>
+
+    <div class="field-lbl" style="margin-bottom:8px">Variable Pricing Tiers</div>
+    <div id="gfTiers">${buildTiersHtml()}</div>
+    <button class="add-row-btn" onclick="addTier()">+ Add Pricing Tier</button>
+
+    <div class="field-lbl" style="margin-bottom:8px">Prizes</div>
+    <div id="gfPrizes">${buildPrizesHtml()}</div>
+    <button class="add-row-btn" onclick="addPrize()">+ Add Prize</button>
+
+    <button class="save-btn" id="saveGameBtn" onclick="saveGame()">${ie?'💾 Save Changes':'🎯 Create Game'}</button>
+  `;
+}
+
+function buildTiersHtml() {
+  return gameTiers.map(t => {
+    const id = tierCtr++;
+    return `<div class="tier-row" id="tier-${id}">
+      <input class="field-input" type="number" inputmode="numeric" placeholder="Qty" value="${t.qty||''}" data-tq="${id}" min="1" style="text-align:center">
+      <span style="font-size:12px;color:var(--muted);flex-shrink:0">sheets =</span>
+      <input class="field-input" type="number" inputmode="numeric" placeholder="₹" value="${t.price||''}" data-tp="${id}" min="1" style="text-align:center">
+      <button class="del-btn" onclick="delTier(${id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function buildPrizesHtml() {
+  return gamePrizes.map(p => {
+    const id = prizeCtr++;
+    const isCash = p.kind !== 'gift';
+    return `<div class="prize-item" id="prize-${id}">
+      <div class="prize-top">
+        <input class="field-input" type="text" placeholder="Prize name (e.g. Full House)" value="${esc(p.name||'')}" data-pn="${id}" maxlength="50">
+        <button class="kind-btn${isCash?' on':''}" id="pk-${id}" onclick="toggleKind(${id})">${isCash?'₹ Cash':'📝 Note'}</button>
+        <button class="del-btn" onclick="delPrize(${id})">×</button>
+      </div>
+      <input class="field-input" type="${isCash?'number':'text'}" placeholder="${isCash?'Amount (₹)':'Description'}" value="${esc(isCash?(p.amount||''):(p.description||''))}" data-pv="${id}" ${isCash?'min="0" inputmode="numeric"':''}>
+    </div>`;
+  }).join('');
+}
+
+function addTier() { gameTiers.push({qty:'',price:''}); document.getElementById('gfTiers').innerHTML = buildTiersHtml(); }
+function delTier(id) { const el = document.getElementById(`tier-${id}`); if(el) el.remove(); }
+function addPrize() { gamePrizes.push({name:'',kind:'cash',amount:''}); document.getElementById('gfPrizes').innerHTML = buildPrizesHtml(); }
+function delPrize(id) { const el = document.getElementById(`prize-${id}`); if(el) el.remove(); }
+
+function toggleKind(id) {
+  const btn = document.getElementById(`pk-${id}`);
+  const inp = document.querySelector(`[data-pv="${id}"]`);
+  if (!btn || !inp) return;
+  const isCash = btn.classList.contains('on');
+  if (isCash) {
+    btn.classList.remove('on'); btn.textContent = '📝 Note';
+    inp.type = 'text'; inp.placeholder = 'Description'; inp.removeAttribute('inputmode'); inp.removeAttribute('min');
+  } else {
+    btn.classList.add('on'); btn.textContent = '₹ Cash';
+    inp.type = 'number'; inp.placeholder = 'Amount (₹)'; inp.setAttribute('inputmode','numeric'); inp.setAttribute('min','0');
+  }
+}
+
+function collectTiers() {
+  const tiers = [];
+  document.querySelectorAll('#gfTiers .tier-row').forEach(row => {
+    const id = row.id.replace('tier-','');
+    const qty = parseInt(row.querySelector(`[data-tq="${id}"]`)?.value);
+    const price = parseInt(row.querySelector(`[data-tp="${id}"]`)?.value);
+    if (qty > 0 && price > 0) tiers.push({ qty, price });
+  });
+  return tiers;
+}
+
+function collectPrizes() {
+  const prizes = [];
+  document.querySelectorAll('#gfPrizes .prize-item').forEach(row => {
+    const id = row.id.replace('prize-','');
+    const name = row.querySelector(`[data-pn="${id}"]`)?.value?.trim();
+    if (!name) return;
+    const btn = document.getElementById(`pk-${id}`);
+    const isCash = btn?.classList.contains('on');
+    const val = row.querySelector(`[data-pv="${id}"]`)?.value;
+    prizes.push(isCash ? { name, kind:'cash', amount: parseFloat(val)||0 } : { name, kind:'gift', description: val||'' });
+  });
+  return prizes;
+}
+
+async function saveGame() {
+  const name = document.getElementById('gfName').value.trim();
+  const errEl = document.getElementById('gameErr');
+  const btn = document.getElementById('saveGameBtn');
+  errEl.textContent = '';
+  if (!name) { errEl.textContent = 'Game name is required'; return; }
+  const dtVal = document.getElementById('gfDateTime').value;
+  const payload = {
+    name,
+    gameDate: dtVal ? new Date(dtVal).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : null,
+    gameDateRaw: dtVal || null,
+    joinTime: document.getElementById('gfJoinTime').value || null,
+    pricePerSheet: parseInt(document.getElementById('gfPrice').value) || 5,
+    thumbnail: document.getElementById('gfThumb').value.trim() || null,
+    description: document.getElementById('gfDesc').value.trim(),
+    pricingTiers: collectTiers(),
+    prizes: collectPrizes()
+  };
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (editingGame) {
+      await api('edit-game', { gameId: editingGame.id, ...payload });
+      toast('✅ Game updated');
+    } else {
+      await api('create-game', payload);
+      toast('🎯 Game created!');
+    }
+    closeModal('gameModal');
+    await loadGames();
+    renderGames(); renderHome();
+  } catch(e) {
+    errEl.textContent = e.message || 'Save failed';
+  }
+  btn.disabled = false; btn.textContent = editingGame ? '💾 Save Changes' : '🎯 Create Game';
+}
+
+/* ── ASSIGN SHEETS MODAL ── */
+function openAssignModal(gameId) {
+  const g = games.find(x => x.id === gameId);
+  if (!g) return;
+  document.getElementById('assignModalBody').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:15px;font-weight:800;margin-bottom:3px">${esc(g.name)}</div>
+      <div style="font-size:12px;color:var(--muted)">${g.sheetCount ? `Currently: #${g.sheetFrom}–#${g.sheetTo} (${g.sheetCount} sheets · ${(g.sheetCount||0)-(g.soldCount||0)} remaining)` : 'No sheets assigned yet'}</div>
+    </div>
+    <div class="field"><div class="field-lbl">From sheet #</div>
+      <input class="field-input" id="amFrom" type="number" inputmode="numeric" min="1" placeholder="e.g. 1" value="${g.sheetFrom||''}">
+    </div>
+    <div class="field"><div class="field-lbl">To sheet #</div>
+      <input class="field-input" id="amTo" type="number" inputmode="numeric" min="1" placeholder="e.g. 100" value="${g.sheetTo||''}">
+    </div>
+    <div class="form-err" id="amErr"></div>
+    <button class="save-btn" id="amBtn" onclick="submitAssignModal('${gameId}')">📋 Assign Sheets</button>
+  `;
+  openModal('assignModal');
+}
+
+async function submitAssignModal(gameId) {
+  const from = parseInt(document.getElementById('amFrom').value);
+  const to = parseInt(document.getElementById('amTo').value);
+  const errEl = document.getElementById('amErr');
+  const btn = document.getElementById('amBtn');
+  errEl.textContent = '';
+  if (!from || !to || from > to) { errEl.textContent = 'Enter a valid range'; return; }
+  btn.disabled = true; btn.textContent = 'Assigning…';
+  try {
+    const data = await api('assign-sheets', { gameId, sheetFrom: from, sheetTo: to });
+    toast(`✅ ${data.sheetsFound} sheets assigned`);
+    closeModal('assignModal');
+    await loadGames();
+    renderGames(); renderSheets(); renderHome();
+  } catch(e) {
+    errEl.textContent = e.message || 'Failed';
+  }
+  btn.disabled = false; btn.textContent = '📋 Assign Sheets';
+}
+
+/* ── STATUS / DELETE / APPROVE ── */
+async function setStatus(gameId, status) {
+  try {
+    await api('set-status', { gameId, status });
+    toast(`Status updated → ${status}`);
+    await loadGames();
+    renderGames(); renderHome();
+  } catch(e) { toast(e.message || 'Failed'); }
+}
+
+async function confirmDelete(gameId) {
+  const g = games.find(x => x.id === gameId);
+  if (!g) return;
+  if (!confirm(`Delete "${g.name}"?\n\nThis will remove the game and all its purchase records permanently.`)) return;
+  try {
+    await api('delete-game', { gameId });
+    toast('🗑️ Game deleted');
+    await loadGames();
+    renderGames(); renderHome(); renderSheets();
+  } catch(e) { toast(e.message || 'Delete failed'); }
+}
+
+async function approvePurchase(purchaseId) {
+  const btn = document.getElementById(`appr-${purchaseId}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+  try {
+    await api('approve-purchase', { purchaseId });
+    toast('✅ Approved! Sheets sent to buyer.');
+    await Promise.all([loadPurchases(), loadGames()]);
+    renderSales(); renderHome(); renderGames();
+  } catch(e) {
+    toast(e.message || 'Approval failed');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Approve Payment'; }
+  }
+}
+
+/* ── MODAL HELPERS ── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function backdropClose(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+
+/* ── UTILS ── */
+function formatJoinTime(t) {
+  if (!t) return '';
+  const m = String(t).match(/^(\d{1,2}):(\d{2})$/);
+  if (m) { const h=parseInt(m[1]),min=parseInt(m[2]); return `${h%12||12}:${String(min).padStart(2,'0')} ${h>=12?'PM':'AM'}`; }
+  return String(t);
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const d = Date.now() - ts, m = Math.floor(d/60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m/60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+/* ── INIT ── */
+(function init() {
+  const saved = localStorage.getItem('op_key');
+  if (saved) {
+    apiKey = saved;
+    api('get-info').then(async data => {
+      operator = data.operator; games = data.games || [];
+      await loadPurchases();
+      startApp();
+    }).catch(() => {
+      apiKey = '';
+      localStorage.removeItem('op_key');
+    });
+  }
+  document.getElementById('gateKey').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+})();
+</script>
+</body>
+</html>
