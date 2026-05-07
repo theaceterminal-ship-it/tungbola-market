@@ -15,6 +15,12 @@ function genToken() {
   return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
 }
 
+function hashPassword(pwd) {
+  return crypto.createHmac('sha256', process.env.ADMIN_PASSWORD || 'tb-player').update(String(pwd)).digest('hex');
+}
+
+function normPhone(s) { return String(s || '').replace(/\D/g, ''); }
+
 function calcAmount(game, qty) {
   if (Array.isArray(game.pricingTiers) && game.pricingTiers.length) {
     const tier = game.pricingTiers.find(t => t.qty === qty);
@@ -175,13 +181,88 @@ module.exports = async function(req, res) {
     return res.json({ ok: true });
   }
 
+  /* ── Player: register ── */
+  if (action === 'player-register') {
+    if (await rateLimit(req, 'playerreg', 5, 3600))
+      return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    const { name, phone, password } = body;
+    if (!name || !phone || !password)
+      return res.status(400).json({ error: 'Name, phone and password are required' });
+    if (String(password).length < 4)
+      return res.status(400).json({ error: 'Password must be at least 4 characters' });
+
+    const np = normPhone(phone);
+    if (!np) return res.status(400).json({ error: 'Invalid phone number' });
+
+    const existing = await kv.get(`tb:player:${np}`);
+    if (existing) return res.status(409).json({ error: 'Phone already registered. Please sign in.' });
+
+    const playerId = 'pl_' + genId();
+    const player = {
+      id: playerId,
+      name: String(name).trim().slice(0, 50),
+      phone: np,
+      passwordHash: hashPassword(password),
+      createdAt: Date.now(),
+    };
+    await kv.set(`tb:player:${np}`, player);
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await kv.set(`tb:psession:${token}`, { playerId, phone: np, name: player.name }, { ex: 604800 });
+
+    return res.json({ ok: true, sessionToken: token, player: { name: player.name, phone: np } });
+  }
+
+  /* ── Player: login ── */
+  if (action === 'player-login') {
+    if (await rateLimit(req, 'playerlogin', 20, 3600))
+      return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+    const { phone, password } = body;
+    if (!phone || !password) return res.status(400).json({ error: 'Phone and password required' });
+
+    const np = normPhone(phone);
+    const player = await kv.get(`tb:player:${np}`);
+    if (!player || player.passwordHash !== hashPassword(password))
+      return res.status(401).json({ error: 'Wrong phone number or password' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await kv.set(`tb:psession:${token}`, { playerId: player.id, phone: np, name: player.name }, { ex: 604800 });
+
+    return res.json({ ok: true, sessionToken: token, player: { name: player.name, phone: np } });
+  }
+
+  /* ── Player: verify session ── */
+  if (action === 'player-verify-session') {
+    if (await rateLimit(req, 'playerverify', 120, 60))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { sessionToken } = body;
+    if (!sessionToken) return res.status(400).json({ error: 'sessionToken required' });
+
+    const session = await kv.get(`tb:psession:${sessionToken}`);
+    if (!session) return res.status(401).json({ error: 'Session expired or invalid' });
+
+    // Refresh TTL (sliding window)
+    await kv.set(`tb:psession:${sessionToken}`, session, { ex: 604800 });
+    return res.json({ ok: true, player: { name: session.name, phone: session.phone } });
+  }
+
   /* ── Player: purchase sheets ── */
   if (action === 'purchase') {
     if (await rateLimit(req, 'mktbuy', 10, 3600))
       return res.status(429).json({ error: 'Too many requests. Try again later.' });
-    const { playerName, phone, gameId, quantity, requestedSheetNums } = body;
-    if (!playerName || !phone || !gameId || !quantity)
-      return res.status(400).json({ error: 'playerName, phone, gameId, quantity required' });
+    const { sessionToken, playerName, phone, gameId, quantity, requestedSheetNums } = body;
+    if (!gameId || !quantity)
+      return res.status(400).json({ error: 'gameId and quantity required' });
+
+    // Resolve player identity from session or fallback to explicit name/phone
+    let resolvedName = playerName, resolvedPhone = phone;
+    if (sessionToken) {
+      const session = await kv.get(`tb:psession:${sessionToken}`);
+      if (!session) return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+      resolvedName = session.name; resolvedPhone = session.phone;
+    } else if (!playerName || !phone) {
+      return res.status(400).json({ error: 'playerName and phone required when not signed in' });
+    }
 
     const games = await kv.get('tb:mkt:games') || [];
     const gameMeta = games.find(g => g.id === gameId);
@@ -199,8 +280,8 @@ module.exports = async function(req, res) {
       ? requestedSheetNums.slice(0, 150).map(Number).filter(n => n >= gameMeta.sheetFrom && n <= gameMeta.sheetTo)
       : null;
     const purchase = {
-      purchaseId, playerName: String(playerName).trim().slice(0, 50),
-      phone: String(phone).trim().slice(0, 20),
+      purchaseId, playerName: String(resolvedName).trim().slice(0, 50),
+      phone: String(resolvedPhone).trim().slice(0, 20),
       gameId, gameName: gameMeta.name, quantity: qty, amount,
       requestedSheetNums: reqNums,
       status: 'pending', createdAt: Date.now()

@@ -42,6 +42,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
   font-family:inherit;display:inline-flex;align-items:center;gap:4px
 }
+.hdr-user-chip{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;
+  padding:5px 12px;border-radius:20px;cursor:pointer;
+  font-size:13px;font-weight:600
+}
+.hdr-user-chip:active{background:rgba(255,255,255,.25)}
 
 /* ── SCREENS ── */
 #app{position:fixed;top:58px;left:0;right:0;bottom:0;overflow:hidden}
@@ -58,6 +65,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 #screenSheets{display:none;flex-direction:column}
 #screenSheets.visible{display:flex}
 #screenSheets.back.visible{display:flex}
+
+/* ── AUTH SCREENS ── */
+#screenLogin, #screenRegister{padding-bottom:40px}
+.auth-hero{
+  background:linear-gradient(135deg,#4527A0,#6750A4);
+  padding:44px 24px 32px;text-align:center;color:#fff
+}
+.auth-logo{font-size:52px;margin-bottom:14px;line-height:1}
+.auth-title{font-size:26px;font-weight:900;margin-bottom:6px}
+.auth-sub{font-size:14px;color:rgba(255,255,255,.75);line-height:1.5}
+.auth-body{padding:24px 20px;max-width:480px;margin:0 auto}
+.auth-alt-link{text-align:center;margin-top:18px;font-size:14px;color:var(--muted)}
+.auth-alt-link a{color:#6750A4;font-weight:700;text-decoration:none}
 
 /* ── HOME ── */
 #screenHome{padding:14px}
@@ -79,7 +99,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 }
 .game-card:active{transform:scale(.975)}
 
-/* Hero — cream area with big game name */
 .poster-hero{
   background:var(--gold-lt);
   min-height:200px;padding:14px 14px 10px;
@@ -110,7 +129,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 }
 .poster-tagline{font-size:10px;font-weight:800;color:#7B0000;letter-spacing:3px;margin-top:5px;text-align:center}
 
-/* Bingo balls */
 .poster-ball{
   position:absolute;width:34px;height:34px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
@@ -123,7 +141,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .pb4{background:radial-gradient(circle at 35% 35%,#60a5fa,#1D4ED8);top:46px;left:8px}
 .pb-num{font-size:10px;font-weight:900}
 
-/* Countdown */
 .countdown-badge{
   position:absolute;top:10px;left:50%;transform:translateX(-50%);
   background:rgba(124,8,8,.75);backdrop-filter:blur(6px);color:#fff;
@@ -133,7 +150,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .countdown-dot{width:5px;height:5px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
 
-/* Info strip */
 .poster-info-strip{
   display:flex;align-items:stretch;
   background:#fff;border-top:1px solid rgba(183,28,28,.12);border-bottom:1px solid rgba(183,28,28,.12)
@@ -144,7 +160,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .pii-lbl{font-size:8px;font-weight:700;color:#9B1C1C;text-transform:uppercase;letter-spacing:.5px}
 .pii-val{font-size:11px;font-weight:800;color:#1C1B1F}
 
-/* Middle: prizes + entry */
 .poster-middle{display:flex;gap:0;background:var(--red-dark)}
 .poster-prizes-col{flex:3;padding:10px 10px 10px 12px;border-right:1px solid rgba(255,255,255,.12)}
 .poster-entry-col{flex:2;padding:10px 12px 10px 10px}
@@ -162,7 +177,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .prize-row.main .pr-icon{font-size:16px}
 .prize-row.main .pr-name{font-size:11px;font-weight:900;color:#fff}
 .prize-row.main .pr-val{font-size:14px;font-weight:900;color:#FCD34D}
-/* Entry tiers */
 .entry-tier{
   display:flex;align-items:center;justify-content:space-between;
   background:rgba(255,255,255,.1);border-radius:6px;padding:5px 7px;margin-bottom:5px
@@ -175,7 +189,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   font-size:10px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;line-height:1.4
 }
 
-/* CTA bar */
 .poster-cta{
   background:linear-gradient(90deg,#7B0000,#B91C1C,#7B0000);
   padding:10px 14px;text-align:center;
@@ -183,7 +196,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   letter-spacing:1.5px;text-transform:uppercase
 }
 
-/* Share button */
 .share-btn{
   position:absolute;top:10px;right:10px;z-index:10;
   background:rgba(255,255,255,.88);border:none;border-radius:50%;
@@ -216,7 +228,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .search-input::placeholder{font-weight:400;color:#9E9E9E}
 .search-clear{background:#6750A4;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
 
-/* PDF icon sheet chips */
 .sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px}
 .sheet-chip{
   border-radius:14px;padding:8px 4px 7px;
@@ -234,14 +245,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   box-shadow:0 4px 12px rgba(103,80,164,.55)
 }
 .chip-doc{width:38px;height:47px;flex-shrink:0;filter:drop-shadow(1px 2px 3px rgba(0,0,0,.22))}
-.chip-num{
-  font-size:11px;font-weight:900;
-  color:#fff;text-align:center;line-height:1
-}
+.chip-num{font-size:11px;font-weight:900;color:#fff;text-align:center;line-height:1}
 .sheets-loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
 .no-sheets{text-align:center;padding:30px;color:var(--muted);font-size:14px;grid-column:1/-1}
 
-/* Fixed bottom bar */
 .sheets-bottom{
   flex-shrink:0;background:#fff;border-top:1px solid var(--border);
   padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));
@@ -266,6 +273,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .details-title{font-size:17px;font-weight:800;color:#fff}
 .details-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
 .details-body{padding:16px;max-width:480px;margin:0 auto}
+
+.buying-as-card{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.25);
+  border-radius:14px;padding:14px 16px;margin-bottom:16px
+}
+.buying-as-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.buying-as-name{font-size:17px;font-weight:800;color:#fff}
+.not-you-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.85);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 
 .order-summary{background:linear-gradient(135deg,#4527A0,#6750A4);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
 .os-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.8;margin-bottom:4px}
@@ -366,10 +382,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div class="hdr-tag">Marketplace</div>
   </div>
   <div class="hdr-right">
-    <button id="hdrTrackBtn" class="hdr-track-btn" onclick="openTrackModal()" title="Track my order">
+    <!-- Shown when logged in -->
+    <div id="hdrUserChip" class="hdr-user-chip" style="display:none" onclick="logout()">
+      <span id="hdrUserName"></span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </div>
+    <!-- Shown on home when NOT logged in -->
+    <button id="hdrTrackBtn" class="hdr-track-btn" onclick="openTrackModal()" title="Track my order" style="display:none">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </button>
-    <button id="hdrBackBtn" class="hdr-back" onclick="closeInParent()">
+    <button id="hdrBackBtn" class="hdr-back" onclick="closeInParent()" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       Back
     </button>
@@ -378,13 +400,61 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 <div id="app">
 
-  <!-- SCREEN 1: HOME -->
-  <div class="screen visible" id="screenHome">
+  <!-- SCREEN: LOGIN -->
+  <div class="screen visible" id="screenLogin">
+    <div class="auth-hero">
+      <div class="auth-logo">🎯</div>
+      <div class="auth-title">Welcome to Tungbola</div>
+      <div class="auth-sub">Sign in to buy sheets with just one tap</div>
+    </div>
+    <div class="auth-body">
+      <div class="field-wrap">
+        <div class="field-lbl">Phone Number</div>
+        <input class="mkt-field" id="loginPhone" type="tel" placeholder="Your phone number" maxlength="20" inputmode="numeric">
+      </div>
+      <div class="field-wrap">
+        <div class="field-lbl">Password</div>
+        <input class="mkt-field" id="loginPassword" type="password" placeholder="Your password" maxlength="72" onkeydown="if(event.key==='Enter')submitLogin()">
+      </div>
+      <div class="err-msg" id="loginErr" style="display:none"></div>
+      <button class="pay-btn" id="loginBtn" onclick="submitLogin()" style="background:linear-gradient(135deg,#6750A4,#4527A0);box-shadow:0 4px 14px rgba(103,80,164,.35)">Sign In →</button>
+      <div class="auth-alt-link">New here? <a href="#" onclick="showRegister();return false">Create an account</a></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: REGISTER -->
+  <div class="screen" id="screenRegister">
+    <div class="auth-hero">
+      <div class="auth-logo">🎯</div>
+      <div class="auth-title">Create Account</div>
+      <div class="auth-sub">Register once, buy sheets in one tap</div>
+    </div>
+    <div class="auth-body">
+      <div class="field-wrap">
+        <div class="field-lbl">Your Name</div>
+        <input class="mkt-field" id="regName" type="text" placeholder="e.g. Priya Sharma" maxlength="50" autocomplete="name">
+      </div>
+      <div class="field-wrap">
+        <div class="field-lbl">Phone Number</div>
+        <input class="mkt-field" id="regPhone" type="tel" placeholder="Your phone number" maxlength="20" inputmode="numeric">
+      </div>
+      <div class="field-wrap">
+        <div class="field-lbl">Password</div>
+        <input class="mkt-field" id="regPassword" type="password" placeholder="Choose a password (min. 4 chars)" maxlength="72" onkeydown="if(event.key==='Enter')submitRegister()">
+      </div>
+      <div class="err-msg" id="regErr" style="display:none"></div>
+      <button class="pay-btn" id="regBtn" onclick="submitRegister()" style="background:linear-gradient(135deg,#6750A4,#4527A0);box-shadow:0 4px 14px rgba(103,80,164,.35)">Create Account →</button>
+      <div class="auth-alt-link">Already have an account? <a href="#" onclick="showLogin();return false">Sign in</a></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: HOME -->
+  <div class="screen" id="screenHome">
     <div class="loading-txt" id="homeLoading">Loading games…</div>
     <div id="gamesContainer" style="display:none"></div>
   </div>
 
-  <!-- SCREEN 2: SHEET SELECTION -->
+  <!-- SCREEN: SHEET SELECTION -->
   <div class="screen" id="screenSheets">
     <div class="sheets-scroll">
       <div class="sheets-body">
@@ -411,18 +481,26 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     </div>
   </div>
 
-  <!-- SCREEN 3: DETAILS & PAY -->
+  <!-- SCREEN: DETAILS & PAY -->
   <div class="screen" id="screenDetails">
     <div class="details-hero">
       <button class="screen-back-btn" onclick="show('screenSheets',true)">← Back</button>
       <div class="details-hero-txt">
-        <div class="details-title">Your Details</div>
+        <div class="details-title">Order Summary</div>
         <div class="details-sub" id="detailsSub"></div>
       </div>
     </div>
 
-    <!-- Form (hidden after payment done) -->
     <div class="details-body" id="detailsForm">
+      <!-- "Buying as" card — shown when logged in -->
+      <div id="buyingAsCard" class="buying-as-card" style="display:none">
+        <div>
+          <div class="buying-as-label">Buying as</div>
+          <div class="buying-as-name" id="buyingAsName"></div>
+        </div>
+        <button class="not-you-btn" onclick="logout()">Not you?</button>
+      </div>
+
       <div class="order-summary">
         <div class="os-label">Order Summary</div>
         <div class="os-game" id="osGame"></div>
@@ -430,34 +508,35 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
         <div class="os-amount-lbl">Total</div>
         <div class="os-amount" id="osAmount"></div>
       </div>
-      <div class="info-card">
-        <div class="field-wrap">
-          <div class="field-lbl">Your Name</div>
-          <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50" autocomplete="name">
-        </div>
-        <div class="field-wrap">
-          <div class="field-lbl">Phone Number</div>
-          <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
+
+      <!-- Name/phone fields — shown only when NOT logged in -->
+      <div id="namePhoneSection" style="display:none">
+        <div class="info-card">
+          <div class="field-wrap">
+            <div class="field-lbl">Your Name</div>
+            <input class="mkt-field" id="buyName" type="text" placeholder="e.g. Priya" maxlength="50" autocomplete="name">
+          </div>
+          <div class="field-wrap">
+            <div class="field-lbl">Phone Number</div>
+            <input class="mkt-field" id="buyPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20">
+          </div>
         </div>
       </div>
+
       <div class="err-msg" id="buyErr" style="display:none"></div>
       <button class="pay-btn" id="payBtn" onclick="openQRModal()">💳 Pay Now →</button>
     </div>
 
-    <!-- Confirmation (shown after payment done, while polling) -->
     <div class="confirm-card" id="confirmCard">
       <div class="confirm-icon">🎟️</div>
       <div class="confirm-title">Order Received!</div>
       <div class="confirm-msg">Your payment is being verified. Sheets will be assigned within a few minutes.</div>
-      <div class="confirm-note">
-        📲 To download your sheets, tap the <strong>🔍 search icon</strong> in the top-right corner and enter your name &amp; phone number.<br><br>
-        ⏳ Download links stay valid for <strong>6 hours</strong> after approval.
-      </div>
+      <div class="confirm-note" id="confirmNote"></div>
       <button class="confirm-home-btn" onclick="goHome()">← Back to Marketplace</button>
     </div>
   </div>
 
-  <!-- SCREEN 4: DOWNLOADS -->
+  <!-- SCREEN: DOWNLOADS -->
   <div class="screen" id="screenDownloads">
     <div class="dl-wrap">
       <div class="dl-hero">
@@ -475,7 +554,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
         <div style="font-size:12px;color:#388E3C">Check your Downloads folder for the ZIP file.</div>
       </div>
       <button class="back-home-btn" onclick="goHome()">← Back to Marketplace</button>
-      <div class="muted-note">Download links expire 6 hours after purchase.</div>
+      <div class="muted-note">Download links expire 6 hours after approval.</div>
     </div>
   </div>
 
@@ -521,10 +600,146 @@ let cfg = {}, games = [], currentGame = null;
 let availableSheets = [], selectedNums = new Set();
 let purchaseId = null, pollTimer = null, pollCount = 0;
 let currentDownloadToken = null, currentSheets = [];
+let playerSession = null;
 const MAX_POLL = 72;
+
+const SCREENS = ['screenLogin', 'screenRegister', 'screenHome', 'screenSheets', 'screenDetails', 'screenDownloads'];
+
+/* ── Session management ── */
+async function initSession() {
+  const token = localStorage.getItem('tb_session');
+  if (!token) return null;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'player-verify-session', sessionToken: token })
+    });
+    if (!r.ok) { localStorage.removeItem('tb_session'); return null; }
+    const data = await r.json();
+    playerSession = { name: data.player.name, phone: data.player.phone, token };
+    return playerSession;
+  } catch(e) { return null; }
+}
+
+function updateHeaderAuth() {
+  const chip = document.getElementById('hdrUserChip');
+  const nameEl = document.getElementById('hdrUserName');
+  if (playerSession) {
+    nameEl.textContent = playerSession.name;
+    chip.style.display = 'flex';
+  } else {
+    chip.style.display = 'none';
+  }
+}
+
+/* ── Auth screens ── */
+function showLogin() {
+  document.getElementById('loginPhone').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').textContent = 'Sign In →';
+  show('screenLogin');
+}
+
+function showRegister() {
+  document.getElementById('regName').value = '';
+  document.getElementById('regPhone').value = '';
+  document.getElementById('regPassword').value = '';
+  document.getElementById('regErr').style.display = 'none';
+  document.getElementById('regBtn').disabled = false;
+  document.getElementById('regBtn').textContent = 'Create Account →';
+  show('screenRegister');
+}
+
+async function submitLogin() {
+  const phone = document.getElementById('loginPhone').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  const btn = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  if (!phone) { errEl.textContent = 'Enter your phone number'; errEl.style.display = 'block'; return; }
+  if (!password) { errEl.textContent = 'Enter your password'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'player-login', phone, password })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Login failed';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign In →';
+      return;
+    }
+    playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
+    localStorage.setItem('tb_session', data.sessionToken);
+    updateHeaderAuth();
+    loadHomeData();
+  } catch(e) {
+    errEl.textContent = 'Network error. Try again.';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In →';
+  }
+}
+
+async function submitRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const errEl = document.getElementById('regErr');
+  const btn = document.getElementById('regBtn');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'Enter your name'; errEl.style.display = 'block'; return; }
+  if (!phone) { errEl.textContent = 'Enter your phone number'; errEl.style.display = 'block'; return; }
+  if (!password || password.length < 4) { errEl.textContent = 'Password must be at least 4 characters'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'player-register', name, phone, password })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Registration failed';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Create Account →';
+      return;
+    }
+    playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
+    localStorage.setItem('tb_session', data.sessionToken);
+    updateHeaderAuth();
+    loadHomeData();
+  } catch(e) {
+    errEl.textContent = 'Network error. Try again.';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+}
+
+function logout() {
+  if (!confirm('Sign out of Tungbola Marketplace?')) return;
+  localStorage.removeItem('tb_session');
+  playerSession = null;
+  updateHeaderAuth();
+  showLogin();
+}
 
 /* ── Init ── */
 async function init() {
+  const session = await initSession();
+  updateHeaderAuth();
+  if (!session) { show('screenLogin'); return; }
+  // pre-fetch config silently
+  fetch('/api/config').then(r => r.json()).then(c => { cfg = c; }).catch(() => {});
+  loadHomeData();
+}
+
+async function loadHomeData() {
+  show('screenHome');
+  document.getElementById('homeLoading').style.display = 'block';
+  document.getElementById('gamesContainer').style.display = 'none';
   try {
     const [cfgR, gamesR] = await Promise.all([fetch('/api/config'), fetch('/api/marketplace')]);
     cfg = await cfgR.json();
@@ -579,7 +794,6 @@ function renderGames() {
   }, 1000);
 }
 
-/* ── Format join time from HH:MM (time input) to 12h display ── */
 function formatJoinTime(t) {
   if (!t) return null;
   const m = String(t).match(/^(\d{1,2}):(\d{2})$/);
@@ -592,7 +806,6 @@ function formatJoinTime(t) {
   return String(t).toUpperCase();
 }
 
-/* ── Client-side amount calculation (mirrors server calcAmount) ── */
 function calcClientAmount(game, qty) {
   if (!qty) return 0;
   if (Array.isArray(game?.pricingTiers) && game.pricingTiers.length) {
@@ -602,7 +815,6 @@ function calcClientAmount(game, qty) {
   return (game?.pricePerSheet || 5) * qty;
 }
 
-/* ── Parse poster date/time from game ── */
 function parsePosterDateTime(g) {
   if (g.gameDateRaw) {
     try {
@@ -621,7 +833,6 @@ function parsePosterDateTime(g) {
   return { dateStr: null, timeStr: null };
 }
 
-/* ── Decorative bingo ball numbers ── */
 const BALL_NUMS = [7,18,33,22,45,62,14,77];
 
 function buildGameCard(g) {
@@ -630,13 +841,11 @@ function buildGameCard(g) {
   const prizes = Array.isArray(g.prizes) ? g.prizes : [];
   const tiers = Array.isArray(g.pricingTiers) ? g.pricingTiers : [];
 
-  /* ── Countdown ── */
   const ms = getGameMs(g);
   const cdHtml = ms && ms > 0
     ? `<div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}</div>`
     : '';
 
-  /* ── Date / time ── */
   const { dateStr, timeStr } = parsePosterDateTime(g);
   const joinTimeStr = g.joinTime ? formatJoinTime(g.joinTime) : null;
 
@@ -650,7 +859,6 @@ function buildGameCard(g) {
     `<div class="pii"><span class="pii-icon">${x.icon}</span><div class="pii-lbl">${x.lbl}</div><div class="pii-val">${x.val}</div></div>`
   ).join('');
 
-  /* ── Prize rows ── */
   const PRIO = [[/^full house$/i,1],[/^second full house$/i,2],[/^third full house$/i,3],[/^upper line$/i,4],[/^middle line$/i,5],[/^bottom line$/i,6],[/^ticket corners$/i,7],[/^sheet corner$/i,8],[/^early [567]$/i,9]];
   function prio(n){for(const[re,r]of PRIO)if(re.test(n))return r;return 10}
   const PRIZE_ICONS = {1:'👑',2:'🥈',3:'🥉',4:'⭐',5:'⭐',6:'⭐',7:'💎',8:'💎',9:'⚡'};
@@ -667,7 +875,6 @@ function buildGameCard(g) {
     </div>`;
   }).join('') || `<div class="prize-row"><span class="pr-name" style="color:rgba(255,255,255,.5)">Prizes TBA</span></div>`;
 
-  /* ── Entry / pricing tiers ── */
   let tiersHtml = '';
   if (tiers.length) {
     tiersHtml = tiers.slice(0,4).map(t=>
@@ -678,7 +885,6 @@ function buildGameCard(g) {
   }
   tiersHtml += `<div class="entry-limited">${avail} sheets remaining</div>`;
 
-  /* ── Bingo balls (decorative) ── */
   const seed = g.id ? g.id.charCodeAt(0) : 0;
   const ballNums = BALL_NUMS.slice(seed % 4, (seed % 4) + 4);
   const ballColors = [
@@ -694,11 +900,9 @@ function buildGameCard(g) {
     `<div class="poster-ball" style="${ballPos[i]};background:${ballColors[i]}"><span class="pb-num">${n}</span></div>`
   ).join('');
 
-  /* ── Background image ── */
   const bgStyle = g.thumbnail ? `style="background-image:url('${esc(g.thumbnail)}')"` : '';
 
   return `<div class="game-card" onclick="selectGame('${g.id}')" id="card-${g.id}">
-
     <div class="poster-hero">
       ${g.thumbnail?`<div class="poster-hero-bg" ${bgStyle}></div>`:''}
       ${ballsHtml}
@@ -710,9 +914,7 @@ function buildGameCard(g) {
         <div class="poster-tagline">PLAY &bull; WIN &bull; ENJOY</div>
       </div>
     </div>
-
     ${infoHtml ? `<div class="poster-info-strip">${infoHtml}</div>` : ''}
-
     <div class="poster-middle">
       <div class="poster-prizes-col">
         <div class="col-hdr">🏆 TODAY'S PRIZES</div>
@@ -723,13 +925,10 @@ function buildGameCard(g) {
         ${tiersHtml}
       </div>
     </div>
-
     <div class="poster-cta">⬇ TAP TO PICK YOUR LUCKY SHEET ⬇</div>
-
     <button class="share-btn" onclick="event.stopPropagation();shareGame('${g.id}')" title="Share">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6750A4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </button>
-
     ${full?`<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>`:''}
   </div>`;
 }
@@ -829,22 +1028,35 @@ function goToDetails() {
     shown.map(n => `<span class="os-chip">#${n}</span>`).join('') +
     (extra > 0 ? `<span class="os-chip">+${extra} more</span>` : '');
   document.getElementById('osAmount').textContent = `₹${amount.toLocaleString('en-IN')}`;
-  document.getElementById('buyName').value = '';
-  document.getElementById('buyPhone').value = '';
   document.getElementById('buyErr').style.display = 'none';
   document.getElementById('detailsForm').style.display = 'block';
   document.getElementById('confirmCard').style.display = 'none';
+
+  if (playerSession) {
+    document.getElementById('buyingAsCard').style.display = 'flex';
+    document.getElementById('namePhoneSection').style.display = 'none';
+    document.getElementById('buyingAsName').textContent = playerSession.name;
+  } else {
+    document.getElementById('buyingAsCard').style.display = 'none';
+    document.getElementById('namePhoneSection').style.display = 'block';
+    document.getElementById('buyName').value = '';
+    document.getElementById('buyPhone').value = '';
+  }
+
   show('screenDetails');
 }
 
 /* ── QR Modal ── */
 function openQRModal() {
-  const name = document.getElementById('buyName').value.trim();
-  const phone = document.getElementById('buyPhone').value.trim();
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
-  if (!phone) { errEl.textContent = 'Please enter your phone number'; errEl.style.display = 'block'; return; }
+
+  if (!playerSession) {
+    const name = document.getElementById('buyName').value.trim();
+    const phone = document.getElementById('buyPhone').value.trim();
+    if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
+    if (!phone) { errEl.textContent = 'Please enter your phone number'; errEl.style.display = 'block'; return; }
+  }
 
   const count = selectedNums.size;
   const amount = calcClientAmount(currentGame, count);
@@ -873,16 +1085,21 @@ function closeQRModal() { document.getElementById('qrModal').classList.remove('o
 function handleQRBackdrop(e) { if (e.target === document.getElementById('qrModal')) closeQRModal(); }
 
 async function submitPurchase() {
-  const name = document.getElementById('buyName').value.trim();
-  const phone = document.getElementById('buyPhone').value.trim();
   const btn = document.getElementById('modalPaidBtn');
   btn.disabled = true;
   btn.textContent = 'Submitting…';
   try {
     const nums = Array.from(selectedNums);
+    const body = { action: 'purchase', gameId: currentGame.id, quantity: nums.length, requestedSheetNums: nums };
+    if (playerSession) {
+      body.sessionToken = playerSession.token;
+    } else {
+      body.playerName = document.getElementById('buyName').value.trim();
+      body.phone = document.getElementById('buyPhone').value.trim();
+    }
     const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'purchase', playerName: name, phone, gameId: currentGame.id, quantity: nums.length, requestedSheetNums: nums })
+      body: JSON.stringify(body)
     });
     const data = await r.json();
     if (!r.ok) {
@@ -910,9 +1127,14 @@ function showConfirmation() {
   document.getElementById('detailsForm').style.display = 'none';
   document.getElementById('confirmCard').style.display = 'block';
   document.getElementById('screenDetails').scrollTop = 0;
+  if (playerSession) {
+    document.getElementById('confirmNote').innerHTML = `📲 Sheets will be assigned to your account automatically once verified. This usually takes a few minutes.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
+  } else {
+    document.getElementById('confirmNote').innerHTML = `📲 To download your sheets, tap the <strong>🔍 search icon</strong> in the top-right corner and enter your name &amp; phone number.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
+  }
 }
 
-/* ── Polling (silent, auto-redirects to downloads if approved) ── */
+/* ── Polling ── */
 function startPolling() { stopPolling(); pollCount = 0; pollTimer = setInterval(poll, 5000); }
 function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
@@ -1063,7 +1285,6 @@ async function lookupOrder() {
 }
 
 /* ── Navigation ── */
-const SCREENS = ['screenHome', 'screenSheets', 'screenDetails', 'screenDownloads'];
 function show(id, back = false) {
   SCREENS.forEach(s => { const el = document.getElementById(s); el.classList.remove('visible', 'back'); });
   const el = document.getElementById(id);
@@ -1075,7 +1296,10 @@ function show(id, back = false) {
 
 function updateHeaderForScreen(id) {
   const onHome = id === 'screenHome';
-  document.getElementById('hdrTrackBtn').style.display = onHome ? '' : 'none';
+  const onAuth = id === 'screenLogin' || id === 'screenRegister';
+  // Track button: on home only when NOT logged in (for legacy order lookup)
+  document.getElementById('hdrTrackBtn').style.display = (onHome && !playerSession) ? '' : 'none';
+  // Back/close button: on home only, not during auth
   document.getElementById('hdrBackBtn').style.display = onHome ? '' : 'none';
 }
 
@@ -1085,8 +1309,12 @@ function goHome() {
   currentDownloadToken = null;
   document.getElementById('dlDoneCard').style.display = 'none';
   document.getElementById('dlNotice').style.display = 'block';
-  show('screenHome', true);
-  fetch('/api/marketplace').then(r => r.json()).then(d => { games = d.games || []; renderGames(); }).catch(() => {});
+  if (playerSession) {
+    show('screenHome', true);
+    fetch('/api/marketplace').then(r => r.json()).then(d => { games = d.games || []; renderGames(); }).catch(() => {});
+  } else {
+    show('screenLogin', true);
+  }
 }
 
 /* ── Share game ── */
