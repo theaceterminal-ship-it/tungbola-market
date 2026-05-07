@@ -32,12 +32,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .hdr-logo{font-size:18px;font-weight:900;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
 .hdr-tag{font-size:12px;opacity:.85;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:12px}
 .hdr-right{display:flex;align-items:center;gap:8px}
-.hdr-back{
-  background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;
-  padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
-  font-family:inherit;display:inline-flex;align-items:center;gap:4px
-}
-.hdr-bell-btn{position:relative;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.hdr-bell-btn{position:relative;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;height:34px;padding:0 12px 0 10px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}
 .bell-badge{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid #6750A4;line-height:1}
 .orders-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .orders-backdrop.open{opacity:1;pointer-events:auto}
@@ -57,13 +52,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .push-enable-btn{padding:8px 14px;background:#6750A4;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
 .push-enable-btn:disabled{opacity:.5}
 .orders-empty{text-align:center;padding:30px 0;color:#bbb;font-size:14px}
-.hdr-user-chip{
-  display:flex;align-items:center;gap:6px;
-  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;
-  padding:5px 12px;border-radius:20px;cursor:pointer;
-  font-size:13px;font-weight:600
-}
-.hdr-user-chip:active{background:rgba(255,255,255,.25)}
 
 /* ── SCREENS ── */
 #app{position:fixed;top:58px;left:0;right:0;bottom:0;overflow:hidden}
@@ -384,19 +372,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div class="hdr-tag">Marketplace</div>
   </div>
   <div class="hdr-right">
-    <!-- Shown when logged in -->
-    <div id="hdrUserChip" class="hdr-user-chip" style="display:none">
-      <span id="hdrUserName"></span>
-    </div>
-    <!-- Bell: shown when logged in -->
     <button id="hdrBellBtn" class="hdr-bell-btn" onclick="openOrdersSheet()" style="display:none" title="My orders">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span id="hdrUserFirstName"></span>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span id="bellBadge" class="bell-badge" style="display:none">0</span>
-    </button>
-    <!-- Back/close when inside a game -->
-    <button id="hdrBackBtn" class="hdr-back" onclick="closeInParent()" style="display:none">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      Back
     </button>
   </div>
 </div>
@@ -625,13 +604,12 @@ async function initSession() {
 }
 
 function updateHeaderAuth() {
-  const chip = document.getElementById('hdrUserChip');
-  const nameEl = document.getElementById('hdrUserName');
+  const bell = document.getElementById('hdrBellBtn');
   if (playerSession) {
-    nameEl.textContent = playerSession.name;
-    chip.style.display = 'flex';
+    document.getElementById('hdrUserFirstName').textContent = playerSession.name.split(' ')[0];
+    bell.style.display = 'flex';
   } else {
-    chip.style.display = 'none';
+    bell.style.display = 'none';
   }
 }
 
@@ -767,11 +745,12 @@ async function checkMyOrders() {
 
 function renderOrdersList() {
   const el = document.getElementById('ordersList');
-  if (!cachedOrders.length) {
-    el.innerHTML = '<div class="orders-empty">No orders yet</div>';
+  const visible = cachedOrders.filter(o => !o.downloaded);
+  if (!visible.length) {
+    el.innerHTML = '<div class="orders-empty">No pending orders</div>';
     return;
   }
-  el.innerHTML = cachedOrders.map(o => {
+  el.innerHTML = visible.map(o => {
     const statusLabel = o.downloaded ? 'Downloaded' : o.status === 'approved' ? '✅ Approved — Ready!' : '⏳ Pending';
     const statusClass = o.downloaded ? 'os-downloaded' : o.status === 'approved' ? 'os-approved' : 'os-pending';
     const dlBtn = (o.status === 'approved' && o.downloadToken && !o.downloaded)
@@ -1396,10 +1375,8 @@ window.addEventListener('popstate', function(e) {
 });
 
 function updateHeaderForScreen(id) {
-  const onHome = id === 'screenHome';
   const onAuth = id === 'screenLogin' || id === 'screenRegister';
-  document.getElementById('hdrBackBtn').style.display = onHome ? '' : 'none';
-  document.getElementById('hdrBellBtn').style.display = (playerSession && !onAuth) ? '' : 'none';
+  document.getElementById('hdrBellBtn').style.display = (playerSession && !onAuth) ? 'flex' : 'none';
 }
 
 function goHome() {
@@ -1419,7 +1396,7 @@ function goHome() {
 async function shareGame(gameId) {
   const g = games.find(x => x.id === gameId);
   if (!g) return;
-  const marketUrl = window.location.origin + window.location.pathname + `?game=${gameId}`;
+  const marketUrl = window.location.origin + `/api/og?id=${gameId}`;
   const topPrize = (g.prizes||[]).find(p => /full house/i.test(p.name));
   const prizeStr = topPrize && topPrize.kind === 'cash' ? `Win up to ₹${(topPrize.amount||0).toLocaleString('en-IN')}! ` : '';
   const dateStr = g.gameDate ? `📅 ${g.gameDate}\n` : '';
