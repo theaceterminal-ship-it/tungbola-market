@@ -2,16 +2,19 @@ const { Redis } = require('@upstash/redis');
 const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const crypto = require('crypto');
-const webpush = require('web-push');
 const kv = Redis.fromEnv();
 
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:' + (process.env.VAPID_EMAIL || 'admin@tungbola.com'),
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
+let webpush = null;
+try {
+  webpush = require('web-push');
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      'mailto:' + (process.env.VAPID_EMAIL || 'admin@tungbola.com'),
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+  }
+} catch(e) { console.warn('web-push init failed:', e.message); }
 
 function genApiKey() {
   return crypto.randomBytes(20).toString('hex');
@@ -523,7 +526,7 @@ module.exports = async function(req, res) {
     try {
       const np = normPhone(purchase.phone);
       const pushSub = await kv.get(`tb:push:${np}`);
-      if (pushSub && process.env.VAPID_PUBLIC_KEY) {
+      if (pushSub && webpush && process.env.VAPID_PUBLIC_KEY) {
         await webpush.sendNotification(pushSub, JSON.stringify({
           title: '🎯 Sheets Allocated!',
           body: `Your ${purchase.quantity} sheet${purchase.quantity > 1 ? 's' : ''} for "${purchase.gameName}" are ready — download now!`,
