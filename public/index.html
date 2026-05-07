@@ -567,7 +567,7 @@ let availableSheets = [], selectedNums = new Set();
 let purchaseId = null, pollTimer = null, pollCount = 0;
 let currentDownloadToken = null, currentSheets = [];
 let playerSession = null;
-const MAX_POLL = 72;
+const MAX_POLL = 360; // 30 min (push handles beyond that)
 
 const SCREENS = ['screenLogin', 'screenRegister', 'screenHome', 'screenSheets', 'screenDetails', 'screenDownloads'];
 
@@ -742,6 +742,7 @@ async function init() {
   updateHeaderAuth();
   if (!session) { show('screenLogin'); return; }
   fetch('/api/config').then(r => r.json()).then(c => { cfg = c; }).catch(() => {});
+  subscribePush(); // register push for existing sessions too
   loadHomeData();
 }
 
@@ -1137,9 +1138,9 @@ function showConfirmation() {
   document.getElementById('confirmCard').style.display = 'block';
   document.getElementById('screenDetails').scrollTop = 0;
   if (playerSession) {
-    document.getElementById('confirmNote').innerHTML = `📲 Sheets will be assigned to your account automatically once verified. This usually takes a few minutes.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
+    document.getElementById('confirmNote').innerHTML = `🔔 You'll get a push notification the moment your sheets are approved — even if you close this app.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
   } else {
-    document.getElementById('confirmNote').innerHTML = `📲 To download your sheets, tap the <strong>🔍 search icon</strong> in the top-right corner and enter your name &amp; phone number.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
+    document.getElementById('confirmNote').innerHTML = `📲 Once verified, come back here to download your sheets. This usually takes a few minutes.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
   }
 }
 
@@ -1159,6 +1160,7 @@ async function poll() {
     const data = await r.json();
     if (data.status === 'approved' && data.downloadToken) {
       stopPolling();
+      toast('✅ Sheets approved! Loading your download…');
       loadDownloads(data.downloadToken);
     }
   } catch(e) {}
