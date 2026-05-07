@@ -37,6 +37,26 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
   font-family:inherit;display:inline-flex;align-items:center;gap:4px
 }
+.hdr-bell-btn{position:relative;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.bell-badge{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid #6750A4;line-height:1}
+.orders-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.orders-backdrop.open{opacity:1;pointer-events:auto}
+.orders-sheet{background:#fff;border-radius:28px 28px 0 0;padding:22px 20px 40px;width:100%;max-width:520px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-height:80vh;overflow-y:auto}
+.orders-backdrop.open .orders-sheet{transform:translateY(0)}
+.orders-title{font-size:17px;font-weight:800;margin-bottom:14px;color:#1a1a1a}
+.order-card{padding:14px;border-radius:14px;background:#f8f9fa;margin-bottom:10px}
+.order-card-name{font-size:14px;font-weight:700;color:#1a1a1a}
+.order-card-meta{font-size:12px;color:#888;margin-top:2px}
+.order-status{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px}
+.os-pending{background:#FFF8E1;color:#D97706}
+.os-approved{background:#DCFCE7;color:#16A34A}
+.os-downloaded{background:#F0F0F0;color:#999}
+.order-dl-btn{width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#6750A4,#4527A0);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.push-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;background:#f0f4ff;border-radius:14px;margin-top:6px}
+.push-row-txt{font-size:12px;color:#555;font-weight:500;line-height:1.4}
+.push-enable-btn{padding:8px 14px;background:#6750A4;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.push-enable-btn:disabled{opacity:.5}
+.orders-empty{text-align:center;padding:30px 0;color:#bbb;font-size:14px}
 .hdr-user-chip{
   display:flex;align-items:center;gap:6px;
   background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;
@@ -367,7 +387,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div id="hdrUserChip" class="hdr-user-chip" style="display:none">
       <span id="hdrUserName"></span>
     </div>
-    <!-- Shown on home when NOT logged in -->
+    <!-- Bell: shown when logged in -->
+    <button id="hdrBellBtn" class="hdr-bell-btn" onclick="openOrdersSheet()" style="display:none" title="My orders">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span id="bellBadge" class="bell-badge" style="display:none">0</span>
+    </button>
+    <!-- Back/close when inside a game -->
     <button id="hdrBackBtn" class="hdr-back" onclick="closeInParent()" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       Back
@@ -552,6 +577,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 <!-- Track Order Modal -->
 
+<!-- Orders / Notifications sheet -->
+<div class="orders-backdrop" id="ordersSheet" onclick="handleOrdersBackdrop(event)">
+  <div class="orders-sheet">
+    <div class="modal-handle"></div>
+    <div class="orders-title">🔔 My Orders</div>
+    <div id="ordersList"><div class="orders-empty">Loading…</div></div>
+    <div class="push-row" id="pushRow">
+      <div class="push-row-txt">Get notified the moment your sheets are approved</div>
+      <button class="push-enable-btn" id="enablePushBtn" onclick="enablePush()">Enable</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -642,7 +680,7 @@ async function submitLogin() {
     playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
     localStorage.setItem('tb_session', data.sessionToken);
     updateHeaderAuth();
-    subscribePush();
+    startOrdersPolling();
     loadHomeData();
   } catch(e) {
     errEl.textContent = 'Network error. Try again.';
@@ -677,7 +715,7 @@ async function submitRegister() {
     playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
     localStorage.setItem('tb_session', data.sessionToken);
     updateHeaderAuth();
-    subscribePush();
+    startOrdersPolling();
     loadHomeData();
   } catch(e) {
     errEl.textContent = 'Network error. Try again.';
@@ -694,6 +732,77 @@ function logout() {
   showLogin();
 }
 
+/* ── Orders sheet ── */
+let ordersCheckTimer = null;
+
+function openOrdersSheet() {
+  document.getElementById('ordersSheet').classList.add('open');
+  renderOrdersList();
+  checkPushState();
+}
+function closeOrdersSheet() { document.getElementById('ordersSheet').classList.remove('open'); }
+function handleOrdersBackdrop(e) { if (e.target === document.getElementById('ordersSheet')) closeOrdersSheet(); }
+
+let cachedOrders = [];
+
+async function checkMyOrders() {
+  if (!playerSession) return;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'my-orders', sessionToken: playerSession.token })
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    cachedOrders = data.orders || [];
+    const approved = cachedOrders.filter(o => o.status === 'approved' && o.downloadToken && !o.downloaded);
+    const badge = document.getElementById('bellBadge');
+    if (approved.length > 0) {
+      badge.textContent = approved.length;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+function renderOrdersList() {
+  const el = document.getElementById('ordersList');
+  if (!cachedOrders.length) {
+    el.innerHTML = '<div class="orders-empty">No orders yet</div>';
+    return;
+  }
+  el.innerHTML = cachedOrders.map(o => {
+    const statusLabel = o.downloaded ? 'Downloaded' : o.status === 'approved' ? '✅ Approved — Ready!' : '⏳ Pending';
+    const statusClass = o.downloaded ? 'os-downloaded' : o.status === 'approved' ? 'os-approved' : 'os-pending';
+    const dlBtn = (o.status === 'approved' && o.downloadToken && !o.downloaded)
+      ? `<button class="order-dl-btn" onclick="closeOrdersSheet();loadDownloads('${esc(o.downloadToken)}')">Download Sheets →</button>`
+      : '';
+    const date = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
+    return `<div class="order-card">
+      <div class="order-card-name">${esc(o.gameName)}</div>
+      <div class="order-card-meta">${o.quantity} sheet${o.quantity !== 1 ? 's' : ''} · ₹${Number(o.amount).toLocaleString('en-IN')}${date ? ' · ' + date : ''}</div>
+      <span class="order-status ${statusClass}">${statusLabel}</span>
+      ${dlBtn}
+    </div>`;
+  }).join('');
+}
+
+async function checkPushState() {
+  const btn = document.getElementById('enablePushBtn');
+  const row = document.getElementById('pushRow');
+  if (!('PushManager' in window) || !('serviceWorker' in navigator)) { row.style.display = 'none'; return; }
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { btn.textContent = '✓ On'; btn.disabled = true; return; }
+    } catch(e) {}
+  }
+  if (perm === 'denied') { row.style.display = 'none'; }
+}
+
 /* ── Push Notifications ── */
 const VAPID_PUBLIC_KEY = 'BKWahdDruaAK2xoTYGryXCGrFes1ROmEMjtR3g5BMyNxwJZm1DDpxSO8RQCsnQZa_lh0ZFtlA-IS_tnv7-j6vZg';
 
@@ -704,23 +813,25 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
-async function subscribePush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  if (!playerSession) return;
+async function enablePush() {
+  const btn = document.getElementById('enablePushBtn');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('Push notifications not supported on this browser'); return;
+  }
+  btn.disabled = true; btn.textContent = 'Enabling…';
   try {
     const perm = await Notification.requestPermission();
-    if (perm !== 'granted') return;
+    if (perm !== 'granted') { toast('Permission denied — enable in browser settings'); btn.disabled = false; btn.textContent = 'Enable'; return; }
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
-    const sub = existing || await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    });
-    await fetch('/api/marketplace', {
+    const sub = existing || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'subscribe-push', sessionToken: playerSession.token, subscription: sub.toJSON() })
     });
-  } catch(e) { console.warn('Push subscribe failed:', e); }
+    if (r.ok) { toast('🔔 Notifications enabled!'); btn.textContent = '✓ On'; }
+    else { throw new Error('Server error'); }
+  } catch(e) { toast('Could not enable: ' + e.message); btn.disabled = false; btn.textContent = 'Enable'; }
 }
 
 /* ── Init ── */
@@ -742,8 +853,14 @@ async function init() {
   updateHeaderAuth();
   if (!session) { show('screenLogin'); return; }
   fetch('/api/config').then(r => r.json()).then(c => { cfg = c; }).catch(() => {});
-  subscribePush(); // register push for existing sessions too
+  startOrdersPolling();
   loadHomeData();
+}
+
+function startOrdersPolling() {
+  if (ordersCheckTimer) clearInterval(ordersCheckTimer);
+  checkMyOrders();
+  ordersCheckTimer = setInterval(checkMyOrders, 30000);
 }
 
 async function loadHomeData() {
@@ -1256,7 +1373,9 @@ function show(id, back = false) {
 
 function updateHeaderForScreen(id) {
   const onHome = id === 'screenHome';
+  const onAuth = id === 'screenLogin' || id === 'screenRegister';
   document.getElementById('hdrBackBtn').style.display = onHome ? '' : 'none';
+  document.getElementById('hdrBellBtn').style.display = (playerSession && !onAuth) ? '' : 'none';
 }
 
 function goHome() {

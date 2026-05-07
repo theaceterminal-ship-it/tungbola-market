@@ -258,6 +258,26 @@ module.exports = async function(req, res) {
     return res.json({ ok: true, player: { name: session.name, phone: session.phone } });
   }
 
+  /* ── Player: get own orders ── */
+  if (action === 'my-orders') {
+    if (await rateLimit(req, 'myorders', 60, 60))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { sessionToken } = body;
+    if (!sessionToken) return res.status(400).json({ error: 'sessionToken required' });
+    const session = await kv.get(`tb:psession:${sessionToken}`);
+    if (!session) return res.status(401).json({ error: 'Session expired' });
+    const np = normPhone(session.phone);
+    const all = await kv.get('tb:mkt:purchases') || [];
+    const mine = all.filter(p => normPhone(p.phone) === np).slice(0, 20);
+    const fresh = await Promise.all(mine.map(p => kv.get(`tb:mkt:purchase:${p.purchaseId}`).then(v => v || null).catch(() => null)));
+    const orders = fresh.filter(Boolean).map(p => ({
+      purchaseId: p.purchaseId, gameName: p.gameName, quantity: p.quantity,
+      amount: p.amount, status: p.status, createdAt: p.createdAt, downloaded: !!p.downloaded,
+      downloadToken: (p.status === 'approved' && !p.downloaded) ? p.downloadToken : null,
+    }));
+    return res.json({ orders });
+  }
+
   /* ── Player: save push subscription ── */
   if (action === 'subscribe-push') {
     if (await rateLimit(req, 'subscribepush', 20, 3600))
