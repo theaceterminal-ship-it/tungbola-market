@@ -348,20 +348,21 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 /* ── DOWNLOADS ── */
 #screenDownloads{padding:16px 16px 40px}
 .dl-wrap{max-width:480px;margin:0 auto}
-.dl-hero{background:linear-gradient(135deg,#4527A0,#6750A4);color:#fff;border-radius:22px;padding:28px 20px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
-.dl-hero-title{font-size:22px;font-weight:800;margin-bottom:4px}
-.dl-hero-sub{font-size:13px;opacity:.85;line-height:1.5}
-.dl-all-btn{width:100%;padding:16px;background:#2E7D32;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;transition:opacity .2s}
+.dl-hero{background:linear-gradient(135deg,#4527A0,#6750A4);color:#fff;border-radius:22px;padding:22px 20px 18px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-md)}
+.dl-hero-title{font-size:20px;font-weight:800;margin-bottom:3px}
+.dl-hero-sub{font-size:13px;opacity:.8}
+.dl-nums{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:13px}
+.dl-num-chip{background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;padding:4px 11px;border-radius:20px}
+.dl-all-btn{width:100%;padding:17px;background:#2E7D32;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;transition:opacity .2s}
 .dl-all-btn:disabled{opacity:.6;cursor:not-allowed}
-.dl-notice{background:#E8F5E9;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#2E7D32;line-height:1.6}
+.dl-done-card{background:#E8F5E9;border-radius:14px;padding:14px 16px;font-size:13px;font-weight:700;color:#2E7D32;text-align:center;margin-bottom:12px;display:none}
+.dl-sep{font-size:11px;font-weight:700;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
 .dl-list{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
-.dl-item{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)}
+.dl-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
 .dl-item:last-child{border-bottom:none}
-.dl-num{width:40px;height:40px;border-radius:50%;background:#EDE7F6;color:#6750A4;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
-.dl-name{flex:1;font-size:14px;font-weight:600}
-.dl-btn{background:#6750A4;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
-.dl-btn.done{background:#E8F5E9;color:#2E7D32}
-.dl-done-card{background:#E8F5E9;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px;display:none}
+.dl-item-label{font-size:14px;font-weight:600;color:#333}
+.dl-btn{background:#6750A4;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.dl-btn.done{background:#E8F5E9;color:#2E7D32;pointer-events:none}
 .back-home-btn{width:100%;padding:14px;background:#6750A4;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
 .muted-note{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;padding:0 8px}
 
@@ -542,21 +543,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   <div class="screen" id="screenDownloads">
     <div class="dl-wrap">
       <div class="dl-hero">
-        <div class="dl-hero-title">🎉 Sheets Ready!</div>
+        <div class="dl-hero-title" id="dlGameName">🎉 Sheets Ready!</div>
         <div class="dl-hero-sub" id="dlSubtitle"></div>
+        <div class="dl-nums" id="dlNums"></div>
       </div>
       <button class="dl-all-btn" id="dlAllBtn" onclick="downloadAll()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-        Download All (ZIP)
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        Download ZIP
       </button>
-      <div class="dl-notice" id="dlNotice">Tap Download All to get a ZIP, or save sheets one by one below.</div>
+      <div class="dl-done-card" id="dlDoneCard">✓ ZIP downloading — check your Downloads folder.</div>
+      <div class="dl-sep">or save individually</div>
       <div class="dl-list" id="dlList"></div>
-      <div class="dl-done-card" id="dlDoneCard">
-        <div style="font-size:15px;font-weight:800;color:#2E7D32;margin-bottom:4px">Download started!</div>
-        <div style="font-size:12px;color:#388E3C">Check your Downloads folder for the ZIP file.</div>
-      </div>
       <button class="back-home-btn" onclick="goHome()">← Back to Marketplace</button>
-      <div class="muted-note">Download links expire 6 hours after approval.</div>
+      <div class="muted-note">Links expire 6 hours after approval.</div>
     </div>
   </div>
 
@@ -839,19 +838,23 @@ async function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
-  // Handle notification click deep-link: /?dl=token
   const dlParam = new URLSearchParams(window.location.search).get('dl');
-  if (dlParam) {
-    window.history.replaceState({}, '', window.location.pathname);
-    const session = await initSession();
-    updateHeaderAuth();
-    if (session) { loadHomeData(); setTimeout(() => loadDownloads(dlParam), 300); }
-    else { show('screenLogin'); }
-    return;
+  // If token exists in storage, show home loading state immediately — no login flash
+  const hasToken = !!localStorage.getItem('tb_session');
+  if (hasToken) {
+    show('screenHome');
+    document.getElementById('homeLoading').style.display = 'block';
+    document.getElementById('gamesContainer').style.display = 'none';
   }
   const session = await initSession();
   updateHeaderAuth();
   if (!session) { show('screenLogin'); return; }
+  if (dlParam) {
+    window.history.replaceState({}, '', window.location.pathname);
+    loadHomeData();
+    setTimeout(() => loadDownloads(dlParam), 300);
+    return;
+  }
   fetch('/api/config').then(r => r.json()).then(c => { cfg = c; }).catch(() => {});
   startOrdersPolling();
   loadHomeData();
@@ -1295,18 +1298,17 @@ async function loadDownloads(token) {
     if (!r.ok) { toast(data.error || 'Failed to load downloads'); return; }
     currentSheets = data.sheets;
     const count = currentSheets.length;
-    document.getElementById('dlSubtitle').textContent = `${count} sheet${count !== 1 ? 's' : ''} ready · ${data.gameName}`;
-    document.getElementById('dlAllBtn').textContent = `⬇ Download All ${count} Sheet${count !== 1 ? 's' : ''} (ZIP)`;
+    document.getElementById('dlGameName').textContent = `🎉 ${data.gameName}`;
+    document.getElementById('dlSubtitle').textContent = `${count} sheet${count !== 1 ? 's' : ''} allocated to you`;
+    document.getElementById('dlNums').innerHTML = currentSheets.map(s => `<span class="dl-num-chip">#${s.n}</span>`).join('');
     document.getElementById('dlAllBtn').disabled = false;
     document.getElementById('dlList').innerHTML = currentSheets.map((s, i) =>
       `<div class="dl-item" id="dli-${i}">
-        <div class="dl-num">#${s.n}</div>
-        <div class="dl-name">Sheet ${s.n}</div>
+        <div class="dl-item-label">Sheet #${s.n}</div>
         <a class="dl-btn" href="${esc(s.url)}" target="_blank" download="sheet-${s.n}.pdf" onclick="markDownloaded(${i})">↓ Save</a>
       </div>`
     ).join('');
     document.getElementById('dlDoneCard').style.display = 'none';
-    document.getElementById('dlNotice').style.display = 'block';
     show('screenDownloads');
   } catch(e) { toast('Could not load downloads. Try refreshing.'); }
 }
@@ -1332,13 +1334,12 @@ async function downloadAll() {
     a.href = url; a.download = 'tambola-sheets.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    document.getElementById('dlNotice').style.display = 'none';
     document.getElementById('dlDoneCard').style.display = 'block';
     consumeDownload();
   } catch(e) {
-    toast(e.message || 'Download failed — use individual buttons below.');
+    toast(e.message || 'ZIP failed — use the individual Save buttons below.');
     btn.disabled = false;
-    btn.textContent = `⬇ Download All ${total} Sheet${total !== 1 ? 's' : ''} (ZIP)`;
+    btn.textContent = 'Download ZIP';
   }
 }
 
@@ -1383,7 +1384,6 @@ function goHome() {
   purchaseId = null;
   currentDownloadToken = null;
   document.getElementById('dlDoneCard').style.display = 'none';
-  document.getElementById('dlNotice').style.display = 'block';
   if (playerSession) {
     show('screenHome', true);
     fetch('/api/marketplace').then(r => r.json()).then(d => { games = d.games || []; renderGames(); }).catch(() => {});
