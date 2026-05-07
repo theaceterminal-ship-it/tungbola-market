@@ -2,7 +2,16 @@ const { Redis } = require('@upstash/redis');
 const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const crypto = require('crypto');
+const webpush = require('web-push');
 const kv = Redis.fromEnv();
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:' + (process.env.VAPID_EMAIL || 'admin@tungbola.com'),
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 function genApiKey() {
   return crypto.randomBytes(20).toString('hex');
@@ -244,6 +253,19 @@ module.exports = async function(req, res) {
     // Refresh TTL (sliding window)
     await kv.set(`tb:psession:${sessionToken}`, session, { ex: 604800 });
     return res.json({ ok: true, player: { name: session.name, phone: session.phone } });
+  }
+
+  /* ── Player: save push subscription ── */
+  if (action === 'subscribe-push') {
+    if (await rateLimit(req, 'subscribepush', 20, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { sessionToken, subscription } = body;
+    if (!sessionToken || !subscription) return res.status(400).json({ error: 'sessionToken and subscription required' });
+    const session = await kv.get(`tb:psession:${sessionToken}`);
+    if (!session) return res.status(401).json({ error: 'Session expired' });
+    const np = normPhone(session.phone);
+    await kv.set(`tb:push:${np}`, subscription, { ex: 60 * 60 * 24 * 90 }); // 90 days
+    return res.json({ ok: true });
   }
 
   /* ── Player: purchase sheets ── */
@@ -496,6 +518,19 @@ module.exports = async function(req, res) {
     const plist = await kv.get('tb:mkt:purchases') || [];
     const pIdx = plist.findIndex(p => p.purchaseId === purchaseId);
     if (pIdx >= 0) { plist[pIdx] = purchase; await kv.set('tb:mkt:purchases', plist); }
+
+    // Send push notification to player
+    try {
+      const np = normPhone(purchase.phone);
+      const pushSub = await kv.get(`tb:push:${np}`);
+      if (pushSub && process.env.VAPID_PUBLIC_KEY) {
+        await webpush.sendNotification(pushSub, JSON.stringify({
+          title: '🎯 Sheets Allocated!',
+          body: `Your ${purchase.quantity} sheet${purchase.quantity > 1 ? 's' : ''} for "${purchase.gameName}" are ready — download now!`,
+          data: { downloadToken: dlToken }
+        }));
+      }
+    } catch(pushErr) { console.error('Push failed:', pushErr.message); }
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }

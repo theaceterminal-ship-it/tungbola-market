@@ -32,11 +32,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .hdr-logo{font-size:18px;font-weight:900;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
 .hdr-tag{font-size:12px;opacity:.85;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:12px}
 .hdr-right{display:flex;align-items:center;gap:8px}
-.hdr-track-btn{
-  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);color:#fff;
-  width:36px;height:36px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;cursor:pointer
-}
 .hdr-back{
   background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;
   padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;
@@ -329,20 +324,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .modal-cancel-link{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline}
 
 /* ── TRACK MODAL ── */
-.track-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
-.track-modal-backdrop.open{opacity:1;pointer-events:auto}
-.track-modal-sheet{background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;width:100%;max-width:520px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
-.track-modal-backdrop.open .track-modal-sheet{transform:translateY(0)}
-.track-modal-title{font-size:17px;font-weight:800;margin-bottom:4px}
-.track-modal-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
-.track-field{width:100%;padding:13px 15px;border:2px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;background:#fff;transition:border-color .2s;margin-bottom:10px}
-.track-field:focus{border-color:#6750A4}
-.track-find-btn{width:100%;padding:14px;background:#6750A4;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
-.track-find-btn:disabled{opacity:.5}
-.track-result{margin-top:14px;padding:14px;border-radius:14px;font-size:13px;font-weight:600;text-align:center;display:none;line-height:1.6}
-.track-result.pending{background:#FFF8E1;color:var(--warn)}
-.track-result.ok{background:#E8F5E9;color:var(--success)}
-.track-result.err{background:#FFEBEE;color:var(--error)}
 
 /* ── DOWNLOADS ── */
 #screenDownloads{padding:16px 16px 40px}
@@ -387,9 +368,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
       <span id="hdrUserName"></span>
     </div>
     <!-- Shown on home when NOT logged in -->
-    <button id="hdrTrackBtn" class="hdr-track-btn" onclick="openTrackModal()" title="Track my order" style="display:none">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    </button>
     <button id="hdrBackBtn" class="hdr-back" onclick="closeInParent()" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       Back
@@ -573,17 +551,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 </div>
 
 <!-- Track Order Modal -->
-<div class="track-modal-backdrop" id="trackModal" onclick="handleTrackBackdrop(event)">
-  <div class="track-modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="track-modal-title">🔍 Track My Order</div>
-    <div class="track-modal-sub">Enter your name &amp; phone number to find your order</div>
-    <input class="track-field" id="trackName" type="text" placeholder="Your name" maxlength="50">
-    <input class="track-field" id="trackPhone" type="tel" placeholder="Phone number" maxlength="20">
-    <button class="track-find-btn" id="trackFindBtn" onclick="lookupOrder()">Find My Order →</button>
-    <div class="track-result" id="trackResult"></div>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
@@ -675,6 +642,7 @@ async function submitLogin() {
     playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
     localStorage.setItem('tb_session', data.sessionToken);
     updateHeaderAuth();
+    subscribePush();
     loadHomeData();
   } catch(e) {
     errEl.textContent = 'Network error. Try again.';
@@ -709,6 +677,7 @@ async function submitRegister() {
     playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
     localStorage.setItem('tb_session', data.sessionToken);
     updateHeaderAuth();
+    subscribePush();
     loadHomeData();
   } catch(e) {
     errEl.textContent = 'Network error. Try again.';
@@ -725,12 +694,53 @@ function logout() {
   showLogin();
 }
 
+/* ── Push Notifications ── */
+const VAPID_PUBLIC_KEY = 'BKWahdDruaAK2xoTYGryXCGrFes1ROmEMjtR3g5BMyNxwJZm1DDpxSO8RQCsnQZa_lh0ZFtlA-IS_tnv7-j6vZg';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function subscribePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!playerSession) return;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const sub = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'subscribe-push', sessionToken: playerSession.token, subscription: sub.toJSON() })
+    });
+  } catch(e) { console.warn('Push subscribe failed:', e); }
+}
+
 /* ── Init ── */
 async function init() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  // Handle notification click deep-link: /?dl=token
+  const dlParam = new URLSearchParams(window.location.search).get('dl');
+  if (dlParam) {
+    window.history.replaceState({}, '', window.location.pathname);
+    const session = await initSession();
+    updateHeaderAuth();
+    if (session) { loadHomeData(); setTimeout(() => loadDownloads(dlParam), 300); }
+    else { show('screenLogin'); }
+    return;
+  }
   const session = await initSession();
   updateHeaderAuth();
   if (!session) { show('screenLogin'); return; }
-  // pre-fetch config silently
   fetch('/api/config').then(r => r.json()).then(c => { cfg = c; }).catch(() => {});
   loadHomeData();
 }
@@ -1232,57 +1242,6 @@ async function consumeDownload() {
   } catch(e) {}
 }
 
-/* ── Track Modal ── */
-function openTrackModal() {
-  document.getElementById('trackName').value = '';
-  document.getElementById('trackPhone').value = '';
-  document.getElementById('trackResult').style.display = 'none';
-  document.getElementById('trackResult').className = 'track-result';
-  document.getElementById('trackFindBtn').disabled = false;
-  document.getElementById('trackFindBtn').textContent = 'Find My Order →';
-  document.getElementById('trackModal').classList.add('open');
-}
-function closeTrackModal() { document.getElementById('trackModal').classList.remove('open'); }
-function handleTrackBackdrop(e) { if (e.target === document.getElementById('trackModal')) closeTrackModal(); }
-
-async function lookupOrder() {
-  const name = document.getElementById('trackName').value.trim();
-  const phone = document.getElementById('trackPhone').value.trim();
-  const resEl = document.getElementById('trackResult');
-  const btn = document.getElementById('trackFindBtn');
-  if (!name || !phone) { toast('Enter your name and phone number'); return; }
-  btn.disabled = true; btn.textContent = 'Searching…';
-  resEl.style.display = 'none';
-  try {
-    const r = await fetch('/api/marketplace', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'lookup-purchase', name, phone })
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      resEl.className = 'track-result err';
-      resEl.textContent = data.error || 'No order found';
-      resEl.style.display = 'block';
-    } else if (data.status === 'approved' && data.downloadToken) {
-      closeTrackModal();
-      loadDownloads(data.downloadToken);
-    } else if (data.status === 'downloaded') {
-      resEl.className = 'track-result ok';
-      resEl.textContent = `✓ Sheets for "${data.gameName}" were already downloaded. Session closed.`;
-      resEl.style.display = 'block';
-    } else {
-      resEl.className = 'track-result pending';
-      resEl.innerHTML = `⏳ Your order is being verified.<br><strong>${esc(data.gameName)}</strong> · ${data.quantity} sheet${data.quantity !== 1 ? 's' : ''} · ₹${Number(data.amount).toLocaleString('en-IN')}<br><small>Check back in a few minutes.</small>`;
-      resEl.style.display = 'block';
-    }
-  } catch(e) {
-    resEl.className = 'track-result err';
-    resEl.textContent = 'Network error. Try again.';
-    resEl.style.display = 'block';
-  }
-  btn.disabled = false; btn.textContent = 'Find My Order →';
-}
-
 /* ── Navigation ── */
 function show(id, back = false) {
   SCREENS.forEach(s => { const el = document.getElementById(s); el.classList.remove('visible', 'back'); });
@@ -1295,10 +1254,6 @@ function show(id, back = false) {
 
 function updateHeaderForScreen(id) {
   const onHome = id === 'screenHome';
-  const onAuth = id === 'screenLogin' || id === 'screenRegister';
-  // Track button: on home only when NOT logged in (for legacy order lookup)
-  document.getElementById('hdrTrackBtn').style.display = (onHome && !playerSession) ? '' : 'none';
-  // Back/close button: on home only, not during auth
   document.getElementById('hdrBackBtn').style.display = onHome ? '' : 'none';
 }
 
