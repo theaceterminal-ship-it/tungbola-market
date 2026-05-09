@@ -172,3 +172,22 @@ INSERT INTO config (key, value) VALUES
   ('settings',   '{"operatorName":"","whatsappNumber":"","supportText":"","upiId":"","customQrUrl":null}'::jsonb),
   ('app_config', '{"upiId":"","pricePerSheet":5}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
+
+-- ── Telegram-first operator experience ──────────────────────────────────────
+-- Add these columns if you've already applied the initial schema above.
+
+ALTER TABLE operators ADD COLUMN IF NOT EXISTS telegram_id       TEXT;
+ALTER TABLE operators ADD COLUMN IF NOT EXISTS player_channel_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_operators_telegram_id ON operators(telegram_id);
+
+ALTER TABLE games ADD COLUMN IF NOT EXISTS scheduled_for BIGINT;
+CREATE INDEX IF NOT EXISTS idx_games_scheduled
+  ON games(scheduled_for) WHERE status = 'draft' AND scheduled_for IS NOT NULL;
+
+-- Conversation state for multi-step /newgame wizard
+CREATE TABLE IF NOT EXISTS bot_sessions (
+  telegram_id TEXT        PRIMARY KEY,
+  step        TEXT        NOT NULL,
+  data        JSONB       NOT NULL DEFAULT '{}',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

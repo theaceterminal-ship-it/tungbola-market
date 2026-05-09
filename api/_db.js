@@ -26,6 +26,7 @@ function gameFromRow(r) {
     prizes: r.prizes || [], thumbnail: r.thumbnail || null, status: r.status,
     sheetFrom: r.sheet_from, sheetTo: r.sheet_to, sheetCount: r.sheet_count,
     soldCount: r.sold_count, soldSheetNums: r.sold_sheet_nums || [],
+    scheduledFor: r.scheduled_for || null,
     createdAt: r.created_at
   };
 }
@@ -40,6 +41,7 @@ function gameToRow(g) {
     status: g.status || 'draft', sheet_from: g.sheetFrom || 0,
     sheet_to: g.sheetTo || 0, sheet_count: g.sheetCount || 0,
     sold_count: g.soldCount || 0, sold_sheet_nums: g.soldSheetNums || [],
+    scheduled_for: g.scheduledFor || null,
     created_at: g.createdAt || Date.now()
   };
 }
@@ -72,6 +74,7 @@ function operatorFromRow(r) {
   return {
     id: r.id, name: r.name, email: r.email || '', phone: r.phone || '',
     plan: r.plan, apiKey: r.api_key, telegramChatId: r.telegram_chat_id || null,
+    telegramId: r.telegram_id || null, playerChannelId: r.player_channel_id || null,
     active: r.active, createdAt: r.created_at
   };
 }
