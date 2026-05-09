@@ -5,7 +5,7 @@
     "api/*.js": { "maxDuration": 15 }
   },
   "crons": [
-    { "path": "/api/cron", "schedule": "* * * * *" }
+    { "path": "/api/cron", "schedule": "0 0 * * *" }
   ],
   "rewrites": [
     { "source": "/g/:id", "destination": "/api/og?id=:id" }
