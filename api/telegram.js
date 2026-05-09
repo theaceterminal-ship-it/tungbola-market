@@ -100,7 +100,7 @@ async function clearSession(telegramId) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Prize types (all standard tambola prizes)
+// Prize types + UI helpers
 // ─────────────────────────────────────────────────────────────
 
 const PRIZE_TYPES = [
@@ -110,77 +110,91 @@ const PRIZE_TYPES = [
   'Early 5', 'Early 6', 'Early 7', 'Jackpot'
 ];
 
+const PRIZE_EMOJI = {
+  'Full House': '🏆', 'Second Full House': '🥈', 'Third Full House': '🥉',
+  'Upper Line': '⬆️', 'Middle Line': '➡️', 'Bottom Line': '⬇️',
+  'Ticket Corners': '🎫', 'Sheet Corner': '📄',
+  'Early 5': '⚡', 'Early 6': '⚡', 'Early 7': '⚡', 'Jackpot': '💎'
+};
+
+// Inline keyboard with today / tomorrow / day-after + skip
+function dateKeyboard() {
+  const row = [];
+  const lbl = ['Today', 'Tomorrow'];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const val = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    row.push({ text: i < 2 ? lbl[i] : val, callback_data: `w_date:${val}` });
+  }
+  return { inline_keyboard: [row, [{ text: 'Skip', callback_data: 'w_skip' }]] };
+}
+
+const TIME_KB = {
+  inline_keyboard: [
+    [
+      { text: '6 PM',  callback_data: 'w_time:6:00 PM'  },
+      { text: '7 PM',  callback_data: 'w_time:7:00 PM'  },
+      { text: '8 PM',  callback_data: 'w_time:8:00 PM'  },
+      { text: '9 PM',  callback_data: 'w_time:9:00 PM'  },
+      { text: '10 PM', callback_data: 'w_time:10:00 PM' }
+    ],
+    [{ text: 'Skip', callback_data: 'w_skip' }]
+  ]
+};
+
+const SKIP_KB  = { inline_keyboard: [[{ text: 'Skip', callback_data: 'w_skip' }]] };
+const NOW_KB   = { inline_keyboard: [[{ text: '🚀 Publish Now', callback_data: 'w_sched:now' }]] };
+
 // ─────────────────────────────────────────────────────────────
 // Commands
 // ─────────────────────────────────────────────────────────────
 
 async function handleHelp(chatId) {
   await tgReply(chatId,
-    `*Tungbola Operator Bot* 🎯\n\n` +
-    `/link APIKEY — Link your operator account\n` +
-    `/newgame — Create & schedule a new game\n` +
-    `/stats — Sheets remaining, pending orders, today's revenue\n` +
-    `/setchannel @channel — Set your player broadcast channel\n` +
-    `/cancel — Cancel current operation\n` +
-    `/help — Show this message`
+    `*Tungbola Operator Bot*\n\n` +
+    `/newgame — Create & schedule a game\n` +
+    `/stats — Live stats\n` +
+    `/setchannel @ch — Set player channel\n` +
+    `/link APIKEY — Link account\n` +
+    `/cancel — Cancel wizard`
   );
 }
 
 async function handleLink(chatId, telegramId, args) {
   const apiKey = (args || '').trim();
   if (!apiKey) {
-    await tgReply(chatId,
-      `*Link your operator account*\n\nUsage: \`/link YOUR_API_KEY\`\n\nFind your API key in the operator dashboard.`
-    );
+    await tgReply(chatId, `Usage: \`/link YOUR_API_KEY\`\nFind it in your operator dashboard.`);
     return;
   }
   const { data: opRow } = await db().from('operators').select('*').eq('api_key', apiKey).single();
-  if (!opRow) {
-    await tgReply(chatId, '❌ API key not found. Check your operator dashboard.');
-    return;
-  }
-  // Set telegram_id for bot auth; also seed telegram_chat_id for notifications if not already set
+  if (!opRow) { await tgReply(chatId, '❌ API key not found.'); return; }
   const updates = { telegram_id: String(telegramId) };
   if (!opRow.telegram_chat_id) updates.telegram_chat_id = String(chatId);
   await db().from('operators').update(updates).eq('id', opRow.id);
-  await tgReply(chatId,
-    `✅ *Linked! Welcome, ${opRow.name}.*\n\n` +
-    `Your Telegram account is connected to your operator profile.\n\n` +
-    `/newgame — Create a game\n` +
-    `/stats — View live stats\n` +
-    `/setchannel @channel — Set your player channel\n` +
-    `/help — All commands`
-  );
+  await tgReply(chatId, `✅ *Linked — ${opRow.name}*\n\n/newgame · /stats · /setchannel`);
 }
 
 async function handleSetChannel(chatId, telegramId, args) {
   const op = await getOpByTgId(telegramId);
   if (!op) { await tgReply(chatId, '❌ Not linked. Use `/link YOUR_API_KEY` first.'); return; }
-
   const channelId = (args || '').trim();
   if (!channelId) {
     await tgReply(chatId,
-      `*Set your player broadcast channel*\n\n` +
-      `1. Add this bot as an *Admin* to your channel\n   (needs "Post Messages" permission)\n` +
-      `2. Run: \`/setchannel @your_channel_username\`\n\n` +
-      `New games will be posted to that channel automatically when published.`
+      `*Set player channel*\n\n1. Add bot as Admin to your channel\n2. Run: \`/setchannel @your_channel\``
     );
     return;
   }
-
   const result = await tgSendRead('sendMessage', {
     chat_id: channelId,
-    text: '✅ Channel connected to Tungbola Market bot. New games will be broadcast here.'
+    text: '✅ Channel connected to Tungbola Market bot.'
   });
   if (!result?.ok) {
-    await tgReply(chatId,
-      `❌ Couldn't post to \`${channelId}\`.\n\n` +
-      `Make sure:\n• Bot is added as Admin to the channel\n• You have "Post Messages" permission\n• Channel username is correct (e.g., @mychannel)`
-    );
+    await tgReply(chatId, `❌ Can't post to \`${channelId}\`. Make the bot an Admin first.`);
     return;
   }
   await db().from('operators').update({ player_channel_id: channelId }).eq('id', op.id);
-  await tgReply(chatId, `✅ Player channel set to \`${channelId}\`. New games will be broadcast there automatically.`);
+  await tgReply(chatId, `✅ Player channel set to \`${channelId}\`.`);
 }
 
 async function handleStats(chatId, telegramId) {
@@ -193,50 +207,45 @@ async function handleStats(chatId, telegramId) {
     .eq('status', 'listed');
 
   if (!gRows?.length) {
-    await tgReply(chatId, `📊 *Stats — ${op.name}*\n\nNo active games right now.\n\n/newgame to create one.`);
+    await tgReply(chatId, `📊 *${op.name}*\n\nNo active games.\n/newgame to create one.`);
     return;
   }
 
   const gameIds = gRows.map(g => g.id);
-
-  let totalRemaining = 0;
-  const gameLines = gRows.map(g => {
+  let totalRem = 0;
+  const lines = gRows.map(g => {
     const total = g.sheet_count || (g.sheet_to - g.sheet_from + 1);
     const rem = total - (g.sold_count || 0);
-    totalRemaining += rem;
-    return `  • ${g.name}: *${rem}* / ${total} left`;
+    totalRem += rem;
+    return `  • ${g.name}: *${rem}* left`;
   }).join('\n');
 
-  const { count: pendingCount } = await db().from('purchases')
+  const { count: pending } = await db().from('purchases')
     .select('*', { count: 'exact', head: true })
-    .in('game_id', gameIds)
-    .eq('status', 'pending');
+    .in('game_id', gameIds).eq('status', 'pending');
 
   const todayMs = new Date().setHours(0, 0, 0, 0);
-  const { data: todaySales } = await db().from('purchases')
+  const { data: sales } = await db().from('purchases')
     .select('quantity, amount')
     .in('game_id', gameIds)
     .in('status', ['approved', 'downloaded'])
     .gte('created_at', todayMs);
 
-  const todaySold = (todaySales || []).reduce((s, p) => s + (p.quantity || 0), 0);
-  const todayRevenue = (todaySales || []).reduce((s, p) => s + (p.amount || 0), 0);
+  const sold = (sales || []).reduce((s, p) => s + (p.quantity || 0), 0);
+  const rev  = (sales || []).reduce((s, p) => s + (p.amount  || 0), 0);
 
-  let msg = `📊 *Stats — ${op.name}*\n\n`;
-  msg += `📋 *Remaining Sheets: ${totalRemaining}*\n${gameLines}\n\n`;
-  msg += `⏳ *Pending Approvals: ${pendingCount || 0}*\n\n`;
-  msg += `📈 *Today: ${todaySold} sold · ₹${todayRevenue.toLocaleString('en-IN')} revenue*`;
-  await tgReply(chatId, msg);
+  await tgReply(chatId,
+    `📊 *${op.name}*\n\n` +
+    `📋 *${totalRem} sheets remaining*\n${lines}\n\n` +
+    `⏳ *${pending || 0} pending approvals*\n\n` +
+    `📈 *Today — ${sold} sold · ₹${rev.toLocaleString('en-IN')}*`
+  );
 }
 
 async function handleCancel(chatId, telegramId) {
-  const session = await getSession(telegramId);
+  const had = await getSession(telegramId);
   await clearSession(telegramId);
-  if (session) {
-    await tgReply(chatId, '✅ Cancelled.\n\n/newgame /stats /help');
-  } else {
-    await tgReply(chatId, 'Nothing active to cancel.\n\n/help for commands.');
-  }
+  await tgReply(chatId, had ? '✅ Cancelled.' : 'Nothing to cancel.');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -247,10 +256,7 @@ async function handleNewGame(chatId, telegramId) {
   const op = await getOpByTgId(telegramId);
   if (!op) { await tgReply(chatId, '❌ Not linked. Use `/link YOUR_API_KEY` first.'); return; }
   await setSession(telegramId, 'w_name', { operatorId: op.id, operatorName: op.name });
-  await tgReply(chatId,
-    `🎯 *New Game Setup* (${op.name})\n\nI'll collect all game details step by step.\nType /cancel anytime to abort.\n\n` +
-    `*Step 1 of 10 — Game Name*\nWhat's the name of this game?`
-  );
+  await tgReply(chatId, `🎯 *New Game* — ${op.name}\n\n*Game name?*`);
 }
 
 // Returns true if the message was consumed by the wizard
@@ -260,93 +266,71 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
 
   const { step, data } = session;
 
-  // ── Step 1: name ─────────────────────────────────────────────
+  // ── 1: name ──────────────────────────────────────────────────
   if (step === 'w_name') {
     const val = (text || '').trim();
-    if (val.length < 2) { await tgReply(chatId, '❌ Enter a valid game name (at least 2 characters).'); return true; }
+    if (val.length < 2) { await tgReply(chatId, '❌ Name too short. Try again.'); return true; }
     await setSession(telegramId, 'w_date', { ...data, name: val });
-    await tgReply(chatId,
-      `✅ *${val}*\n\n*Step 2 of 10 — Game Date & Time*\nWhen is the game? (e.g., \`15 May 8:30 PM\`)\nType "skip" to leave blank.`
-    );
+    await tgReply(chatId, `📅 *Game date?*`, { reply_markup: dateKeyboard() });
     return true;
   }
 
-  // ── Step 2: game date ────────────────────────────────────────
+  // ── 2: game date ─────────────────────────────────────────────
   if (step === 'w_date') {
     const val = (text || '').trim();
     const gameDate = val.toLowerCase() === 'skip' ? null : val;
     await setSession(telegramId, 'w_jointime', { ...data, gameDate });
-    await tgReply(chatId,
-      `✅ Date: *${gameDate || 'Not set'}*\n\n*Step 3 of 10 — Join Time*\nFrom what time can players start booking? (e.g., \`7:00 PM\`)\nType "skip" to leave blank.`
-    );
+    await tgReply(chatId, `⏰ *Join time?*`, { reply_markup: TIME_KB });
     return true;
   }
 
-  // ── Step 3: join time ────────────────────────────────────────
+  // ── 3: join time ─────────────────────────────────────────────
   if (step === 'w_jointime') {
     const val = (text || '').trim();
     const joinTime = val.toLowerCase() === 'skip' ? null : val;
     await setSession(telegramId, 'w_sheets', { ...data, joinTime });
-    await tgReply(chatId,
-      `✅ Join time: *${joinTime || 'Not set'}*\n\n*Step 4 of 10 — Sheet Range*\nEnter the sheet range for this game.\nFormat: \`from-to\` (e.g., \`1-500\` or \`301-600\`)`
-    );
+    await tgReply(chatId, `📋 *Sheet range?*\n_e.g. 1\\-500 or 301\\-600_`);
     return true;
   }
 
-  // ── Step 4: sheet range ──────────────────────────────────────
+  // ── 4: sheet range ───────────────────────────────────────────
   if (step === 'w_sheets') {
     const m = (text || '').match(/^(\d+)\s*[-–]\s*(\d+)$/);
-    if (!m) { await tgReply(chatId, '❌ Format: `1-500` (from dash to). Try again.'); return true; }
+    if (!m) { await tgReply(chatId, '❌ Format: `1-500`. Try again.'); return true; }
     const from = parseInt(m[1]), to = parseInt(m[2]);
-    if (from >= to) { await tgReply(chatId, '❌ "From" must be less than "to". Try again.'); return true; }
-    if (to - from + 1 > 10000) { await tgReply(chatId, '❌ Maximum 10,000 sheets per game.'); return true; }
-    const count = to - from + 1;
-    await setSession(telegramId, 'w_price', { ...data, sheetFrom: from, sheetTo: to, sheetCount: count });
-    await tgReply(chatId,
-      `✅ Sheets: *${from}–${to}* (${count} total)\n\n*Step 5 of 10 — Price Per Sheet*\nWhat's the price for a single sheet? (number only, e.g., \`50\`)`
-    );
+    if (from >= to)              { await tgReply(chatId, '❌ From must be less than to.'); return true; }
+    if (to - from + 1 > 10000)  { await tgReply(chatId, '❌ Max 10,000 sheets per game.'); return true; }
+    await setSession(telegramId, 'w_price', { ...data, sheetFrom: from, sheetTo: to, sheetCount: to - from + 1 });
+    await tgReply(chatId, `💰 *Price per sheet?*\n_e.g. 50_`);
     return true;
   }
 
-  // ── Step 5: price per sheet ──────────────────────────────────
+  // ── 5: price ─────────────────────────────────────────────────
   if (step === 'w_price') {
     const price = parseInt((text || '').replace(/[₹,\s]/g, ''));
-    if (!price || price < 1 || price > 100000) { await tgReply(chatId, '❌ Enter a valid price in ₹ (e.g., `50`).'); return true; }
+    if (!price || price < 1 || price > 100000) { await tgReply(chatId, '❌ Enter a number (e.g. `50`).'); return true; }
     await setSession(telegramId, 'w_tiers', { ...data, pricePerSheet: price });
-    await tgReply(chatId,
-      `✅ Price: *₹${price}*\n\n*Step 6 of 10 — Bulk Pricing (Optional)*\n` +
-      `Add tiered pricing? Format: \`qty price, qty price\`\n` +
-      `Example: \`5 200, 10 350\` = 5 sheets ₹200 · 10 sheets ₹350\n\n` +
-      `Type "skip" for no bulk pricing.`
-    );
+    await tgReply(chatId, `📦 *Bulk deals?*\n_e.g. 5 200, 10 350_`, { reply_markup: SKIP_KB });
     return true;
   }
 
-  // ── Step 6: pricing tiers ────────────────────────────────────
+  // ── 6: tiers ─────────────────────────────────────────────────
   if (step === 'w_tiers') {
     let tiers = [];
     const val = (text || '').trim();
     if (val.toLowerCase() !== 'skip' && val !== '') {
-      const parts = val.split(',').map(s => s.trim()).filter(Boolean);
-      for (const part of parts) {
+      for (const part of val.split(',').map(s => s.trim()).filter(Boolean)) {
         const pm = part.match(/^(\d+)\s+(\d+)$/);
-        if (!pm) {
-          await tgReply(chatId, '❌ Invalid format. Use: `5 200, 10 350` (qty price pairs) or "skip".');
-          return true;
-        }
+        if (!pm) { await tgReply(chatId, '❌ Format: `5 200, 10 350` or tap Skip.'); return true; }
         tiers.push({ qty: parseInt(pm[1]), price: parseInt(pm[2]) });
       }
     }
-    const tierStr = tiers.length ? tiers.map(t => `${t.qty}×₹${t.price}`).join(', ') : 'None';
     await setSession(telegramId, 'w_prize_0', { ...data, pricingTiers: tiers, prizes: [] });
-    await tgReply(chatId,
-      `✅ Tiers: *${tierStr}*\n\n*Step 7 of 10 — Prizes*\nI'll ask about each prize type. Enter a cash amount or "skip" to exclude it.\n\n` +
-      `*Prize 1 of ${PRIZE_TYPES.length} — ${PRIZE_TYPES[0]}*\nAmount? (e.g., \`5000\`)`
-    );
+    await askPrize(chatId, 0);
     return true;
   }
 
-  // ── Step 7.x: prizes (one per PRIZE_TYPES entry) ─────────────
+  // ── 7.x: prizes ──────────────────────────────────────────────
   if (step.startsWith('w_prize_')) {
     const idx = parseInt(step.slice(8), 10);
     const val = (text || '').trim();
@@ -354,117 +338,84 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
 
     if (val.toLowerCase() !== 'skip') {
       const amount = parseInt(val.replace(/[₹,\s]/g, ''));
-      if (!amount || amount < 1) {
-        await tgReply(chatId, '❌ Enter a valid amount (number) or "skip".');
-        return true;
-      }
+      if (!amount || amount < 1) { await tgReply(chatId, '❌ Enter an amount or tap Skip.'); return true; }
       newData.prizes = [...(data.prizes || []), { name: PRIZE_TYPES[idx], kind: 'cash', amount }];
     }
 
     const nextIdx = idx + 1;
     if (nextIdx < PRIZE_TYPES.length) {
       await setSession(telegramId, `w_prize_${nextIdx}`, newData);
-      const display = val.toLowerCase() === 'skip'
-        ? 'Skipped'
-        : `₹${parseInt(val.replace(/[₹,\s]/g, '')).toLocaleString('en-IN')}`;
-      await tgReply(chatId,
-        `✅ ${PRIZE_TYPES[idx]}: *${display}*\n\n` +
-        `*Prize ${nextIdx + 1} of ${PRIZE_TYPES.length} — ${PRIZE_TYPES[nextIdx]}*\nAmount? or "skip"`
-      );
+      await askPrize(chatId, nextIdx);
     } else {
       await setSession(telegramId, 'w_description', newData);
-      await tgReply(chatId,
-        `✅ All ${PRIZE_TYPES.length} prize types collected (${newData.prizes?.length || 0} with amounts).\n\n` +
-        `*Step 8 of 10 — Description (Optional)*\nEnter a short game description or type "skip".`
-      );
+      await tgReply(chatId, `📝 *Description?*`, { reply_markup: SKIP_KB });
     }
     return true;
   }
 
-  // ── Step 8: description ──────────────────────────────────────
+  // ── 8: description ───────────────────────────────────────────
   if (step === 'w_description') {
     const val = (text || '').trim();
-    const description = val.toLowerCase() === 'skip' ? '' : val;
-    await setSession(telegramId, 'w_thumbnail', { ...data, description });
-    await tgReply(chatId,
-      `✅ Description: *${description || 'None'}*\n\n` +
-      `*Step 9 of 10 — Thumbnail (Optional)*\nSend a photo or paste an image URL for the game card.\nType "skip" for no thumbnail.`
-    );
+    await setSession(telegramId, 'w_thumbnail', { ...data, description: val.toLowerCase() === 'skip' ? '' : val });
+    await tgReply(chatId, `🖼 *Thumbnail?*\nSend a photo or paste a URL.`, { reply_markup: SKIP_KB });
     return true;
   }
 
-  // ── Step 9: thumbnail ────────────────────────────────────────
+  // ── 9: thumbnail ─────────────────────────────────────────────
   if (step === 'w_thumbnail') {
     let thumbnail = null;
     if (photoFileId) {
       const file = await tgGet(`getFile?file_id=${encodeURIComponent(photoFileId)}`);
-      if (file?.result?.file_path) {
+      if (file?.result?.file_path)
         thumbnail = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.result.file_path}`;
-      }
     } else {
       const val = (text || '').trim();
-      if (val && val.toLowerCase() !== 'skip' && (val.startsWith('http://') || val.startsWith('https://'))) {
+      if (val && val.toLowerCase() !== 'skip' && (val.startsWith('http://') || val.startsWith('https://')))
         thumbnail = val;
-      }
     }
     await setSession(telegramId, 'w_schedule', { ...data, thumbnail });
-    await tgReply(chatId,
-      `✅ Thumbnail: *${thumbnail ? 'Set' : 'None'}*\n\n` +
-      `*Step 10 of 10 — When to Publish?*\n` +
-      `When should this game go live for players?\n` +
-      `• Type \`now\` to publish immediately\n` +
-      `• Or enter a date/time: \`15 May 7:00 PM\``,
-      { reply_markup: { inline_keyboard: [[{ text: '🚀 Publish Now', callback_data: 'w_sched:now' }]] } }
-    );
+    await tgReply(chatId, `⏱ *Publish when?*\nOr type a date: \`15 May 7:00 PM\``, { reply_markup: NOW_KB });
     return true;
   }
 
-  // ── Step 10: schedule ────────────────────────────────────────
+  // ── 10: schedule ─────────────────────────────────────────────
   if (step === 'w_schedule') {
     await applyScheduleInput(chatId, telegramId, (text || '').trim(), data);
     return true;
   }
 
-  // ── Confirm ──────────────────────────────────────────────────
+  // ── Confirm ───────────────────────────────────────────────────
   if (step === 'w_confirm') {
     const val = (text || '').trim().toLowerCase();
-    if (val === 'yes') {
-      await finishGame(chatId, telegramId, data);
-    } else if (val === 'no') {
-      await clearSession(telegramId);
-      await tgReply(chatId, '❌ Cancelled.\n\n/newgame to start over.');
-    } else {
-      await tgReply(chatId, 'Reply *yes* to create the game or *no* to cancel.');
-    }
+    if      (val === 'yes') { await finishGame(chatId, telegramId, data); }
+    else if (val === 'no')  { await clearSession(telegramId); await tgReply(chatId, '❌ Cancelled. /newgame to restart.'); }
+    else                    { await tgReply(chatId, 'Tap a button above or reply *yes* / *no*.'); }
     return true;
   }
 
   return false;
 }
 
-async function applyScheduleInput(chatId, telegramId, val, data) {
-  let scheduledFor = null;
-  let publishNow = false;
+async function askPrize(chatId, idx) {
+  const e = PRIZE_EMOJI[PRIZE_TYPES[idx]] || '🎯';
+  const progress = `${idx + 1}/${PRIZE_TYPES.length}`;
+  await tgReply(chatId,
+    `${e} *${PRIZE_TYPES[idx]}* ₹?  _(${progress})_`,
+    { reply_markup: SKIP_KB }
+  );
+}
 
-  if (!val) {
-    await tgReply(chatId, '❌ Please type "now" or a future date/time (e.g., `15 May 7:00 PM`).');
-    return;
-  }
+async function applyScheduleInput(chatId, telegramId, val, data) {
+  if (!val) { await tgReply(chatId, '❌ Type "now" or a date like `15 May 7:00 PM`.'); return; }
+  let scheduledFor = null, publishNow = false;
   if (val.toLowerCase() === 'now') {
     publishNow = true;
   } else {
     const d = new Date(val);
-    if (isNaN(d.getTime())) {
-      await tgReply(chatId, '❌ Couldn\'t parse that date. Try "now" or `15 May 7:00 PM`.');
-      return;
-    }
-    if (d.getTime() <= Date.now()) {
-      await tgReply(chatId, '❌ That time is in the past. Enter a future date/time.');
-      return;
-    }
+    if (isNaN(d.getTime()))      { await tgReply(chatId, '❌ Can\'t parse that. Try `15 May 7:00 PM`.'); return; }
+    if (d.getTime() <= Date.now()) { await tgReply(chatId, '❌ That time is in the past.'); return; }
     scheduledFor = d.getTime();
   }
-
   const newData = { ...data, scheduledFor, publishNow };
   await setSession(telegramId, 'w_confirm', newData);
   await showSummary(chatId, newData);
@@ -472,35 +423,32 @@ async function applyScheduleInput(chatId, telegramId, val, data) {
 
 async function showSummary(chatId, data) {
   const priceStr = data.pricingTiers?.length
-    ? data.pricingTiers.map(t => `${t.qty}×₹${t.price}`).join(' | ') + ` · Single ₹${data.pricePerSheet}`
-    : `₹${data.pricePerSheet} per sheet`;
+    ? data.pricingTiers.map(t => `${t.qty}×₹${t.price}`).join(' · ') + ` + ₹${data.pricePerSheet}`
+    : `₹${data.pricePerSheet}`;
 
-  const prizeStr = (data.prizes || []).length
-    ? (data.prizes || []).map(p => `  • ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`).join('\n')
-    : '  (none set)';
+  const prizeLines = (data.prizes || [])
+    .map(p => `${PRIZE_EMOJI[p.name] || '🎯'} ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`)
+    .join('\n') || '  —';
 
-  const publishStr = data.publishNow
-    ? '🚀 Immediately'
+  const when = data.publishNow
+    ? '🚀 Now'
     : `📅 ${new Date(data.scheduledFor).toLocaleString('en-IN')}`;
 
-  const msg =
-    `📋 *Confirm Game Details*\n\n` +
-    `*Name:* ${data.name}\n` +
-    `*Date:* ${data.gameDate || '—'}\n` +
-    `*Join Time:* ${data.joinTime || '—'}\n` +
-    `*Sheets:* ${data.sheetFrom}–${data.sheetTo} (${data.sheetCount} total)\n` +
-    `*Price:* ${priceStr}\n` +
-    `*Description:* ${data.description || '—'}\n` +
-    `*Thumbnail:* ${data.thumbnail ? '✅ Set' : 'None'}\n` +
-    `*Prizes (${(data.prizes || []).length}):*\n${prizeStr}\n` +
-    `*Publish:* ${publishStr}\n\n` +
-    `Reply *yes* to create or *no* to cancel.`;
+  const lines = [
+    `✅ *Confirm Game*\n`,
+    `🎯 *${data.name}*`,
+    data.gameDate  ? `📅 ${data.gameDate}${data.joinTime ? ` · ⏰ ${data.joinTime}` : ''}` : null,
+    `📋 Sheets ${data.sheetFrom}–${data.sheetTo} (${data.sheetCount})  💰 ${priceStr}`,
+    data.description ? `📝 ${data.description}` : null,
+    `\n*Prizes:*\n${prizeLines}`,
+    `\n*Publish:* ${when}`
+  ].filter(Boolean).join('\n');
 
-  await tgReply(chatId, msg, {
+  await tgReply(chatId, lines, {
     reply_markup: {
       inline_keyboard: [[
         { text: '✅ Create Game', callback_data: 'w_confirm:yes' },
-        { text: '❌ Cancel', callback_data: 'w_confirm:no' }
+        { text: '❌ Cancel',     callback_data: 'w_confirm:no'  }
       ]]
     }
   });
@@ -533,56 +481,41 @@ async function finishGame(chatId, telegramId, data) {
     created_at: Date.now()
   });
 
-  if (error) {
-    await tgReply(chatId, `❌ Failed to save game: ${error.message}`);
-    return;
-  }
-
+  if (error) { await tgReply(chatId, `❌ Failed: ${error.message}`); return; }
   await clearSession(telegramId);
 
   if (data.publishNow) {
     const { data: opRow } = await db().from('operators').select('player_channel_id').eq('id', data.operatorId).single();
-    if (opRow?.player_channel_id) {
-      await broadcastGame(opRow.player_channel_id, { id: gameId, ...data });
-    }
-    await tgReply(chatId,
-      `🎉 *Game Published!*\n\n` +
-      `*${data.name}* is live — players can book now.\n` +
-      `Game ID: \`${gameId}\`\n\n` +
-      `/stats to monitor sales.`
-    );
+    if (opRow?.player_channel_id) await broadcastGame(opRow.player_channel_id, { id: gameId, ...data });
+    await tgReply(chatId, `🎉 *${data.name}* is live!\nID: \`${gameId}\`\n\n/stats to monitor.`);
   } else {
     await tgReply(chatId,
-      `✅ *Game Scheduled!*\n\n` +
-      `*${data.name}* will go live at:\n` +
-      `*${new Date(data.scheduledFor).toLocaleString('en-IN')}*\n` +
-      `Game ID: \`${gameId}\`\n\n` +
-      `The bot will publish and post to your player channel automatically.`
+      `✅ *Scheduled!*\n${data.name}\nGoes live: *${new Date(data.scheduledFor).toLocaleString('en-IN')}*\nID: \`${gameId}\``
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Channel broadcast — used by finishGame and api/cron.js
+// Channel broadcast — shared with api/cron.js
 // ─────────────────────────────────────────────────────────────
 
 async function broadcastGame(channelId, game) {
   const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
-  const url   = `https://${host}/g/${game.id}`;
+  const url  = `https://${host}/g/${game.id}`;
 
   const priceStr = Array.isArray(game.pricingTiers) && game.pricingTiers.length
-    ? game.pricingTiers.map(t => `${t.qty}×₹${t.price}`).join(' | ') + ` · Single ₹${game.pricePerSheet}`
+    ? game.pricingTiers.map(t => `${t.qty}×₹${t.price}`).join(' · ') + ` · Single ₹${game.pricePerSheet}`
     : `₹${game.pricePerSheet} per sheet`;
 
   const prizeLines = (game.prizes || []).slice(0, 5)
-    .map(p => `• ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`)
+    .map(p => `${PRIZE_EMOJI[p.name] || '•'} ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`)
     .join('\n');
 
   let msg = `🎯 *${game.name}*`;
-  if (game.gameDate)  msg += `\n📅 ${game.gameDate}`;
-  if (game.joinTime)  msg += ` · ⏰ Book by ${game.joinTime}`;
+  if (game.gameDate) msg += `\n📅 ${game.gameDate}`;
+  if (game.joinTime) msg += ` · ⏰ ${game.joinTime}`;
   msg += `\n\n💰 ${priceStr}`;
-  if (prizeLines)     msg += `\n\n🏆 *Prizes:*\n${prizeLines}`;
+  if (prizeLines) msg += `\n\n🏆 *Prizes:*\n${prizeLines}`;
   msg += `\n\n📋 ${game.sheetCount} sheets available`;
 
   await tgSend('sendMessage', {
@@ -594,7 +527,7 @@ async function broadcastGame(channelId, game) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Approve / Reject (order management)
+// Approve / Reject
 // ─────────────────────────────────────────────────────────────
 
 async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
@@ -622,7 +555,7 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   }
 
   const { data: allSheets } = await sheetQuery;
-  const soldSet = new Set(game.soldSheetNums);
+  const soldSet  = new Set(game.soldSheetNums);
   const available = (allSheets || []).filter(s => !soldSet.has(s.n));
 
   if (available.length < purchase.quantity) {
@@ -638,9 +571,9 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
     assigned = available.slice(0, purchase.quantity);
   }
 
-  const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
-  const dlToken   = Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
-  const now       = Date.now();
+  const sheetList   = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
+  const dlToken     = Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
+  const now         = Date.now();
   const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
 
   await Promise.all([
@@ -655,23 +588,20 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
     if (pushRow?.subscription) await sendPush(pushRow.subscription);
   } catch (e) {}
 
-  await answerCallback(callbackQueryId, '✅ Approved! Player notified.');
+  await answerCallback(callbackQueryId, '✅ Approved!');
   await editMessage(chatId, messageId,
-    `✅ *Approved* — #${purchaseId.slice(-6)}\n\n👤 ${purchase.playerName}\n🎮 ${purchase.gameName}\n📋 ${purchase.quantity} sheets assigned\n💰 ₹${purchase.amount}`
+    `✅ *Approved* — #${purchaseId.slice(-6)}\n\n👤 ${purchase.playerName}\n🎮 ${purchase.gameName}\n📋 ${purchase.quantity} sheets · ₹${purchase.amount}`
   );
 }
 
 async function handleReject(purchaseId, chatId, messageId, callbackQueryId) {
   const { data: pRow } = await db().from('purchases').select('status,player_name,game_name,quantity,amount').eq('purchase_id', purchaseId).single();
   if (!pRow) { await answerCallback(callbackQueryId, 'Order not found.'); return; }
-  if (pRow.status !== 'pending') {
-    await answerCallback(callbackQueryId, `Already ${pRow.status}.`);
-    return;
-  }
+  if (pRow.status !== 'pending') { await answerCallback(callbackQueryId, `Already ${pRow.status}.`); return; }
   await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
-  await answerCallback(callbackQueryId, '❌ Order rejected.');
+  await answerCallback(callbackQueryId, '❌ Rejected.');
   await editMessage(chatId, messageId,
-    `❌ *Rejected* — #${purchaseId.slice(-6)}\n\n👤 ${pRow.player_name}\n🎮 ${pRow.game_name}\n📋 ${pRow.quantity} sheets\n💰 ₹${pRow.amount}`
+    `❌ *Rejected* — #${purchaseId.slice(-6)}\n\n👤 ${pRow.player_name}\n🎮 ${pRow.game_name}\n📋 ${pRow.quantity} sheets · ₹${pRow.amount}`
   );
 }
 
@@ -693,88 +623,88 @@ module.exports = async function(req, res) {
   try {
     const update = req.body || {};
 
-    // ── Callback query (button presses) ──────────────────────
+    // ── Callback queries ──────────────────────────────────────
     if (update.callback_query) {
-      const cb    = update.callback_query;
+      const cb   = update.callback_query;
       const cbData = cb.data || '';
       const chatId = cb.message?.chat?.id;
-      const messageId = cb.message?.message_id;
-      const telegramId = cb.from?.id;
-      const callbackQueryId = cb.id;
-
-      if (!chatId || !messageId) return res.status(200).json({ ok: true });
+      const msgId  = cb.message?.message_id;
+      const tgId   = cb.from?.id;
+      const cbqId  = cb.id;
+      if (!chatId) return res.status(200).json({ ok: true });
 
       if (cbData.startsWith('approve:')) {
-        await handleApprove(cbData.slice(8), chatId, messageId, callbackQueryId);
+        await handleApprove(cbData.slice(8), chatId, msgId, cbqId);
+
       } else if (cbData.startsWith('reject:')) {
-        await handleReject(cbData.slice(7), chatId, messageId, callbackQueryId);
+        await handleReject(cbData.slice(7), chatId, msgId, cbqId);
+
+      } else if (cbData.startsWith('w_date:')) {
+        await answerCallback(cbqId, '');
+        await processWizard(chatId, tgId, cbData.slice(7), null);
+
+      } else if (cbData.startsWith('w_time:')) {
+        await answerCallback(cbqId, '');
+        await processWizard(chatId, tgId, cbData.slice(7), null);
+
+      } else if (cbData === 'w_skip') {
+        await answerCallback(cbqId, '');
+        await processWizard(chatId, tgId, 'skip', null);
+
       } else if (cbData.startsWith('w_sched:')) {
-        const session = await getSession(telegramId);
+        const session = await getSession(tgId);
         if (session?.step === 'w_schedule') {
-          await answerCallback(callbackQueryId, '');
-          await applyScheduleInput(chatId, telegramId, cbData.slice(8), session.data);
+          await answerCallback(cbqId, '');
+          await applyScheduleInput(chatId, tgId, cbData.slice(8), session.data);
         } else {
-          await answerCallback(callbackQueryId, 'Session expired. Use /newgame to restart.');
+          await answerCallback(cbqId, 'Session expired — use /newgame.');
         }
+
       } else if (cbData.startsWith('w_confirm:')) {
-        const session = await getSession(telegramId);
-        await answerCallback(callbackQueryId, '');
+        const session = await getSession(tgId);
+        await answerCallback(cbqId, '');
         if (!session) {
-          await tgReply(chatId, 'Session expired. Use /newgame to restart.');
+          await tgReply(chatId, 'Session expired — use /newgame.');
         } else if (cbData === 'w_confirm:yes') {
-          await finishGame(chatId, telegramId, session.data);
+          await finishGame(chatId, tgId, session.data);
         } else {
-          await clearSession(telegramId);
-          await tgReply(chatId, '❌ Cancelled.\n\n/newgame to start over.');
+          await clearSession(tgId);
+          await tgReply(chatId, '❌ Cancelled. /newgame to restart.');
         }
+
       } else {
-        await answerCallback(callbackQueryId, '');
+        await answerCallback(cbqId, '');
       }
 
       return res.status(200).json({ ok: true });
     }
 
-    // ── Text / photo messages ────────────────────────────────
+    // ── Messages ──────────────────────────────────────────────
     if (update.message) {
-      const msg = update.message;
-      const chatId    = msg.chat?.id;
-      const telegramId = msg.from?.id;
-      if (!chatId || !telegramId) return res.status(200).json({ ok: true });
-
-      // Only handle private chats (not group/channel messages)
+      const msg  = update.message;
+      const chatId = msg.chat?.id;
+      const tgId   = msg.from?.id;
+      if (!chatId || !tgId) return res.status(200).json({ ok: true });
       if (msg.chat?.type !== 'private') return res.status(200).json({ ok: true });
 
-      const text = msg.text || '';
+      const text       = msg.text || '';
       const photoFileId = msg.photo?.length ? msg.photo[msg.photo.length - 1].file_id : null;
 
-      // Parse slash command
       const cmdMatch = text.match(/^\/(\w+)(?:@\S+)?\s*([\s\S]*)?$/);
       if (cmdMatch) {
         const cmd  = cmdMatch[1].toLowerCase();
         const args = (cmdMatch[2] || '').trim();
-
-        if (cmd === 'start' || cmd === 'help') {
-          await handleHelp(chatId);
-        } else if (cmd === 'link') {
-          await handleLink(chatId, telegramId, args);
-        } else if (cmd === 'newgame') {
-          await handleNewGame(chatId, telegramId);
-        } else if (cmd === 'stats') {
-          await handleStats(chatId, telegramId);
-        } else if (cmd === 'setchannel') {
-          await handleSetChannel(chatId, telegramId, args);
-        } else if (cmd === 'cancel') {
-          await handleCancel(chatId, telegramId);
-        }
-        // Unknown commands are silently ignored
+        if      (cmd === 'start' || cmd === 'help') await handleHelp(chatId);
+        else if (cmd === 'link')       await handleLink(chatId, tgId, args);
+        else if (cmd === 'newgame')    await handleNewGame(chatId, tgId);
+        else if (cmd === 'stats')      await handleStats(chatId, tgId);
+        else if (cmd === 'setchannel') await handleSetChannel(chatId, tgId, args);
+        else if (cmd === 'cancel')     await handleCancel(chatId, tgId);
         return res.status(200).json({ ok: true });
       }
 
-      // Feed non-command messages into the wizard
-      const consumed = await processWizard(chatId, telegramId, text, photoFileId);
-      if (!consumed && text) {
-        await tgReply(chatId, 'Use /help to see available commands.');
-      }
+      const consumed = await processWizard(chatId, tgId, text, photoFileId);
+      if (!consumed && text) await tgReply(chatId, 'Use /help to see commands.');
     }
   } catch (e) {
     console.error('Telegram webhook error:', e.message);
@@ -783,5 +713,4 @@ module.exports = async function(req, res) {
   return res.status(200).json({ ok: true });
 };
 
-// Exported for use by api/cron.js
 module.exports.broadcastGame = broadcastGame;
