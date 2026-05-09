@@ -191,3 +191,11 @@ CREATE TABLE IF NOT EXISTS bot_sessions (
   data        JSONB       NOT NULL DEFAULT '{}',
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Player Telegram links (phone → telegram_id for auto-delivery of download links)
+CREATE TABLE IF NOT EXISTS player_telegram (
+  phone       TEXT PRIMARY KEY,
+  telegram_id TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_player_telegram_tg ON player_telegram(telegram_id);

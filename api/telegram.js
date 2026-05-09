@@ -75,13 +75,62 @@ async function editMessage(chatId, messageId, text, extra = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Operator / session helpers
+// Operator helpers
 // ─────────────────────────────────────────────────────────────
 
 async function getOpByTgId(telegramId) {
   const { data } = await db().from('operators').select('*').eq('telegram_id', String(telegramId)).single();
   return data || null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Player Telegram helpers
+// ─────────────────────────────────────────────────────────────
+
+async function getPlayerPhone(telegramId) {
+  const { data } = await db().from('player_telegram').select('phone').eq('telegram_id', String(telegramId)).single();
+  return data?.phone || null;
+}
+
+async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken) {
+  try {
+    const { data } = await db().from('player_telegram').select('telegram_id').eq('phone', String(phone)).single();
+    if (!data?.telegram_id) return;
+    const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+    await tgSend('sendMessage', {
+      chat_id: data.telegram_id,
+      text:
+        `✅ *Order Approved!*\n\n` +
+        `🎮 ${gameName}\n` +
+        `📋 ${quantity} sheets · ₹${amount}\n\n` +
+        `Tap below to download your sheets.\n_Link expires in 6 hours._`,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${dlToken}` }]]
+      }
+    });
+  } catch (e) {}
+}
+
+async function notifyPlayerRejected(phone, gameName, quantity, amount) {
+  try {
+    const { data } = await db().from('player_telegram').select('telegram_id').eq('phone', String(phone)).single();
+    if (!data?.telegram_id) return;
+    await tgSend('sendMessage', {
+      chat_id: data.telegram_id,
+      text:
+        `❌ *Order Declined*\n\n` +
+        `🎮 ${gameName}\n` +
+        `📋 ${quantity} sheets · ₹${amount}\n\n` +
+        `Contact the operator for details.`,
+      parse_mode: 'Markdown'
+    });
+  } catch (e) {}
+}
+
+// ─────────────────────────────────────────────────────────────
+// Wizard session helpers
+// ─────────────────────────────────────────────────────────────
 
 async function getSession(telegramId) {
   const { data } = await db().from('bot_sessions').select('*').eq('telegram_id', String(telegramId)).single();
@@ -117,7 +166,6 @@ const PRIZE_EMOJI = {
   'Early 5': '⚡', 'Early 6': '⚡', 'Early 7': '⚡', 'Jackpot': '💎'
 };
 
-// Inline keyboard with today / tomorrow / day-after + skip
 function dateKeyboard() {
   const row = [];
   const lbl = ['Today', 'Tomorrow'];
@@ -143,14 +191,14 @@ const TIME_KB = {
   ]
 };
 
-const SKIP_KB  = { inline_keyboard: [[{ text: 'Skip', callback_data: 'w_skip' }]] };
-const NOW_KB   = { inline_keyboard: [[{ text: '🚀 Publish Now', callback_data: 'w_sched:now' }]] };
+const SKIP_KB = { inline_keyboard: [[{ text: 'Skip', callback_data: 'w_skip' }]] };
+const NOW_KB  = { inline_keyboard: [[{ text: '🚀 Publish Now', callback_data: 'w_sched:now' }]] };
 
 // ─────────────────────────────────────────────────────────────
-// Commands
+// Operator commands
 // ─────────────────────────────────────────────────────────────
 
-async function handleHelp(chatId) {
+async function handleOperatorHelp(chatId) {
   await tgReply(chatId,
     `*Tungbola Operator Bot*\n\n` +
     `/newgame — Create & schedule a game\n` +
@@ -249,6 +297,65 @@ async function handleCancel(chatId, telegramId) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Player commands
+// ─────────────────────────────────────────────────────────────
+
+async function handlePlayerStart(chatId, telegramId) {
+  const existing = await getPlayerPhone(telegramId);
+  if (existing) {
+    await tgReply(chatId,
+      `👋 *Welcome back!*\n\nYou're linked. You'll automatically receive download links here when orders are approved.\n\n/myorders — Check your orders`
+    );
+    return;
+  }
+  await clearSession(telegramId);
+  await setSession(telegramId, 'p_phone', {});
+  await tgReply(chatId,
+    `👋 *Welcome to Tungbola!*\n\nSend your *registered phone number* to link your account.\nYou'll receive order approvals and download links here automatically.`
+  );
+}
+
+async function handleMyOrders(chatId, telegramId, args) {
+  let phone = await getPlayerPhone(telegramId);
+
+  if (!phone) {
+    if (args) {
+      phone = args.replace(/\D/g, '');
+    } else {
+      await clearSession(telegramId);
+      await setSession(telegramId, 'p_phone', {});
+      await tgReply(chatId, `Send your registered phone number to link your account.`);
+      return;
+    }
+  }
+
+  const { data: orders } = await db().from('purchases')
+    .select('purchase_id, game_name, quantity, amount, status, download_token')
+    .eq('phone', phone)
+    .order('created_at', { ascending: false })
+    .limit(6);
+
+  if (!orders?.length) {
+    await tgReply(chatId, `No orders found.`);
+    return;
+  }
+
+  const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+  const keyboard = [];
+  let msg = `📦 *Your Orders*\n\n`;
+
+  for (const o of orders) {
+    const e = o.status === 'approved' ? '✅' : o.status === 'downloaded' ? '📥' : o.status === 'pending' ? '⏳' : '❌';
+    msg += `${e} *${o.game_name}* — ${o.quantity} sheets · ₹${o.amount}\n`;
+    if ((o.status === 'approved') && o.download_token) {
+      keyboard.push([{ text: `📥 Download — ${o.game_name}`, url: `https://${host}/?dl=${o.download_token}` }]);
+    }
+  }
+
+  await tgReply(chatId, msg, keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {});
+}
+
+// ─────────────────────────────────────────────────────────────
 // /newgame wizard
 // ─────────────────────────────────────────────────────────────
 
@@ -259,53 +366,70 @@ async function handleNewGame(chatId, telegramId) {
   await tgReply(chatId, `🎯 *New Game* — ${op.name}\n\n*Game name?*`);
 }
 
-// Returns true if the message was consumed by the wizard
 async function processWizard(chatId, telegramId, text, photoFileId) {
   const session = await getSession(telegramId);
   if (!session) return false;
 
   const { step, data } = session;
 
-  // ── 1: name ──────────────────────────────────────────────────
+  // ── Player phone linking ──────────────────────────────────────
+  if (step === 'p_phone') {
+    const phone = (text || '').replace(/\D/g, '');
+    if (phone.length < 10) { await tgReply(chatId, '❌ Enter your registered phone number.'); return true; }
+    const { data: player } = await db().from('players').select('phone, name').eq('phone', phone).single();
+    if (!player) {
+      await tgReply(chatId, '❌ Phone not found. Make sure you\'re registered on the marketplace first.');
+      return true;
+    }
+    await db().from('player_telegram').upsert(
+      { phone, telegram_id: String(telegramId) },
+      { onConflict: 'phone' }
+    );
+    await clearSession(telegramId);
+    await tgReply(chatId,
+      `✅ *Linked, ${player.name}!*\n\nYou'll automatically receive download links here when your orders are approved.\n\n/myorders — Check your orders`
+    );
+    return true;
+  }
+
+  // ── 1: name ───────────────────────────────────────────────────
   if (step === 'w_name') {
     const val = (text || '').trim();
-    if (val.length < 2) { await tgReply(chatId, '❌ Name too short. Try again.'); return true; }
+    if (val.length < 2) { await tgReply(chatId, '❌ Name too short.'); return true; }
     await setSession(telegramId, 'w_date', { ...data, name: val });
     await tgReply(chatId, `📅 *Game date?*`, { reply_markup: dateKeyboard() });
     return true;
   }
 
-  // ── 2: game date ─────────────────────────────────────────────
+  // ── 2: game date ──────────────────────────────────────────────
   if (step === 'w_date') {
     const val = (text || '').trim();
-    const gameDate = val.toLowerCase() === 'skip' ? null : val;
-    await setSession(telegramId, 'w_jointime', { ...data, gameDate });
+    await setSession(telegramId, 'w_jointime', { ...data, gameDate: val.toLowerCase() === 'skip' ? null : val });
     await tgReply(chatId, `⏰ *Join time?*`, { reply_markup: TIME_KB });
     return true;
   }
 
-  // ── 3: join time ─────────────────────────────────────────────
+  // ── 3: join time ──────────────────────────────────────────────
   if (step === 'w_jointime') {
     const val = (text || '').trim();
-    const joinTime = val.toLowerCase() === 'skip' ? null : val;
-    await setSession(telegramId, 'w_sheets', { ...data, joinTime });
+    await setSession(telegramId, 'w_sheets', { ...data, joinTime: val.toLowerCase() === 'skip' ? null : val });
     await tgReply(chatId, `📋 *Sheet range?*\n_e.g. 1\\-500 or 301\\-600_`);
     return true;
   }
 
-  // ── 4: sheet range ───────────────────────────────────────────
+  // ── 4: sheet range ────────────────────────────────────────────
   if (step === 'w_sheets') {
     const m = (text || '').match(/^(\d+)\s*[-–]\s*(\d+)$/);
     if (!m) { await tgReply(chatId, '❌ Format: `1-500`. Try again.'); return true; }
     const from = parseInt(m[1]), to = parseInt(m[2]);
-    if (from >= to)              { await tgReply(chatId, '❌ From must be less than to.'); return true; }
-    if (to - from + 1 > 10000)  { await tgReply(chatId, '❌ Max 10,000 sheets per game.'); return true; }
+    if (from >= to)             { await tgReply(chatId, '❌ From must be less than to.'); return true; }
+    if (to - from + 1 > 10000) { await tgReply(chatId, '❌ Max 10,000 sheets per game.'); return true; }
     await setSession(telegramId, 'w_price', { ...data, sheetFrom: from, sheetTo: to, sheetCount: to - from + 1 });
     await tgReply(chatId, `💰 *Price per sheet?*\n_e.g. 50_`);
     return true;
   }
 
-  // ── 5: price ─────────────────────────────────────────────────
+  // ── 5: price ──────────────────────────────────────────────────
   if (step === 'w_price') {
     const price = parseInt((text || '').replace(/[₹,\s]/g, ''));
     if (!price || price < 1 || price > 100000) { await tgReply(chatId, '❌ Enter a number (e.g. `50`).'); return true; }
@@ -314,7 +438,7 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     return true;
   }
 
-  // ── 6: tiers ─────────────────────────────────────────────────
+  // ── 6: tiers ──────────────────────────────────────────────────
   if (step === 'w_tiers') {
     let tiers = [];
     const val = (text || '').trim();
@@ -330,18 +454,16 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     return true;
   }
 
-  // ── 7.x: prizes ──────────────────────────────────────────────
+  // ── 7.x: prizes ───────────────────────────────────────────────
   if (step.startsWith('w_prize_')) {
     const idx = parseInt(step.slice(8), 10);
     const val = (text || '').trim();
     const newData = { ...data };
-
     if (val.toLowerCase() !== 'skip') {
       const amount = parseInt(val.replace(/[₹,\s]/g, ''));
       if (!amount || amount < 1) { await tgReply(chatId, '❌ Enter an amount or tap Skip.'); return true; }
       newData.prizes = [...(data.prizes || []), { name: PRIZE_TYPES[idx], kind: 'cash', amount }];
     }
-
     const nextIdx = idx + 1;
     if (nextIdx < PRIZE_TYPES.length) {
       await setSession(telegramId, `w_prize_${nextIdx}`, newData);
@@ -353,7 +475,7 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     return true;
   }
 
-  // ── 8: description ───────────────────────────────────────────
+  // ── 8: description ────────────────────────────────────────────
   if (step === 'w_description') {
     const val = (text || '').trim();
     await setSession(telegramId, 'w_thumbnail', { ...data, description: val.toLowerCase() === 'skip' ? '' : val });
@@ -361,7 +483,7 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     return true;
   }
 
-  // ── 9: thumbnail ─────────────────────────────────────────────
+  // ── 9: thumbnail ──────────────────────────────────────────────
   if (step === 'w_thumbnail') {
     let thumbnail = null;
     if (photoFileId) {
@@ -378,7 +500,7 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     return true;
   }
 
-  // ── 10: schedule ─────────────────────────────────────────────
+  // ── 10: schedule ──────────────────────────────────────────────
   if (step === 'w_schedule') {
     await applyScheduleInput(chatId, telegramId, (text || '').trim(), data);
     return true;
@@ -398,9 +520,8 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
 
 async function askPrize(chatId, idx) {
   const e = PRIZE_EMOJI[PRIZE_TYPES[idx]] || '🎯';
-  const progress = `${idx + 1}/${PRIZE_TYPES.length}`;
   await tgReply(chatId,
-    `${e} *${PRIZE_TYPES[idx]}* ₹?  _(${progress})_`,
+    `${e} *${PRIZE_TYPES[idx]}* ₹?  _(${idx + 1}/${PRIZE_TYPES.length})_`,
     { reply_markup: SKIP_KB }
   );
 }
@@ -412,7 +533,7 @@ async function applyScheduleInput(chatId, telegramId, val, data) {
     publishNow = true;
   } else {
     const d = new Date(val);
-    if (isNaN(d.getTime()))      { await tgReply(chatId, '❌ Can\'t parse that. Try `15 May 7:00 PM`.'); return; }
+    if (isNaN(d.getTime()))        { await tgReply(chatId, '❌ Can\'t parse that. Try `15 May 7:00 PM`.'); return; }
     if (d.getTime() <= Date.now()) { await tgReply(chatId, '❌ That time is in the past.'); return; }
     scheduledFor = d.getTime();
   }
@@ -430,14 +551,12 @@ async function showSummary(chatId, data) {
     .map(p => `${PRIZE_EMOJI[p.name] || '🎯'} ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`)
     .join('\n') || '  —';
 
-  const when = data.publishNow
-    ? '🚀 Now'
-    : `📅 ${new Date(data.scheduledFor).toLocaleString('en-IN')}`;
+  const when = data.publishNow ? '🚀 Now' : `📅 ${new Date(data.scheduledFor).toLocaleString('en-IN')}`;
 
   const lines = [
     `✅ *Confirm Game*\n`,
     `🎯 *${data.name}*`,
-    data.gameDate  ? `📅 ${data.gameDate}${data.joinTime ? ` · ⏰ ${data.joinTime}` : ''}` : null,
+    data.gameDate ? `📅 ${data.gameDate}${data.joinTime ? ` · ⏰ ${data.joinTime}` : ''}` : null,
     `📋 Sheets ${data.sheetFrom}–${data.sheetTo} (${data.sheetCount})  💰 ${priceStr}`,
     data.description ? `📝 ${data.description}` : null,
     `\n*Prizes:*\n${prizeLines}`,
@@ -500,8 +619,9 @@ async function finishGame(chatId, telegramId, data) {
 // ─────────────────────────────────────────────────────────────
 
 async function broadcastGame(channelId, game) {
-  const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
-  const url  = `https://${host}/g/${game.id}`;
+  const host       = process.env.APP_HOST || 'tungbola-market.vercel.app';
+  const botUsername = process.env.TELEGRAM_BOT_USERNAME;
+  const url        = `https://${host}/g/${game.id}`;
 
   const priceStr = Array.isArray(game.pricingTiers) && game.pricingTiers.length
     ? game.pricingTiers.map(t => `${t.qty}×₹${t.price}`).join(' · ') + ` · Single ₹${game.pricePerSheet}`
@@ -518,11 +638,14 @@ async function broadcastGame(channelId, game) {
   if (prizeLines) msg += `\n\n🏆 *Prizes:*\n${prizeLines}`;
   msg += `\n\n📋 ${game.sheetCount} sheets available`;
 
+  const keyboard = [[{ text: '🎟 Book Sheets Now', url }]];
+  if (botUsername) keyboard.push([{ text: '📲 Get sheets in Telegram', url: `https://t.me/${botUsername}` }]);
+
   await tgSend('sendMessage', {
     chat_id: channelId,
     text: msg,
     parse_mode: 'Markdown',
-    reply_markup: { inline_keyboard: [[{ text: '🎟 Book Sheets Now', url }]] }
+    reply_markup: { inline_keyboard: keyboard }
   });
 }
 
@@ -555,7 +678,7 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   }
 
   const { data: allSheets } = await sheetQuery;
-  const soldSet  = new Set(game.soldSheetNums);
+  const soldSet   = new Set(game.soldSheetNums);
   const available = (allSheets || []).filter(s => !soldSet.has(s.n));
 
   if (available.length < purchase.quantity) {
@@ -582,11 +705,18 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
     db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
   ]);
 
+  // Push notification (web)
   try {
     const np = String(purchase.phone).replace(/\D/g, '');
     const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', np).single();
     if (pushRow?.subscription) await sendPush(pushRow.subscription);
   } catch (e) {}
+
+  // Telegram notification (if player linked)
+  await notifyPlayerApproved(
+    String(purchase.phone).replace(/\D/g, ''),
+    purchase.gameName, purchase.quantity, purchase.amount, dlToken
+  );
 
   await answerCallback(callbackQueryId, '✅ Approved!');
   await editMessage(chatId, messageId,
@@ -595,10 +725,20 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
 }
 
 async function handleReject(purchaseId, chatId, messageId, callbackQueryId) {
-  const { data: pRow } = await db().from('purchases').select('status,player_name,game_name,quantity,amount').eq('purchase_id', purchaseId).single();
+  const { data: pRow } = await db().from('purchases')
+    .select('status, phone, player_name, game_name, quantity, amount')
+    .eq('purchase_id', purchaseId).single();
   if (!pRow) { await answerCallback(callbackQueryId, 'Order not found.'); return; }
   if (pRow.status !== 'pending') { await answerCallback(callbackQueryId, `Already ${pRow.status}.`); return; }
+
   await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
+
+  // Telegram notification (if player linked)
+  await notifyPlayerRejected(
+    String(pRow.phone || '').replace(/\D/g, ''),
+    pRow.game_name, pRow.quantity, pRow.amount
+  );
+
   await answerCallback(callbackQueryId, '❌ Rejected.');
   await editMessage(chatId, messageId,
     `❌ *Rejected* — #${purchaseId.slice(-6)}\n\n👤 ${pRow.player_name}\n🎮 ${pRow.game_name}\n📋 ${pRow.quantity} sheets · ₹${pRow.amount}`
@@ -625,7 +765,7 @@ module.exports = async function(req, res) {
 
     // ── Callback queries ──────────────────────────────────────
     if (update.callback_query) {
-      const cb   = update.callback_query;
+      const cb     = update.callback_query;
       const cbData = cb.data || '';
       const chatId = cb.message?.chat?.id;
       const msgId  = cb.message?.message_id;
@@ -635,22 +775,17 @@ module.exports = async function(req, res) {
 
       if (cbData.startsWith('approve:')) {
         await handleApprove(cbData.slice(8), chatId, msgId, cbqId);
-
       } else if (cbData.startsWith('reject:')) {
         await handleReject(cbData.slice(7), chatId, msgId, cbqId);
-
       } else if (cbData.startsWith('w_date:')) {
         await answerCallback(cbqId, '');
         await processWizard(chatId, tgId, cbData.slice(7), null);
-
       } else if (cbData.startsWith('w_time:')) {
         await answerCallback(cbqId, '');
         await processWizard(chatId, tgId, cbData.slice(7), null);
-
       } else if (cbData === 'w_skip') {
         await answerCallback(cbqId, '');
         await processWizard(chatId, tgId, 'skip', null);
-
       } else if (cbData.startsWith('w_sched:')) {
         const session = await getSession(tgId);
         if (session?.step === 'w_schedule') {
@@ -659,7 +794,6 @@ module.exports = async function(req, res) {
         } else {
           await answerCallback(cbqId, 'Session expired — use /newgame.');
         }
-
       } else if (cbData.startsWith('w_confirm:')) {
         const session = await getSession(tgId);
         await answerCallback(cbqId, '');
@@ -671,7 +805,6 @@ module.exports = async function(req, res) {
           await clearSession(tgId);
           await tgReply(chatId, '❌ Cancelled. /newgame to restart.');
         }
-
       } else {
         await answerCallback(cbqId, '');
       }
@@ -681,25 +814,41 @@ module.exports = async function(req, res) {
 
     // ── Messages ──────────────────────────────────────────────
     if (update.message) {
-      const msg  = update.message;
+      const msg    = update.message;
       const chatId = msg.chat?.id;
       const tgId   = msg.from?.id;
       if (!chatId || !tgId) return res.status(200).json({ ok: true });
       if (msg.chat?.type !== 'private') return res.status(200).json({ ok: true });
 
-      const text       = msg.text || '';
+      const text        = msg.text || '';
       const photoFileId = msg.photo?.length ? msg.photo[msg.photo.length - 1].file_id : null;
 
       const cmdMatch = text.match(/^\/(\w+)(?:@\S+)?\s*([\s\S]*)?$/);
       if (cmdMatch) {
         const cmd  = cmdMatch[1].toLowerCase();
         const args = (cmdMatch[2] || '').trim();
-        if      (cmd === 'start' || cmd === 'help') await handleHelp(chatId);
-        else if (cmd === 'link')       await handleLink(chatId, tgId, args);
-        else if (cmd === 'newgame')    await handleNewGame(chatId, tgId);
-        else if (cmd === 'stats')      await handleStats(chatId, tgId);
-        else if (cmd === 'setchannel') await handleSetChannel(chatId, tgId, args);
-        else if (cmd === 'cancel')     await handleCancel(chatId, tgId);
+
+        if (cmd === 'start') {
+          const op = await getOpByTgId(tgId);
+          if (op) await handleOperatorHelp(chatId);
+          else    await handlePlayerStart(chatId, tgId);
+        } else if (cmd === 'help') {
+          const op = await getOpByTgId(tgId);
+          if (op) await handleOperatorHelp(chatId);
+          else    await tgReply(chatId, `/myorders — your orders\n/help — this message`);
+        } else if (cmd === 'myorders') {
+          await handleMyOrders(chatId, tgId, args);
+        } else if (cmd === 'link') {
+          await handleLink(chatId, tgId, args);
+        } else if (cmd === 'newgame') {
+          await handleNewGame(chatId, tgId);
+        } else if (cmd === 'stats') {
+          await handleStats(chatId, tgId);
+        } else if (cmd === 'setchannel') {
+          await handleSetChannel(chatId, tgId, args);
+        } else if (cmd === 'cancel') {
+          await handleCancel(chatId, tgId);
+        }
         return res.status(200).json({ ok: true });
       }
 
