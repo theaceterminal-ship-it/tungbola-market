@@ -863,3 +863,4 @@ module.exports = async function(req, res) {
 };
 
 module.exports.broadcastGame = broadcastGame;
+module.exports.tgSend        = tgSend;

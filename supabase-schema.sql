@@ -192,6 +192,12 @@ CREATE TABLE IF NOT EXISTS bot_sessions (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Game reminder tracking (for automated channel broadcasts)
+ALTER TABLE games ADD COLUMN IF NOT EXISTS milestone_10_sent BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS last_reminder_at  BIGINT;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS reminders_today   INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS reminder_date     TEXT;
+
 -- Player Telegram links (phone → telegram_id for auto-delivery of download links)
 CREATE TABLE IF NOT EXISTS player_telegram (
   phone       TEXT PRIMARY KEY,
