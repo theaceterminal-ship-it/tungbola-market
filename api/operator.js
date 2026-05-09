@@ -1,23 +1,17 @@
-const { Redis } = require('@upstash/redis');
 const { put } = require('@vercel/blob');
 const { handleUpload } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit } = require('./_security');
+const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow, sheetFromRow } = require('./_db');
+const { sendPush } = require('./_push');
 const crypto = require('crypto');
-const kv = Redis.fromEnv();
 
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-function genToken() {
-  return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
-}
+function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function genToken() { return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase(); }
 
 async function getOperator(apiKey) {
   if (!apiKey) return null;
-  const ops = await kv.get('tb:ops') || [];
-  const summary = ops.find(o => o.apiKey === String(apiKey));
-  if (!summary) return null;
-  return kv.get(`tb:op:${summary.id}`);
+  const { data } = await db().from('operators').select('*').eq('api_key', String(apiKey)).eq('active', true).single();
+  return data ? operatorFromRow(data) : null;
 }
 
 module.exports = async function(req, res) {
@@ -28,17 +22,22 @@ module.exports = async function(req, res) {
   const body = req.body || {};
   const { action, apiKey } = body;
 
-  /* ── Public: get called numbers for a live game ── */
+  /* ── Public: get live game called numbers ── */
   if (action === 'get-live-game') {
     if (await rateLimit(req, 'getlive', 300, 60))
       return res.status(429).json({ error: 'Too many requests' });
     const { gameId } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
-    const state = await kv.get(`tb:live:${gameId}`) || { calledNumbers: [], lastNumber: null };
-    return res.json({ ok: true, calledNumbers: state.calledNumbers, lastNumber: state.lastNumber, lastCalledAt: state.lastCalledAt });
+    const { data } = await db().from('live_games').select('*').eq('game_id', gameId).single();
+    return res.json({
+      ok: true,
+      calledNumbers: data?.called_numbers || [],
+      lastNumber: data?.last_number || null,
+      lastCalledAt: data?.last_called_at || null
+    });
   }
 
-  /* ── Vercel Blob client-upload token handler (Plan A sheet library) ── */
+  /* ── Vercel Blob client-upload handler (Plan A) ── */
   if (body.type === 'blob.generate-client-token' || body.type === 'blob.upload-completed') {
     if (body.type === 'blob.generate-client-token') {
       if (await rateLimit(req, 'op-upload', 5000, 3600))
@@ -47,8 +46,7 @@ module.exports = async function(req, res) {
     const headers = { get: name => req.headers[name.toLowerCase()] || null };
     try {
       const response = await handleUpload({
-        body,
-        request: { headers },
+        body, request: { headers },
         onBeforeGenerateToken: async (pathname, clientPayload) => {
           let payload = {};
           try { payload = JSON.parse(clientPayload || '{}'); } catch {}
@@ -60,15 +58,13 @@ module.exports = async function(req, res) {
           return {
             allowedContentTypes: ['application/pdf', 'image/jpeg', 'image/png'],
             maximumSizeInBytes: 10 * 1024 * 1024,
-            tokenPayload: JSON.stringify({ operatorId: op.id }),
+            tokenPayload: JSON.stringify({ operatorId: op.id })
           };
         },
-        onUploadCompleted: async () => {},
+        onUploadCompleted: async () => {}
       });
       return res.json(response);
-    } catch(e) {
-      return res.status(400).json({ error: e.message || 'Upload failed' });
-    }
+    } catch(e) { return res.status(400).json({ error: e.message || 'Upload failed' }); }
   }
 
   if (!apiKey) return res.status(401).json({ error: 'apiKey required' });
@@ -80,29 +76,39 @@ module.exports = async function(req, res) {
 
   /* ── Get operator info + their games ── */
   if (action === 'get-info') {
-    const games = await kv.get('tb:mkt:games') || [];
-    const myGames = games.filter(g => g.operatorId === operator.id);
-    return res.json({ ok: true, operator: { id: operator.id, name: operator.name, plan: operator.plan }, games: myGames });
+    const { data: gameRows } = await db().from('games').select('*').eq('operator_id', operator.id).order('created_at', { ascending: false });
+    return res.json({
+      ok: true,
+      operator: { id: operator.id, name: operator.name, plan: operator.plan, telegramChatId: operator.telegramChatId },
+      games: (gameRows || []).map(gameFromRow)
+    });
+  }
+
+  /* ── Update operator's Telegram chat ID ── */
+  if (action === 'update-telegram') {
+    const { telegramChatId } = body;
+    await db().from('operators').update({ telegram_chat_id: telegramChatId ? String(telegramChatId).trim() : null }).eq('id', operator.id);
+    return res.json({ ok: true });
   }
 
   /* ── Get purchases for operator's games ── */
   if (action === 'get-purchases') {
-    const games = await kv.get('tb:mkt:games') || [];
-    const myGameIds = new Set(games.filter(g => g.operatorId === operator.id).map(g => g.id));
-    const purchases = await kv.get('tb:mkt:purchases') || [];
-    return res.json({ ok: true, purchases: purchases.filter(p => myGameIds.has(p.gameId)) });
+    const { data: gameRows } = await db().from('games').select('id').eq('operator_id', operator.id);
+    const myGameIds = (gameRows || []).map(g => g.id);
+    if (!myGameIds.length) return res.json({ ok: true, purchases: [] });
+    const { data: rows } = await db().from('purchases').select('*').in('game_id', myGameIds).order('created_at', { ascending: false }).limit(500);
+    return res.json({ ok: true, purchases: (rows || []).map(purchaseFromRow) });
   }
 
-  /* ── Create game → published to marketplace ── */
+  /* ── Create game ── */
   if (action === 'create-game') {
     if (await rateLimit(req, `op-cg:${operator.id}`, 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
     const { name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
     if (!name) return res.status(400).json({ error: 'Game name required' });
 
-    const id = genId();
     const game = {
-      id, operatorId: operator.id, operatorName: operator.name,
+      id: genId(), operatorId: operator.id, operatorName: operator.name,
       name: String(name).trim().slice(0, 80),
       gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
       gameDateRaw: gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null,
@@ -113,12 +119,9 @@ module.exports = async function(req, res) {
       prizes: Array.isArray(prizes) ? prizes.slice(0, 12) : [],
       thumbnail: thumbnail ? String(thumbnail).slice(0, 500) : null,
       status: 'draft', sheetFrom: 0, sheetTo: 0, sheetCount: 0, soldCount: 0,
-      createdAt: Date.now()
+      soldSheetNums: [], createdAt: Date.now()
     };
-    await kv.set(`tb:mkt:game:${id}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    games.unshift(game);
-    await kv.set('tb:mkt:games', games.slice(0, 200));
+    await db().from('games').insert(gameToRow(game));
     return res.json({ ok: true, game });
   }
 
@@ -126,25 +129,24 @@ module.exports = async function(req, res) {
   if (action === 'edit-game') {
     const { gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
-    if (name !== undefined) game.name = String(name).trim().slice(0, 80);
-    if (gameDate !== undefined) game.gameDate = gameDate ? String(gameDate).trim().slice(0, 40) : null;
-    if (gameDateRaw !== undefined) game.gameDateRaw = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
-    if (joinTime !== undefined) game.joinTime = joinTime ? String(joinTime).trim().slice(0, 20) : null;
-    if (pricePerSheet !== undefined) game.pricePerSheet = Math.max(1, Number(pricePerSheet) || 5);
-    if (pricingTiers !== undefined) game.pricingTiers = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
-    if (description !== undefined) game.description = String(description || '').trim().slice(0, 200);
-    if (prizes !== undefined) game.prizes = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
-    if (thumbnail !== undefined) game.thumbnail = thumbnail ? String(thumbnail).slice(0, 500) : null;
+    const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
-    await kv.set(`tb:mkt:game:${gameId}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    const idx = games.findIndex(g => g.id === gameId);
-    if (idx !== -1) { games[idx] = game; await kv.set('tb:mkt:games', games); }
-    return res.json({ ok: true, game });
+    const updates = {};
+    if (name !== undefined)          updates.name            = String(name).trim().slice(0, 80);
+    if (gameDate !== undefined)      updates.game_date       = gameDate ? String(gameDate).trim().slice(0, 40) : null;
+    if (gameDateRaw !== undefined)   updates.game_date_raw   = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
+    if (joinTime !== undefined)      updates.join_time       = joinTime ? String(joinTime).trim().slice(0, 20) : null;
+    if (pricePerSheet !== undefined) updates.price_per_sheet = Math.max(1, Number(pricePerSheet) || 5);
+    if (pricingTiers !== undefined)  updates.pricing_tiers   = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
+    if (description !== undefined)   updates.description     = String(description || '').trim().slice(0, 200);
+    if (prizes !== undefined)        updates.prizes          = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
+    if (thumbnail !== undefined)     updates.thumbnail       = thumbnail ? String(thumbnail).slice(0, 500) : null;
+
+    const { data: updated } = await db().from('games').update(updates).eq('id', gameId).select().single();
+    return res.json({ ok: true, game: gameFromRow(updated) });
   }
 
   /* ── Assign sheets to game ── */
@@ -152,117 +154,96 @@ module.exports = async function(req, res) {
     const { gameId, sheetFrom, sheetTo } = body;
     if (!gameId || !sheetFrom || !sheetTo)
       return res.status(400).json({ error: 'gameId, sheetFrom, sheetTo required' });
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
+
+    const { data: gRow } = await db().from('games').select('*').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
     const from = parseInt(sheetFrom), to = parseInt(sheetTo);
     if (from < 1 || to < from) return res.status(400).json({ error: 'Invalid range' });
 
-    // Plan A: use operator's own sheet library; Plan B: use shared sheets
-    const hashKey = operator.plan === 'own-sheets'
-      ? `tb:op:${operator.id}:sheets`
-      : 'tb:mkt:sheets:hash';
-    const raw = await kv.hgetall(hashKey) || {};
-    const allSheets = Object.values(raw)
-      .map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } })
-      .filter(Boolean);
-    const inRange = allSheets.filter(s => s.n >= from && s.n <= to);
-    if (!inRange.length) return res.status(400).json({ error: `No sheets in range ${from}–${to}` });
+    const sheetTable = operator.plan === 'own-sheets' ? 'operator_sheets' : 'sheets';
+    const query = operator.plan === 'own-sheets'
+      ? db().from('operator_sheets').select('n').eq('operator_id', operator.id).gte('n', from).lte('n', to)
+      : db().from('sheets').select('n').gte('n', from).lte('n', to);
+    const { data: sheetRows } = await query;
+    if (!sheetRows?.length) return res.status(400).json({ error: `No sheets in range ${from}–${to}` });
 
-    game.sheetFrom = from; game.sheetTo = to;
-    game.sheetCount = inRange.length; game.soldCount = 0; game.soldSheetNums = [];
-    await kv.set(`tb:mkt:game:${gameId}`, game);
+    await db().from('games').update({
+      sheet_from: from, sheet_to: to, sheet_count: sheetRows.length,
+      sold_count: 0, sold_sheet_nums: []
+    }).eq('id', gameId);
 
-    const games = await kv.get('tb:mkt:games') || [];
-    const idx = games.findIndex(g => g.id === gameId);
-    const compact = {
-      id: game.id, operatorId: game.operatorId, operatorName: game.operatorName,
-      name: game.name, gameDate: game.gameDate, gameDateRaw: game.gameDateRaw || null,
-      joinTime: game.joinTime || null,
-      pricePerSheet: game.pricePerSheet, pricingTiers: game.pricingTiers || [],
-      description: game.description, prizes: game.prizes, thumbnail: game.thumbnail || null,
-      status: game.status, sheetCount: game.sheetCount, soldCount: game.soldCount, createdAt: game.createdAt
-    };
-    if (idx >= 0) games[idx] = compact; else games.unshift(compact);
-    await kv.set('tb:mkt:games', games.slice(0, 200));
-    return res.json({ ok: true, game, sheetsFound: inRange.length });
+    const game = gameFromRow({ ...gRow, sheet_from: from, sheet_to: to, sheet_count: sheetRows.length, sold_count: 0, sold_sheet_nums: [] });
+    return res.json({ ok: true, game, sheetsFound: sheetRows.length });
   }
 
-  /* ── Set game status (list / unlist / end) ── */
+  /* ── Set game status ── */
   if (action === 'set-status') {
     const { gameId, status } = body;
     if (!['listed', 'ended', 'draft'].includes(status))
       return res.status(400).json({ error: 'status must be listed, ended or draft' });
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
-    if (status === 'listed' && !game.sheetCount)
+
+    const { data: gRow } = await db().from('games').select('operator_id,sheet_count').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    if (status === 'listed' && !gRow.sheet_count)
       return res.status(400).json({ error: 'Assign sheets before listing' });
 
-    game.status = status;
-    await kv.set(`tb:mkt:game:${gameId}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    const idx = games.findIndex(g => g.id === gameId);
-    if (idx >= 0) { games[idx].status = status; await kv.set('tb:mkt:games', games); }
+    await db().from('games').update({ status }).eq('id', gameId);
     return res.json({ ok: true });
   }
 
   /* ── Delete game ── */
   if (action === 'delete-game') {
     const { gameId } = body;
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
-    await kv.del(`tb:mkt:game:${gameId}`);
-    const games = await kv.get('tb:mkt:games') || [];
-    await kv.set('tb:mkt:games', games.filter(g => g.id !== gameId));
-    const purchases = await kv.get('tb:mkt:purchases') || [];
-    const toDelete = purchases.filter(p => p.gameId === gameId);
-    await kv.set('tb:mkt:purchases', purchases.filter(p => p.gameId !== gameId));
-    await Promise.all(toDelete.map(p => kv.del(`tb:mkt:purchase:${p.purchaseId}`)));
+    await db().from('purchases').delete().eq('game_id', gameId);
+    await db().from('games').delete().eq('id', gameId);
     return res.json({ ok: true });
   }
 
-  /* ── Upload thumbnail image ── */
+  /* ── Upload thumbnail ── */
   if (action === 'upload-thumbnail') {
     const { data, filename } = body;
     if (!data) return res.status(400).json({ error: 'data required' });
     let buffer;
-    try { buffer = Buffer.from(data, 'base64'); }
-    catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
+    try { buffer = Buffer.from(data, 'base64'); } catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
     if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'File too large (max 5MB)' });
     const ext = String(filename || 'thumb.jpg').split('.').pop().toLowerCase();
-    const ct = ['png','gif','webp','jpeg'].includes(ext) ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'image/jpeg';
+    const ct = ['png','gif','webp'].includes(ext) ? `image/${ext}` : 'image/jpeg';
     try {
       const blob = await put(`tungbola/op-${operator.id}/thumb-${Date.now()}.${ext}`, buffer, { access: 'public', contentType: ct });
       return res.json({ ok: true, url: blob.url });
-    } catch(e) {
-      return res.status(500).json({ error: `Upload failed: ${e.message}` });
-    }
+    } catch(e) { return res.status(500).json({ error: `Upload failed: ${e.message}` }); }
   }
 
   /* ── Approve purchase ── */
   if (action === 'approve-purchase') {
     const { purchaseId } = body;
     if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
-    const purchase = await kv.get(`tb:mkt:purchase:${purchaseId}`);
-    if (!purchase) return res.status(404).json({ error: 'Purchase not found' });
-    if (purchase.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
-    const game = await kv.get(`tb:mkt:game:${purchase.gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
-    const hashKey = operator.plan === 'own-sheets'
-      ? `tb:op:${operator.id}:sheets`
-      : 'tb:mkt:sheets:hash';
-    const raw = await kv.hgetall(hashKey) || {};
-    const allSheets = Object.values(raw)
-      .map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } })
-      .filter(Boolean);
-    const soldNums = new Set(game.soldSheetNums || []);
-    const available = allSheets.filter(s => s.n >= game.sheetFrom && s.n <= game.sheetTo && !soldNums.has(s.n));
+    const { data: pRow } = await db().from('purchases').select('*').eq('purchase_id', purchaseId).single();
+    if (!pRow) return res.status(404).json({ error: 'Purchase not found' });
+    if (pRow.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
+
+    const { data: gRow } = await db().from('games').select('*').eq('id', pRow.game_id).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+
+    const game = gameFromRow(gRow);
+    const purchase = purchaseFromRow(pRow);
+
+    const sheetQuery = operator.plan === 'own-sheets'
+      ? db().from('operator_sheets').select('*').eq('operator_id', operator.id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
+      : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    const { data: allSheets } = await sheetQuery;
+
+    const soldSet = new Set(game.soldSheetNums);
+    const available = (allSheets || []).filter(s => !soldSet.has(s.n));
     if (available.length < purchase.quantity)
       return res.status(409).json({ error: `Only ${available.length} sheets left` });
 
@@ -274,108 +255,120 @@ module.exports = async function(req, res) {
       assigned = available.slice(0, purchase.quantity);
     }
 
+    const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
     const dlToken = genToken();
-    await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: assigned.map(s => ({ n: s.n, filename: s.f, url: s.u })), gameName: game.name, purchaseId }, { ex: 21600 });
+    const now = Date.now();
+    const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
 
-    const newSold = [...(game.soldSheetNums || []), ...assigned.map(s => s.n)];
-    game.soldSheetNums = newSold; game.soldCount = newSold.length;
-    await kv.set(`tb:mkt:game:${purchase.gameId}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    const gIdx = games.findIndex(g => g.id === purchase.gameId);
-    if (gIdx >= 0) { games[gIdx].soldCount = game.soldCount; await kv.set('tb:mkt:games', games); }
+    await Promise.all([
+      db().from('download_tokens').insert({ token: dlToken, sheets: sheetList, game_name: game.name, purchase_id: purchaseId }),
+      db().from('games').update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length }).eq('id', game.id),
+      db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
+    ]);
 
-    purchase.status = 'approved'; purchase.downloadToken = dlToken;
-    purchase.approvedAt = Date.now(); purchase.sheetNums = assigned.map(s => s.n);
-    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 21600 });
-    const plist = await kv.get('tb:mkt:purchases') || [];
-    const pIdx = plist.findIndex(p => p.purchaseId === purchaseId);
-    if (pIdx >= 0) { plist[pIdx] = purchase; await kv.set('tb:mkt:purchases', plist); }
+    // Push notification to player
+    try {
+      const np = String(purchase.phone).replace(/\D/g, '');
+      const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', np).single();
+      if (pushRow?.subscription) await sendPush(pushRow.subscription);
+    } catch(e) { console.error('Push failed:', e.message); }
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
 
-  /* ── Call a number → syncs to Tungbola players ── */
+  /* ── Reject purchase ── */
+  if (action === 'reject-purchase') {
+    const { purchaseId } = body;
+    if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
+
+    const { data: pRow } = await db().from('purchases').select('game_id,status').eq('purchase_id', purchaseId).single();
+    if (!pRow) return res.status(404).json({ error: 'Purchase not found' });
+    if (pRow.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
+
+    const { data: gRow } = await db().from('games').select('operator_id').eq('id', pRow.game_id).single();
+    if (gRow?.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+
+    await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
+    return res.json({ ok: true });
+  }
+
+  /* ── Call a number (live game) ── */
   if (action === 'call-number') {
     const { gameId, number } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
     const num = parseInt(number);
     if (!num || num < 1 || num > 90) return res.status(400).json({ error: 'Number must be 1–90' });
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
-    const liveKey = `tb:live:${gameId}`;
-    const state = await kv.get(liveKey) || { calledNumbers: [], gameId };
-    if (!state.calledNumbers.includes(num)) {
-      state.calledNumbers.push(num);
-      state.lastNumber = num;
-      state.lastCalledAt = Date.now();
-    }
-    await kv.set(liveKey, state, { ex: 7200 });
-    return res.json({ ok: true, calledNumbers: state.calledNumbers, lastNumber: num });
+    const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+
+    const { data: liveRow } = await db().from('live_games').select('*').eq('game_id', gameId).single();
+    const calledNumbers = liveRow?.called_numbers || [];
+    if (!calledNumbers.includes(num)) calledNumbers.push(num);
+
+    const newState = {
+      game_id: gameId, called_numbers: calledNumbers, last_number: num,
+      last_called_at: Date.now(), expires_at: new Date(Date.now() + 7200000).toISOString()
+    };
+    await db().from('live_games').upsert(newState);
+    return res.json({ ok: true, calledNumbers, lastNumber: num });
   }
 
-  /* ── Reset live game state ── */
+  /* ── Reset live game ── */
   if (action === 'reset-live') {
     const { gameId } = body;
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.operatorId !== operator.id) return res.status(403).json({ error: 'Not your game' });
-    await kv.del(`tb:live:${gameId}`);
+    const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    await db().from('live_games').delete().eq('game_id', gameId);
     return res.json({ ok: true });
   }
 
-  /* ── Upload sheet to operator's own library (Plan A only) ── */
+  /* ── Upload sheet to operator library (Plan A) ── */
   if (action === 'upload-sheet') {
-    if (operator.plan !== 'own-sheets')
-      return res.status(403).json({ error: 'Own Sheets plan required' });
+    if (operator.plan !== 'own-sheets') return res.status(403).json({ error: 'Own Sheets plan required' });
     const { sheetNum, data, filename } = body;
     if (!sheetNum || !data) return res.status(400).json({ error: 'sheetNum and data required' });
     const num = parseInt(sheetNum);
     if (!num || num < 1 || num > 9999) return res.status(400).json({ error: 'Invalid sheet number (1–9999)' });
     let buffer;
-    try { buffer = Buffer.from(data, 'base64'); }
-    catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
+    try { buffer = Buffer.from(data, 'base64'); } catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
     if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'File too large (max 5MB)' });
     const ext = String(filename || 'sheet.pdf').split('.').pop().toLowerCase();
     const ct = ext === 'pdf' ? 'application/pdf' : 'image/jpeg';
     try {
       const blob = await put(`tungbola/op-${operator.id}/sheet-${num}.${ext}`, buffer, { access: 'public', contentType: ct });
-      const rec = { n: num, f: filename || `sheet-${num}.${ext}`, u: blob.url };
-      await kv.hset(`tb:op:${operator.id}:sheets`, { [`s${num}`]: JSON.stringify(rec) });
+      await db().from('operator_sheets').upsert({ operator_id: operator.id, n: num, f: filename || `sheet-${num}.${ext}`, u: blob.url, s: buffer.length, ts: Date.now() });
       return res.json({ ok: true, url: blob.url, n: num });
-    } catch(e) {
-      return res.status(500).json({ error: `Upload failed: ${e.message}` });
-    }
+    } catch(e) { return res.status(500).json({ error: `Upload failed: ${e.message}` }); }
   }
 
-  /* ── Sheet library stats ── */
-  if (action === 'sheet-library-stats') {
-    const raw = await kv.hgetall(`tb:op:${operator.id}:sheets`) || {};
-    return res.json({ ok: true, count: Object.keys(raw).length, plan: operator.plan });
-  }
-
-  /* ── Register sheet in operator library after client upload ── */
+  /* ── Register sheet after client upload (Plan A) ── */
   if (action === 'register-sheet') {
     if (operator.plan !== 'own-sheets') return res.status(403).json({ error: 'Plan A only' });
     const { sheetNum, filename, url } = body;
     if (!url || !sheetNum || !filename) return res.status(400).json({ error: 'sheetNum, filename, url required' });
     const num = parseInt(sheetNum);
     if (!num || num < 1 || num > 9999) return res.status(400).json({ error: 'Invalid sheet number (1–9999)' });
-    const rec = { n: num, f: String(filename).trim().slice(0, 80), u: url };
-    await kv.hset(`tb:op:${operator.id}:sheets`, { [`s${num}`]: JSON.stringify(rec) });
-    return res.json({ ok: true, sheet: rec });
+    await db().from('operator_sheets').upsert({ operator_id: operator.id, n: num, f: String(filename).trim().slice(0, 80), u: url, ts: Date.now() });
+    return res.json({ ok: true, sheet: { n: num, f: filename, u: url } });
   }
 
-  /* ── Get a specific sheet from operator's library ── */
+  /* ── Sheet library stats ── */
+  if (action === 'sheet-library-stats') {
+    const { count } = await db().from('operator_sheets').select('*', { count: 'exact', head: true }).eq('operator_id', operator.id);
+    return res.json({ ok: true, count: count || 0, plan: operator.plan });
+  }
+
+  /* ── Get specific sheet from library ── */
   if (action === 'get-sheet') {
     const { sheetNum } = body;
     const num = parseInt(sheetNum);
     if (!num || num < 1) return res.status(400).json({ error: 'sheetNum required' });
-    const raw = await kv.hget(`tb:op:${operator.id}:sheets`, `s${num}`);
-    if (!raw) return res.status(404).json({ error: 'Sheet not found' });
-    const sheet = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return res.json({ ok: true, sheet });
+    const { data: sheetRow } = await db().from('operator_sheets').select('*').eq('operator_id', operator.id).eq('n', num).single();
+    if (!sheetRow) return res.status(404).json({ error: 'Sheet not found' });
+    return res.json({ ok: true, sheet: sheetFromRow(sheetRow) });
   }
 
   return res.status(400).json({ error: 'Unknown action' });

@@ -1,8 +1,20 @@
-const { Redis } = require('@upstash/redis');
-const kv = Redis.fromEnv();
+const { db, gameFromRow } = require('./_db');
 
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const PRIO = [
+  [/^full house$/i, 1], [/^second full house$/i, 2], [/^third full house$/i, 3],
+  [/^upper line$/i, 4], [/^middle line$/i, 5],        [/^bottom line$/i, 6],
+  [/^ticket corners$/i, 7], [/^sheet corner$/i, 8],   [/^early [567]$/i, 9],
+];
+const PRIZE_ICONS = { 1:'👑', 2:'🥈', 3:'🥉', 4:'⭐', 5:'⭐', 6:'⭐', 7:'💎', 8:'💎', 9:'⚡' };
+
+function prio(n) { for (const [re, r] of PRIO) if (re.test(n)) return r; return 10; }
+function fmtAmount(p) {
+  if (p.kind === 'cash') return `₹${Number(p.amount || 0).toLocaleString('en-IN')}`;
+  return p.description || '';
 }
 
 module.exports = async function(req, res) {
@@ -12,23 +24,26 @@ module.exports = async function(req, res) {
   if (!id) return res.redirect('/');
 
   try {
-    const games = await kv.get('tb:mkt:games') || [];
-    const g = games.find(x => x.id === id);
-    if (!g) return res.redirect('/');
+    const { data: gRow } = await db().from('games').select('*').eq('id', id).single();
+    if (!gRow) return res.redirect('/');
+    const g = gameFromRow(gRow);
 
-    const host = req.headers.host || 'tungbola-market.vercel.app';
-    const base = `https://${host}`;
+    const host    = req.headers.host || 'tungbola-market.vercel.app';
+    const base    = `https://${host}`;
     const appUrl  = `${base}/?game=${encodeURIComponent(id)}`;
-    const ogUrl   = `${base}/api/og?id=${encodeURIComponent(id)}`;
+    const shareUrl = `${base}/g/${id}`;
     const image   = g.thumbnail || '';
+    const title   = `🎯 ${g.name}`;
 
-    const title = `🎯 ${g.name}`;
-    const topPrize = (g.prizes || []).find(p => /full house/i.test(p.name || ''));
-    const prizeStr = topPrize && topPrize.kind === 'cash'
-      ? `Win up to ₹${Number(topPrize.amount || 0).toLocaleString('en-IN')}! `
-      : '';
-    const dateStr = g.gameDate ? ` · ${g.gameDate}` : '';
-    const desc = `${prizeStr}Book your Tambola sheet from ₹${g.pricePerSheet || 5} each${dateStr}. Tap to join!`;
+    const sorted = [...(g.prizes || [])].sort((a, b) => prio(a.name) - prio(b.name));
+    const prizeLines = sorted.slice(0, 5).map(p => `${PRIZE_ICONS[prio(p.name)] || '⭐'} ${p.name}: ${fmtAmount(p)}`);
+
+    const tiers = Array.isArray(g.pricingTiers) ? g.pricingTiers : [];
+    let priceLine = `💰 Sheet: ₹${g.pricePerSheet || 5}`;
+    if (tiers.length) priceLine = `💰 ${tiers.slice(0, 2).map(t => `${t.qty}×₹${t.price}`).join(' · ')} | Single ₹${g.pricePerSheet || 5}`;
+
+    const dateStr = g.gameDate ? ` · 📅 ${g.gameDate}` : '';
+    const desc = [prizeLines.join(' · '), priceLine + dateStr + ' · Tap to join! 🎱'].filter(Boolean).join('\n');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=300');
@@ -39,7 +54,7 @@ module.exports = async function(req, res) {
 <title>${esc(title)}</title>
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(desc)}" />
-<meta property="og:url" content="${esc(ogUrl)}" />
+<meta property="og:url" content="${esc(shareUrl)}" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Tungbola Market" />
 ${image ? `<meta property="og:image" content="${esc(image)}" />

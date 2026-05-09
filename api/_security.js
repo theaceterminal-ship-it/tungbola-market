@@ -1,6 +1,5 @@
-const { Redis } = require('@upstash/redis');
 const crypto = require('crypto');
-const kv = Redis.fromEnv();
+const { db } = require('./_db');
 
 function getIP(req) {
   return ((req.headers['x-forwarded-for'] || '').split(',')[0]).trim()
@@ -10,7 +9,8 @@ function getIP(req) {
 function checkPassword(input, expected) {
   if (!input || !expected) return false;
   try {
-    const h = k => crypto.createHmac('sha256', 'tb-cmp-key').update(String(k)).digest();
+    const key = process.env.HMAC_SECRET || 'tb-cmp-key';
+    const h = k => crypto.createHmac('sha256', key).update(String(k)).digest();
     return crypto.timingSafeEqual(h(input), h(expected));
   } catch(e) { return false; }
 }
@@ -18,10 +18,15 @@ function checkPassword(input, expected) {
 async function rateLimit(req, action, max, windowSecs) {
   try {
     const ip = getIP(req);
-    const key = `tb:rl:${action}:${ip}`;
-    const count = await kv.incr(key);
-    if (count === 1) await kv.expire(key, windowSecs);
-    return count > max;
+    const now = Date.now();
+    const windowMs = windowSecs * 1000;
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    const key = `${action}:${ip}:${windowStart}`;
+    const { data, error } = await db().rpc('increment_rate_limit', {
+      p_key: key, p_window_start: windowStart
+    });
+    if (error) return false;
+    return data > max;
   } catch(e) { return false; }
 }
 

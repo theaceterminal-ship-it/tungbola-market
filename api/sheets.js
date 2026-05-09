@@ -1,25 +1,7 @@
-const { Redis } = require('@upstash/redis');
 const { del: blobDel } = require('@vercel/blob');
 const { handleUpload } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
-const kv = Redis.fromEnv();
-
-// Each sheet is a field in this hash: field = sheet number (string), value = JSON sheet object.
-// HSETNX guarantees atomic "set only if field missing" — no race condition under any concurrency.
-const HASH = 'tb:mkt:sheets:hash';
-
-function genId() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-}
-
-async function getAllSheets() {
-  const data = await kv.hgetall(HASH);
-  if (!data) return [];
-  return Object.values(data)
-    .map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } })
-    .filter(Boolean)
-    .sort((a, b) => a.n - b.n);
-}
+const { db, sheetFromRow } = require('./_db');
 
 module.exports = async function(req, res) {
   secureHeaders(res);
@@ -33,67 +15,44 @@ module.exports = async function(req, res) {
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
 
-    let all = await getAllSheets();
-
-    // One-time migration: if hash is empty but old list exists, migrate it then delete the old list
-    if (all.length === 0) {
-      const oldList = await kv.get('tb:mkt:sheets');
-      if (Array.isArray(oldList) && oldList.length) {
-        const pipeline = kv.pipeline();
-        for (const s of oldList) pipeline.hsetnx(HASH, String(s.n), JSON.stringify(s));
-        await pipeline.exec();
-        await kv.del('tb:mkt:sheets'); // prevent this from re-running after sheets are deleted
-        all = await getAllSheets();
-      }
-    }
-
-    return res.json({ sheets: all, total: all.length });
+    const { data } = await db().from('sheets').select('*').order('n');
+    const sheets = (data || []).map(sheetFromRow);
+    return res.json({ sheets, total: sheets.length });
   }
 
   if (req.method !== 'POST') return res.status(405).end();
   const body = req.body || {};
 
-  /* Vercel Blob client upload — token request from browser's upload() */
+  /* Vercel Blob client upload — token request from browser */
   if (body.type === 'blob.generate-client-token' || body.type === 'blob.upload-completed') {
     if (body.type === 'blob.generate-client-token') {
       if (await rateLimit(req, 'uploadsheet', 15000, 3600))
         return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
     }
-
     const headers = { get: name => req.headers[name.toLowerCase()] || null };
     try {
       const response = await handleUpload({
-        body,
-        request: { headers },
+        body, request: { headers },
         onBeforeGenerateToken: async (pathname, clientPayload) => {
           let payload;
-          try { payload = JSON.parse(clientPayload || '{}'); }
-          catch(e) { throw new Error('Invalid payload'); }
-
+          try { payload = JSON.parse(clientPayload || '{}'); } catch(e) { throw new Error('Invalid payload'); }
           if (!checkPassword(payload.password, process.env.ADMIN_PASSWORD))
             throw new Error('Wrong password');
-
           const num = parseInt(payload.sheetNumber);
-          if (!num || num < 1 || num > 99999)
-            throw new Error('sheetNumber must be 1–99999');
-
-          // HEXISTS is a single read — fast even at high concurrency
-          if (await kv.hexists(HASH, String(num)))
-            throw new Error(`Sheet #${num} already uploaded`);
-
+          if (!num || num < 1 || num > 99999) throw new Error('sheetNumber must be 1–99999');
+          const { data: existing } = await db().from('sheets').select('id').eq('n', num).single();
+          if (existing) throw new Error(`Sheet #${num} already uploaded`);
           return { allowedContentTypes: ['application/pdf'] };
         },
-        onUploadCompleted: async () => {},
+        onUploadCompleted: async () => {}
       });
       return res.json(response);
-    } catch(e) {
-      return res.status(400).json({ error: e.message || 'Token generation failed' });
-    }
+    } catch(e) { return res.status(400).json({ error: e.message || 'Token generation failed' }); }
   }
 
   const { action } = body;
 
-  /* Register sheet after browser upload — HSETNX makes this atomic, safe under any concurrency */
+  /* Register sheet after browser upload */
   if (action === 'register') {
     if (await rateLimit(req, 'uploadsheet', 15000, 3600))
       return res.status(429).json({ error: 'Upload limit reached. Wait an hour.' });
@@ -104,22 +63,19 @@ module.exports = async function(req, res) {
       return res.status(400).json({ error: 'url, sheetNumber, filename and id required' });
 
     const num = parseInt(sheetNumber);
-    if (!num || num < 1 || num > 99999)
-      return res.status(400).json({ error: 'sheetNumber must be 1–99999' });
+    if (!num || num < 1 || num > 99999) return res.status(400).json({ error: 'sheetNumber must be 1–99999' });
 
     const sheet = { id, n: num, f: String(filename).trim().slice(0, 80), u: url, s: parseInt(size) || 0, ts: Date.now() };
 
-    // HSETNX returns 1 if the field was created (success), 0 if it already existed (duplicate)
-    const claimed = await kv.hsetnx(HASH, String(num), JSON.stringify(sheet));
-    if (!claimed) return res.status(409).json({ error: `Sheet #${num} already uploaded` });
+    // Use insert (not upsert) to enforce uniqueness on n
+    const { error } = await db().from('sheets').insert(sheet);
+    if (error?.code === '23505') return res.status(409).json({ error: `Sheet #${num} already uploaded` });
+    if (error) return res.status(500).json({ error: error.message });
 
-    // Store individual key for lookups by id
-    await kv.set(`tb:mkt:sheet:${id}`, sheet);
-
-    return res.json({ ok: true, sheet });
+    return res.json({ ok: true, sheet: sheetFromRow(sheet) });
   }
 
-  /* Bulk delete — pipeline keeps it to 2–3 Redis round-trips regardless of count */
+  /* Bulk delete */
   if (action === 'delete-bulk') {
     if (await rateLimit(req, 'deletesheet', 500, 3600))
       return res.status(429).json({ error: 'Too many requests' });
@@ -129,23 +85,12 @@ module.exports = async function(req, res) {
     if (!Array.isArray(ids) || !ids.length)
       return res.status(400).json({ error: 'ids array required' });
 
-    const all = await getAllSheets();
-    const idSet = new Set(ids);
-    const toDelete = all.filter(s => idSet.has(s.id));
+    const { data: toDelete } = await db().from('sheets').select('*').in('id', ids);
+    const blobUrls = (toDelete || []).map(s => s.u).filter(Boolean);
+    if (blobUrls.length) { try { await blobDel(blobUrls); } catch(e) {} }
 
-    const blobUrls = toDelete.map(s => s.u).filter(Boolean);
-    if (blobUrls.length) {
-      try { await blobDel(blobUrls); } catch(e) {}
-    }
-
-    if (toDelete.length) {
-      // HDEL with multiple fields = single Redis command
-      await kv.hdel(HASH, ...toDelete.map(s => String(s.n)));
-      // DEL with multiple keys = single Redis command
-      await kv.del(...toDelete.map(s => `tb:mkt:sheet:${s.id}`));
-    }
-
-    return res.json({ ok: true, deleted: toDelete.length });
+    await db().from('sheets').delete().in('id', ids);
+    return res.json({ ok: true, deleted: (toDelete || []).length });
   }
 
   /* Delete single sheet */
@@ -157,10 +102,9 @@ module.exports = async function(req, res) {
       return res.status(401).json({ error: 'Wrong password' });
     if (!id) return res.status(400).json({ error: 'id required' });
 
-    const sheet = await kv.get(`tb:mkt:sheet:${id}`);
+    const { data: sheet } = await db().from('sheets').select('u').eq('id', id).single();
     if (sheet?.u) { try { await blobDel(sheet.u); } catch(e) {} }
-    await kv.del(`tb:mkt:sheet:${id}`);
-    if (sheet?.n) await kv.hdel(HASH, String(sheet.n));
+    await db().from('sheets').delete().eq('id', id);
     return res.json({ ok: true });
   }
 
@@ -169,8 +113,9 @@ module.exports = async function(req, res) {
     const { password } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
-    const all = await getAllSheets();
-    return res.json({ total: all.length, min: all[0]?.n || 0, max: all[all.length - 1]?.n || 0 });
+    const { data } = await db().from('sheets').select('n').order('n');
+    const nums = (data || []).map(s => s.n);
+    return res.json({ total: nums.length, min: nums[0] || 0, max: nums[nums.length - 1] || 0 });
   }
 
   return res.status(400).json({ error: 'Unknown action' });

@@ -1,56 +1,60 @@
-const { Redis } = require('@upstash/redis');
 const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
+const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow } = require('./_db');
+const { sendPush } = require('./_push');
 const crypto = require('crypto');
-const kv = Redis.fromEnv();
 
-async function sendPushVapid(subscription) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+// ── Telegram notification ────────────────────────────────────
+async function sendTelegramOrderNotification(purchase, game) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return;
   try {
-    const endpoint = new URL(subscription.endpoint);
-    const subtle = (globalThis.crypto || crypto.webcrypto).subtle;
-    const now = Math.floor(Date.now() / 1000);
-    const h = Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'ES256' })).toString('base64url');
-    const c = Buffer.from(JSON.stringify({ aud: endpoint.origin, exp: now + 43200, sub: 'mailto:admin@tungbola.com' })).toString('base64url');
-    const sigInput = Buffer.from(`${h}.${c}`);
-    const pubBytes = Buffer.from(process.env.VAPID_PUBLIC_KEY, 'base64url');
-    const x = pubBytes.slice(1, 33).toString('base64url');
-    const y = pubBytes.slice(33, 65).toString('base64url');
-    const privKey = await subtle.importKey('jwk',
-      { kty: 'EC', crv: 'P-256', d: process.env.VAPID_PRIVATE_KEY, x, y, key_ops: ['sign'] },
-      { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
-    );
-    const sig = Buffer.from(await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privKey, sigInput)).toString('base64url');
-    const jwt = `${h}.${c}.${sig}`;
+    // Use operator chat if game has an operator, else admin chat
+    let chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    if (game.operatorId) {
+      const { data: op } = await db().from('operators').select('telegram_chat_id').eq('id', game.operatorId).single();
+      if (op?.telegram_chat_id) chatId = op.telegram_chat_id;
+    }
+    if (!chatId) return;
+
+    const reqNums = purchase.requestedSheetNums?.length
+      ? `\n📌 Requested: #${purchase.requestedSheetNums.join(', #')}`
+      : '';
+    const time = new Date(purchase.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+    const text = `🎟 *New Order*\n\n👤 ${purchase.playerName}\n📱 ${purchase.phone}\n🎮 ${purchase.gameName}\n📋 ${purchase.quantity} sheet${purchase.quantity !== 1 ? 's' : ''}\n💰 ₹${purchase.amount}\n⏰ ${time}${reqNums}\n\n_Check your UPI app for ₹${purchase.amount} before approving._`;
+
+    const payload = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '✅ Approve', callback_data: `approve:${purchase.purchaseId}` },
+          { text: '❌ Reject',  callback_data: `reject:${purchase.purchaseId}` }
+        ]]
+      }
+    };
     const https = require('https');
+    const body = JSON.stringify(payload);
     await new Promise((resolve, reject) => {
       const req = https.request({
-        hostname: endpoint.hostname, port: endpoint.port || 443,
-        path: endpoint.pathname + endpoint.search, method: 'POST',
-        headers: { 'Authorization': `vapid t=${jwt},k=${process.env.VAPID_PUBLIC_KEY}`, 'TTL': '86400', 'Urgency': 'high', 'Content-Length': '0' }
-      }, res => { res.resume(); resolve(res.statusCode); });
+        hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      }, res => { res.resume(); resolve(); });
       req.on('error', reject);
-      req.end();
+      req.write(body); req.end();
     });
-  } catch(e) { console.error('sendPushVapid failed:', e.message); }
+  } catch(e) { console.error('sendTelegramOrderNotification failed:', e.message); }
 }
 
-function genApiKey() {
-  return crypto.randomBytes(20).toString('hex');
-}
-
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-function genToken() {
-  return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
-}
+// ── Helpers ──────────────────────────────────────────────────
+function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function genToken() { return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase(); }
+function normPhone(s) { return String(s || '').replace(/\D/g, ''); }
 
 function hashPassword(pwd) {
-  return crypto.createHmac('sha256', process.env.ADMIN_PASSWORD || 'tb-player').update(String(pwd)).digest('hex');
+  return crypto.createHmac('sha256', process.env.HMAC_SECRET || 'tb-cmp-key').update(String(pwd)).digest('hex');
 }
-
-function normPhone(s) { return String(s || '').replace(/\D/g, ''); }
 
 function calcAmount(game, qty) {
   if (Array.isArray(game.pricingTiers) && game.pricingTiers.length) {
@@ -60,6 +64,7 @@ function calcAmount(game, qty) {
   return (game.pricePerSheet || 5) * qty;
 }
 
+// ── Main handler ─────────────────────────────────────────────
 module.exports = async function(req, res) {
   secureHeaders(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -71,23 +76,23 @@ module.exports = async function(req, res) {
     const { password, type } = req.query;
 
     if (!password) {
-      const games = await kv.get('tb:mkt:games') || [];
-      return res.json({ games: games.filter(g => g.status === 'listed') });
+      const { data } = await db().from('games').select('*').eq('status', 'listed').order('created_at', { ascending: false }).limit(200);
+      return res.json({ games: (data || []).map(gameFromRow) });
     }
 
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
 
     if (type === 'purchases') {
-      const purchases = await kv.get('tb:mkt:purchases') || [];
-      return res.json({ purchases });
+      const { data } = await db().from('purchases').select('*').order('created_at', { ascending: false }).limit(500);
+      return res.json({ purchases: (data || []).map(purchaseFromRow) });
     }
     if (type === 'settings') {
-      const settings = await kv.get('tb:mkt:settings') || {};
-      const cfg = await kv.get('tb:config') || {};
-      return res.json({ settings: { ...settings, upiId: settings.upiId || cfg.upiId || '' } });
+      const { data } = await db().from('config').select('value').eq('key', 'settings').single();
+      return res.json({ settings: data?.value || {} });
     }
-    return res.json({ games: await kv.get('tb:mkt:games') || [] });
+    const { data } = await db().from('games').select('*').order('created_at', { ascending: false }).limit(200);
+    return res.json({ games: (data || []).map(gameFromRow) });
   }
 
   if (req.method !== 'POST') return res.status(405).end();
@@ -102,37 +107,28 @@ module.exports = async function(req, res) {
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!data) return res.status(400).json({ error: 'data required' });
-
     let buffer;
-    try { buffer = Buffer.from(data, 'base64'); }
-    catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
-    if (buffer.length > 5 * 1024 * 1024)
-      return res.status(400).json({ error: 'Image too large (max 5MB)' });
-
+    try { buffer = Buffer.from(data, 'base64'); } catch(e) { return res.status(400).json({ error: 'Invalid base64' }); }
+    if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Image too large (max 5MB)' });
     const ext = String(filename || 'image.jpg').split('.').pop().toLowerCase();
     const ct = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
     try {
       const blob = await put(`tungbola/prize-${Date.now()}.${ext}`, buffer, { access: 'public', contentType: ct });
       return res.json({ ok: true, url: blob.url });
-    } catch(e) {
-      console.error('Prize image upload error:', e);
-      return res.status(500).json({ error: `Upload failed: ${e.message || String(e)}` });
-    }
+    } catch(e) { return res.status(500).json({ error: `Upload failed: ${e.message}` }); }
   }
 
   /* ── Admin: create a game ── */
   if (action === 'create-game') {
     if (await rateLimit(req, 'creategame', 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, name, gameDate, pricePerSheet, description, prizes, thumbnail, gameDateRaw, pricingTiers, joinTime } = body;
+    const { password, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!name) return res.status(400).json({ error: 'Game name required' });
 
-    const id = genId();
     const game = {
-      id,
-      name: String(name).trim().slice(0, 80),
+      id: genId(), name: String(name).trim().slice(0, 80),
       gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
       gameDateRaw: gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null,
       joinTime: joinTime ? String(joinTime).trim().slice(0, 20) : null,
@@ -141,14 +137,10 @@ module.exports = async function(req, res) {
       description: String(description || '').trim().slice(0, 200),
       prizes: Array.isArray(prizes) ? prizes.slice(0, 12) : [],
       thumbnail: thumbnail ? String(thumbnail).slice(0, 500) : null,
-      status: 'draft',
-      sheetFrom: 0, sheetTo: 0, sheetCount: 0, soldCount: 0,
-      createdAt: Date.now()
+      status: 'draft', sheetFrom: 0, sheetTo: 0, sheetCount: 0, soldCount: 0,
+      soldSheetNums: [], createdAt: Date.now()
     };
-    await kv.set(`tb:mkt:game:${id}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    games.unshift(game);
-    await kv.set('tb:mkt:games', games.slice(0, 200));
+    await db().from('games').insert(gameToRow(game));
     return res.json({ ok: true, game });
   }
 
@@ -165,30 +157,20 @@ module.exports = async function(req, res) {
     const from = parseInt(sheetFrom), to = parseInt(sheetTo);
     if (from < 1 || to < from) return res.status(400).json({ error: 'Invalid range' });
 
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.status === 'ended') return res.status(409).json({ error: 'Game has ended' });
+    const { data: gameRow } = await db().from('games').select('*').eq('id', gameId).single();
+    if (!gameRow) return res.status(404).json({ error: 'Game not found' });
+    if (gameRow.status === 'ended') return res.status(409).json({ error: 'Game has ended' });
 
-    const sheetsData = await kv.hgetall('tb:mkt:sheets:hash') || {};
-    const allSheets = Object.values(sheetsData).map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } }).filter(Boolean);
-    const inRange = allSheets.filter(s => s.n >= from && s.n <= to);
-    if (!inRange.length) return res.status(400).json({ error: `No uploaded sheets in range ${from}–${to}` });
+    const { data: sheetRows } = await db().from('sheets').select('*').gte('n', from).lte('n', to);
+    if (!sheetRows?.length) return res.status(400).json({ error: `No uploaded sheets in range ${from}–${to}` });
 
-    game.sheetFrom = from; game.sheetTo = to;
-    game.sheetCount = inRange.length; game.soldCount = 0; game.soldSheetNums = [];
+    await db().from('games').update({
+      sheet_from: from, sheet_to: to, sheet_count: sheetRows.length,
+      sold_count: 0, sold_sheet_nums: []
+    }).eq('id', gameId);
 
-    await kv.set(`tb:mkt:game:${gameId}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    const idx = games.findIndex(g => g.id === gameId);
-    const compact = { id: game.id, name: game.name, gameDate: game.gameDate, gameDateRaw: game.gameDateRaw || null,
-      joinTime: game.joinTime || null,
-      pricePerSheet: game.pricePerSheet, pricingTiers: game.pricingTiers || [],
-      description: game.description, prizes: game.prizes,
-      thumbnail: game.thumbnail || null,
-      status: game.status, sheetCount: game.sheetCount, soldCount: game.soldCount, createdAt: game.createdAt };
-    if (idx >= 0) games[idx] = compact; else games.unshift(compact);
-    await kv.set('tb:mkt:games', games.slice(0, 200));
-    return res.json({ ok: true, game, sheetsFound: inRange.length });
+    const game = gameFromRow({ ...gameRow, sheet_from: from, sheet_to: to, sheet_count: sheetRows.length, sold_count: 0, sold_sheet_nums: [] });
+    return res.json({ ok: true, game, sheetsFound: sheetRows.length });
   }
 
   /* ── Admin: set game status ── */
@@ -199,16 +181,178 @@ module.exports = async function(req, res) {
     if (!['listed', 'ended', 'draft'].includes(status))
       return res.status(400).json({ error: 'status must be listed, ended or draft' });
 
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (status === 'listed' && !game.sheetCount)
+    const { data: gameRow } = await db().from('games').select('sheet_count').eq('id', gameId).single();
+    if (!gameRow) return res.status(404).json({ error: 'Game not found' });
+    if (status === 'listed' && !gameRow.sheet_count)
       return res.status(400).json({ error: 'Assign sheets before listing the game' });
 
-    game.status = status;
-    await kv.set(`tb:mkt:game:${gameId}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    const idx = games.findIndex(g => g.id === gameId);
-    if (idx >= 0) { games[idx].status = status; await kv.set('tb:mkt:games', games); }
+    await db().from('games').update({ status }).eq('id', gameId);
+    return res.json({ ok: true });
+  }
+
+  /* ── Admin: edit game ── */
+  if (action === 'edit-game') {
+    if (await rateLimit(req, 'editgame', 60, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+
+    const { data: gameRow } = await db().from('games').select('*').eq('id', gameId).single();
+    if (!gameRow) return res.status(404).json({ error: 'Game not found' });
+
+    const updates = {};
+    if (name !== undefined)          updates.name            = String(name).trim().slice(0, 80);
+    if (gameDate !== undefined)      updates.game_date       = gameDate ? String(gameDate).trim().slice(0, 40) : null;
+    if (gameDateRaw !== undefined)   updates.game_date_raw   = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
+    if (joinTime !== undefined)      updates.join_time       = joinTime ? String(joinTime).trim().slice(0, 20) : null;
+    if (pricePerSheet !== undefined) updates.price_per_sheet = Math.max(1, Number(pricePerSheet) || 5);
+    if (pricingTiers !== undefined)  updates.pricing_tiers   = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
+    if (description !== undefined)   updates.description     = String(description || '').trim().slice(0, 200);
+    if (prizes !== undefined)        updates.prizes          = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
+    if (thumbnail !== undefined)     updates.thumbnail       = thumbnail ? String(thumbnail).slice(0, 500) : null;
+
+    const { data: updated } = await db().from('games').update(updates).eq('id', gameId).select().single();
+    return res.json({ ok: true, game: gameFromRow(updated) });
+  }
+
+  /* ── Admin: update settings ── */
+  if (action === 'update-settings') {
+    if (await rateLimit(req, 'updatesettings', 30, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, operatorName, whatsappNumber, supportText, upiId, customQrUrl } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+
+    const { data: cfg } = await db().from('config').select('value').eq('key', 'settings').single();
+    const settings = cfg?.value || {};
+    if (operatorName !== undefined)  settings.operatorName  = String(operatorName).trim().slice(0, 80);
+    if (whatsappNumber !== undefined) settings.whatsappNumber = String(whatsappNumber).trim().slice(0, 20);
+    if (supportText !== undefined)   settings.supportText   = String(supportText).trim().slice(0, 200);
+    if (customQrUrl !== undefined)   settings.customQrUrl   = customQrUrl ? String(customQrUrl).slice(0, 500) : null;
+    if (upiId !== undefined) {
+      settings.upiId = String(upiId).trim().slice(0, 100);
+      await db().from('config').upsert({ key: 'app_config', value: { upiId: settings.upiId } });
+    }
+    await db().from('config').upsert({ key: 'settings', value: settings });
+    return res.json({ ok: true, settings });
+  }
+
+  /* ── Admin: approve purchase → assign sheets → generate download token ── */
+  if (action === 'approve-purchase') {
+    if (await rateLimit(req, 'approvepurchase', 60, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { password, purchaseId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
+
+    const { data: pRow } = await db().from('purchases').select('*').eq('purchase_id', purchaseId).single();
+    if (!pRow) return res.status(404).json({ error: 'Purchase not found' });
+    if (pRow.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
+
+    const purchase = purchaseFromRow(pRow);
+    const { data: gRow } = await db().from('games').select('*').eq('id', purchase.gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    const game = gameFromRow(gRow);
+
+    const { data: allSheets } = await db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    const soldSet = new Set(game.soldSheetNums);
+    const available = (allSheets || []).filter(s => !soldSet.has(s.n));
+
+    if (available.length < purchase.quantity)
+      return res.status(409).json({ error: `Only ${available.length} sheets left` });
+
+    let assigned;
+    if (purchase.requestedSheetNums?.length) {
+      const reqSet = new Set(purchase.requestedSheetNums);
+      assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
+    } else {
+      assigned = available.slice(0, purchase.quantity);
+    }
+
+    const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
+    const dlToken = genToken();
+    const now = Date.now();
+    const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
+
+    await Promise.all([
+      db().from('download_tokens').insert({ token: dlToken, sheets: sheetList, game_name: game.name, purchase_id: purchaseId }),
+      db().from('games').update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length }).eq('id', game.id),
+      db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
+    ]);
+
+    // Push notification to player
+    try {
+      const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', normPhone(purchase.phone)).single();
+      if (pushRow?.subscription) await sendPush(pushRow.subscription);
+    } catch(e) { console.error('Push failed:', e.message); }
+
+    return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
+  }
+
+  /* ── Admin: reject purchase ── */
+  if (action === 'reject-purchase') {
+    const { password, purchaseId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
+
+    const { data: pRow } = await db().from('purchases').select('status').eq('purchase_id', purchaseId).single();
+    if (!pRow) return res.status(404).json({ error: 'Purchase not found' });
+    if (pRow.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
+
+    await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
+    return res.json({ ok: true });
+  }
+
+  /* ── Admin: delete a game ── */
+  if (action === 'delete-game') {
+    const { password, gameId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+
+    await db().from('purchases').delete().eq('game_id', gameId);
+    await db().from('games').delete().eq('id', gameId);
+    return res.json({ ok: true });
+  }
+
+  /* ── Admin: create operator ── */
+  if (action === 'create-operator') {
+    const { password, name, email, phone: opPhone, plan } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!name || !plan) return res.status(400).json({ error: 'name and plan required' });
+    if (!['own-sheets', 'generate'].includes(plan))
+      return res.status(400).json({ error: 'plan must be own-sheets or generate' });
+
+    const operator = {
+      id: 'op_' + genId(), name: String(name).trim().slice(0, 80),
+      email: String(email || '').trim().slice(0, 100), phone: String(opPhone || '').trim().slice(0, 20),
+      plan, api_key: crypto.randomBytes(20).toString('hex'), active: true, created_at: Date.now()
+    };
+    await db().from('operators').insert(operator);
+    return res.json({ ok: true, operator: operatorFromRow(operator) });
+  }
+
+  /* ── Admin: list operators ── */
+  if (action === 'list-operators') {
+    const { password } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    const { data } = await db().from('operators').select('*').order('created_at', { ascending: false });
+    return res.json({ ok: true, operators: (data || []).map(operatorFromRow) });
+  }
+
+  /* ── Admin: delete operator ── */
+  if (action === 'delete-operator') {
+    const { password, operatorId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!operatorId) return res.status(400).json({ error: 'operatorId required' });
+    await db().from('operators').delete().eq('id', operatorId);
     return res.json({ ok: true });
   }
 
@@ -217,29 +361,24 @@ module.exports = async function(req, res) {
     if (await rateLimit(req, 'playerreg', 5, 3600))
       return res.status(429).json({ error: 'Too many requests. Try again later.' });
     const { name, phone, password } = body;
-    if (!name || !phone || !password)
-      return res.status(400).json({ error: 'Name, phone and password are required' });
-    if (String(password).length < 4)
-      return res.status(400).json({ error: 'Password must be at least 4 characters' });
+    if (!name || !phone || !password) return res.status(400).json({ error: 'Name, phone and password are required' });
+    if (String(password).length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
 
     const np = normPhone(phone);
-    if (!np) return res.status(400).json({ error: 'Invalid phone number' });
+    if (!np || np.length < 6) return res.status(400).json({ error: 'Invalid phone number' });
 
-    const existing = await kv.get(`tb:player:${np}`);
+    const { data: existing } = await db().from('players').select('phone').eq('phone', np).single();
     if (existing) return res.status(409).json({ error: 'Phone already registered. Please sign in.' });
 
-    const playerId = 'pl_' + genId();
     const player = {
-      id: playerId,
-      name: String(name).trim().slice(0, 50),
-      phone: np,
-      passwordHash: hashPassword(password),
-      createdAt: Date.now(),
+      id: 'pl_' + genId(), name: String(name).trim().slice(0, 50),
+      phone: np, password_hash: hashPassword(password), created_at: Date.now()
     };
-    await kv.set(`tb:player:${np}`, player);
+    await db().from('players').insert(player);
 
     const token = crypto.randomBytes(32).toString('hex');
-    await kv.set(`tb:psession:${token}`, { playerId, phone: np, name: player.name }, { ex: 604800 });
+    const expiresAt = new Date(Date.now() + 604800000).toISOString();
+    await db().from('sessions').insert({ token, player_id: player.id, phone: np, name: player.name, expires_at: expiresAt });
 
     return res.json({ ok: true, sessionToken: token, player: { name: player.name, phone: np } });
   }
@@ -252,12 +391,13 @@ module.exports = async function(req, res) {
     if (!phone || !password) return res.status(400).json({ error: 'Phone and password required' });
 
     const np = normPhone(phone);
-    const player = await kv.get(`tb:player:${np}`);
-    if (!player || player.passwordHash !== hashPassword(password))
+    const { data: player } = await db().from('players').select('*').eq('phone', np).single();
+    if (!player || player.password_hash !== hashPassword(password))
       return res.status(401).json({ error: 'Wrong phone number or password' });
 
     const token = crypto.randomBytes(32).toString('hex');
-    await kv.set(`tb:psession:${token}`, { playerId: player.id, phone: np, name: player.name }, { ex: 604800 });
+    const expiresAt = new Date(Date.now() + 604800000).toISOString();
+    await db().from('sessions').insert({ token, player_id: player.id, phone: np, name: player.name, expires_at: expiresAt });
 
     return res.json({ ok: true, sessionToken: token, player: { name: player.name, phone: np } });
   }
@@ -269,11 +409,11 @@ module.exports = async function(req, res) {
     const { sessionToken } = body;
     if (!sessionToken) return res.status(400).json({ error: 'sessionToken required' });
 
-    const session = await kv.get(`tb:psession:${sessionToken}`);
+    const { data: session } = await db().from('sessions').select('*').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
     if (!session) return res.status(401).json({ error: 'Session expired or invalid' });
 
-    // Refresh TTL (sliding window)
-    await kv.set(`tb:psession:${sessionToken}`, session, { ex: 604800 });
+    // Sliding window: refresh expires_at
+    await db().from('sessions').update({ expires_at: new Date(Date.now() + 604800000).toISOString() }).eq('token', sessionToken);
     return res.json({ ok: true, player: { name: session.name, phone: session.phone } });
   }
 
@@ -283,17 +423,20 @@ module.exports = async function(req, res) {
       return res.status(429).json({ error: 'Too many requests' });
     const { sessionToken } = body;
     if (!sessionToken) return res.status(400).json({ error: 'sessionToken required' });
-    const session = await kv.get(`tb:psession:${sessionToken}`);
+
+    const { data: session } = await db().from('sessions').select('phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
     if (!session) return res.status(401).json({ error: 'Session expired' });
-    const np = normPhone(session.phone);
-    const all = await kv.get('tb:mkt:purchases') || [];
-    const mine = all.filter(p => normPhone(p.phone) === np).slice(0, 20);
-    const fresh = await Promise.all(mine.map(p => kv.get(`tb:mkt:purchase:${p.purchaseId}`).then(v => v || null).catch(() => null)));
-    const orders = fresh.filter(Boolean).map(p => ({
-      purchaseId: p.purchaseId, gameName: p.gameName, quantity: p.quantity,
-      amount: p.amount, status: p.status, createdAt: p.createdAt, downloaded: !!p.downloaded,
-      downloadToken: (p.status === 'approved' && !p.downloaded) ? p.downloadToken : null,
-    }));
+
+    const { data: rows } = await db().from('purchases').select('*').eq('phone', normPhone(session.phone)).order('created_at', { ascending: false }).limit(20);
+    const orders = (rows || []).map(p => {
+      const purchase = purchaseFromRow(p);
+      return {
+        purchaseId: purchase.purchaseId, gameName: purchase.gameName, quantity: purchase.quantity,
+        amount: purchase.amount, status: purchase.status, createdAt: purchase.createdAt,
+        downloaded: purchase.downloaded,
+        downloadToken: (purchase.status === 'approved' && !purchase.downloaded) ? purchase.downloadToken : null
+      };
+    });
     return res.json({ orders });
   }
 
@@ -303,10 +446,11 @@ module.exports = async function(req, res) {
       return res.status(429).json({ error: 'Too many requests' });
     const { sessionToken, subscription } = body;
     if (!sessionToken || !subscription) return res.status(400).json({ error: 'sessionToken and subscription required' });
-    const session = await kv.get(`tb:psession:${sessionToken}`);
+
+    const { data: session } = await db().from('sessions').select('phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
     if (!session) return res.status(401).json({ error: 'Session expired' });
-    const np = normPhone(session.phone);
-    await kv.set(`tb:push:${np}`, subscription, { ex: 60 * 60 * 24 * 90 }); // 90 days
+
+    await db().from('push_subscriptions').upsert({ phone: normPhone(session.phone), subscription, updated_at: new Date().toISOString() });
     return res.json({ ok: true });
   }
 
@@ -315,70 +459,64 @@ module.exports = async function(req, res) {
     if (await rateLimit(req, 'mktbuy', 10, 3600))
       return res.status(429).json({ error: 'Too many requests. Try again later.' });
     const { sessionToken, playerName, phone, gameId, quantity, requestedSheetNums } = body;
-    if (!gameId || !quantity)
-      return res.status(400).json({ error: 'gameId and quantity required' });
+    if (!gameId || !quantity) return res.status(400).json({ error: 'gameId and quantity required' });
 
-    // Resolve player identity from session or fallback to explicit name/phone
     let resolvedName = playerName, resolvedPhone = phone;
     if (sessionToken) {
-      const session = await kv.get(`tb:psession:${sessionToken}`);
+      const { data: session } = await db().from('sessions').select('name,phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
       if (!session) return res.status(401).json({ error: 'Session expired. Please sign in again.' });
       resolvedName = session.name; resolvedPhone = session.phone;
     } else if (!playerName || !phone) {
       return res.status(400).json({ error: 'playerName and phone required when not signed in' });
     }
 
-    const games = await kv.get('tb:mkt:games') || [];
-    const gameMeta = games.find(g => g.id === gameId);
-    if (!gameMeta || gameMeta.status !== 'listed')
-      return res.status(404).json({ error: 'Game not available for purchase' });
+    const { data: gRow } = await db().from('games').select('*').eq('id', gameId).eq('status', 'listed').single();
+    if (!gRow) return res.status(404).json({ error: 'Game not available for purchase' });
+    const game = gameFromRow(gRow);
 
     const qty = Math.max(1, Math.min(150, parseInt(quantity) || 1));
-    const available = gameMeta.sheetCount - (gameMeta.soldCount || 0);
-    if (available < qty)
-      return res.status(409).json({ error: `Only ${available} sheet${available !== 1 ? 's' : ''} available` });
+    const available = game.sheetCount - (game.soldCount || 0);
+    if (available < qty) return res.status(409).json({ error: `Only ${available} sheet${available !== 1 ? 's' : ''} available` });
 
-    const amount = calcAmount(gameMeta, qty);
+    const amount = calcAmount(game, qty);
     const purchaseId = genId();
     const reqNums = Array.isArray(requestedSheetNums) && requestedSheetNums.length
-      ? requestedSheetNums.slice(0, 150).map(Number).filter(n => n >= gameMeta.sheetFrom && n <= gameMeta.sheetTo)
+      ? requestedSheetNums.slice(0, 150).map(Number).filter(n => n >= game.sheetFrom && n <= game.sheetTo)
       : null;
+
     const purchase = {
       purchaseId, playerName: String(resolvedName).trim().slice(0, 50),
       phone: String(resolvedPhone).trim().slice(0, 20),
-      gameId, gameName: gameMeta.name, quantity: qty, amount,
-      requestedSheetNums: reqNums,
-      status: 'pending', createdAt: Date.now()
+      gameId, gameName: game.name, quantity: qty, amount,
+      requestedSheetNums: reqNums, status: 'pending', createdAt: Date.now()
     };
-    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 86400 });
-    const purchases = await kv.get('tb:mkt:purchases') || [];
-    purchases.unshift(purchase);
-    await kv.set('tb:mkt:purchases', purchases.slice(0, 500));
-    return res.json({ ok: true, purchaseId, amount, playerName: purchase.playerName, gameName: gameMeta.name });
+    await db().from('purchases').insert(purchaseToRow(purchase));
+
+    // Telegram notification to operator / admin
+    sendTelegramOrderNotification(purchase, game).catch(() => {});
+
+    return res.json({ ok: true, purchaseId, amount, playerName: purchase.playerName, gameName: game.name });
   }
 
-  /* ── Player: get available sheet numbers for a game ── */
+  /* ── Player: get available sheet numbers ── */
   if (action === 'available-sheets') {
     if (await rateLimit(req, 'availsheets', 120, 60))
       return res.status(429).json({ error: 'Too many requests' });
     const { gameId } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
 
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game || game.status !== 'listed')
-      return res.status(404).json({ error: 'Game not found' });
+    const { data: gRow } = await db().from('games').select('*').eq('id', gameId).eq('status', 'listed').single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    const game = gameFromRow(gRow);
 
-    const sheetsData = await kv.hgetall('tb:mkt:sheets:hash') || {};
-    const allSheets = Object.values(sheetsData)
-      .map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } })
-      .filter(Boolean);
-
-    const inRange = allSheets.filter(s => s.n >= game.sheetFrom && s.n <= game.sheetTo);
-    const soldSet = new Set(game.soldSheetNums || []);
-    const available = inRange.filter(s => !soldSet.has(s.n)).map(s => s.n).sort((a, b) => a - b);
-    const sold = inRange.filter(s => soldSet.has(s.n)).map(s => s.n).sort((a, b) => a - b);
-
-    return res.json({ available, sold, total: inRange.length });
+    const { data: sheetRows } = await db().from('sheets').select('n').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    const soldSet = new Set(game.soldSheetNums);
+    const allNums = (sheetRows || []).map(s => s.n).sort((a, b) => a - b);
+    return res.json({
+      available: allNums.filter(n => !soldSet.has(n)),
+      sold: allNums.filter(n => soldSet.has(n)),
+      total: allNums.length
+    });
   }
 
   /* ── Player: poll purchase status ── */
@@ -387,87 +525,34 @@ module.exports = async function(req, res) {
       return res.status(429).json({ error: 'Too many requests' });
     const { purchaseId } = body;
     if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
-    const purchase = await kv.get(`tb:mkt:purchase:${purchaseId}`);
-    if (!purchase) return res.status(404).json({ error: 'Purchase not found or expired' });
-    if (purchase.status === 'approved') {
-      if (purchase.downloaded)
-        return res.json({ status: 'downloaded', quantity: purchase.quantity });
-      return res.json({ status: 'approved', downloadToken: purchase.downloadToken, quantity: purchase.quantity });
+
+    const { data: pRow } = await db().from('purchases').select('*').eq('purchase_id', purchaseId).single();
+    if (!pRow) return res.status(404).json({ error: 'Purchase not found or expired' });
+    const p = purchaseFromRow(pRow);
+    if (p.status === 'approved') {
+      if (p.downloaded) return res.json({ status: 'downloaded', quantity: p.quantity });
+      return res.json({ status: 'approved', downloadToken: p.downloadToken, quantity: p.quantity });
     }
-    return res.json({ status: purchase.status });
+    return res.json({ status: p.status });
   }
 
-  /* ── Admin: edit game ── */
-  if (action === 'edit-game') {
-    if (await rateLimit(req, 'editgame', 60, 3600))
-      return res.status(429).json({ error: 'Too many requests' });
-    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!gameId) return res.status(400).json({ error: 'gameId required' });
-    const game = await kv.get(`tb:mkt:game:${gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (name !== undefined) game.name = String(name).trim().slice(0, 80);
-    if (gameDate !== undefined) game.gameDate = gameDate ? String(gameDate).trim().slice(0, 40) : null;
-    if (gameDateRaw !== undefined) game.gameDateRaw = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
-    if (joinTime !== undefined) game.joinTime = joinTime ? String(joinTime).trim().slice(0, 20) : null;
-    if (pricePerSheet !== undefined) game.pricePerSheet = Math.max(1, Number(pricePerSheet) || 5);
-    if (pricingTiers !== undefined) game.pricingTiers = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
-    if (description !== undefined) game.description = String(description || '').trim().slice(0, 200);
-    if (prizes !== undefined) game.prizes = Array.isArray(prizes) ? prizes.slice(0, 12) : [];
-    if (thumbnail !== undefined) game.thumbnail = thumbnail ? String(thumbnail).slice(0, 500) : null;
-    await kv.set(`tb:mkt:game:${gameId}`, game);
-    const games = await kv.get('tb:mkt:games') || [];
-    const idx = games.findIndex(g => g.id === gameId);
-    if (idx !== -1) { games[idx] = game; await kv.set('tb:mkt:games', games); }
-    return res.json({ ok: true, game });
-  }
-
-  /* ── Admin: update settings ── */
-  if (action === 'update-settings') {
-    if (await rateLimit(req, 'updatesettings', 30, 3600))
-      return res.status(429).json({ error: 'Too many requests' });
-    const { password, operatorName, whatsappNumber, supportText, upiId, customQrUrl } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    const settings = await kv.get('tb:mkt:settings') || {};
-    if (operatorName !== undefined) settings.operatorName = String(operatorName).trim().slice(0, 80);
-    if (whatsappNumber !== undefined) settings.whatsappNumber = String(whatsappNumber).trim().slice(0, 20);
-    if (supportText !== undefined) settings.supportText = String(supportText).trim().slice(0, 200);
-    if (customQrUrl !== undefined) settings.customQrUrl = customQrUrl ? String(customQrUrl).slice(0, 500) : null;
-    if (upiId !== undefined) {
-      settings.upiId = String(upiId).trim().slice(0, 100);
-      const cfg = await kv.get('tb:config') || {};
-      cfg.upiId = settings.upiId;
-      await kv.set('tb:config', cfg);
-    }
-    await kv.set('tb:mkt:settings', settings);
-    return res.json({ ok: true, settings });
-  }
-
-  /* ── Player: lookup purchase by phone + PIN ── */
+  /* ── Player: lookup purchase by name+phone ── */
   if (action === 'lookup-purchase') {
     if (await rateLimit(req, 'lookuppurchase', 10, 60))
       return res.status(429).json({ error: 'Too many requests. Try again in a minute.' });
     const { name, phone } = body;
     if (!name || !phone) return res.status(400).json({ error: 'Name and phone required' });
-    const purchases = await kv.get('tb:mkt:purchases') || [];
-    const normPhone = s => String(s || '').trim().replace(/\D/g, '');
-    const normName = s => String(s || '').trim().toLowerCase();
-    const match = purchases.find(p =>
-      normPhone(p.phone) === normPhone(phone) &&
-      normName(p.playerName) === normName(name)
-    );
+
+    const np = normPhone(phone);
+    const { data: rows } = await db().from('purchases').select('*').eq('phone', np).order('created_at', { ascending: false }).limit(10);
+    const match = (rows || []).find(p => p.player_name.trim().toLowerCase() === String(name).trim().toLowerCase());
     if (!match) return res.status(404).json({ error: 'No order found for that name and phone number' });
-    const fresh = await kv.get(`tb:mkt:purchase:${match.purchaseId}`);
-    if (!fresh) return res.status(404).json({ error: 'Order has expired' });
-    if (fresh.downloaded)
-      return res.json({ purchaseId: fresh.purchaseId, status: 'downloaded', gameName: fresh.gameName, quantity: fresh.quantity, amount: fresh.amount, playerName: fresh.playerName });
+
+    const p = purchaseFromRow(match);
     return res.json({
-      purchaseId: fresh.purchaseId, status: fresh.status,
-      gameName: fresh.gameName, quantity: fresh.quantity, amount: fresh.amount,
-      playerName: fresh.playerName,
-      downloadToken: fresh.status === 'approved' ? fresh.downloadToken : undefined
+      purchaseId: p.purchaseId, status: p.status, gameName: p.gameName,
+      quantity: p.quantity, amount: p.amount, playerName: p.playerName,
+      downloadToken: p.status === 'approved' ? p.downloadToken : undefined
     });
   }
 
@@ -477,175 +562,44 @@ module.exports = async function(req, res) {
       return res.status(429).json({ error: 'Too many requests' });
     const { downloadToken } = body;
     if (!downloadToken) return res.status(400).json({ error: 'Token required' });
-    const dl = await kv.get(`tb:mkt:dl:${downloadToken}`);
+
+    const { data: dl } = await db().from('download_tokens').select('*').eq('token', downloadToken).eq('consumed', false).gt('expires_at', new Date().toISOString()).single();
     if (!dl) return res.status(404).json({ error: 'Download link expired or invalid. Contact admin.' });
-    return res.json({ ok: true, sheets: dl.sheets, gameName: dl.gameName });
+    return res.json({ ok: true, sheets: dl.sheets, gameName: dl.game_name });
   }
 
-  /* ── Player: consume (invalidate) download token after sheets are saved ── */
+  /* ── Player: consume (invalidate) download token ── */
   if (action === 'consume-download') {
     if (await rateLimit(req, 'consumedl', 30, 300))
       return res.status(429).json({ error: 'Too many requests' });
     const { downloadToken } = body;
     if (!downloadToken) return res.status(400).json({ error: 'Token required' });
-    const dl = await kv.get(`tb:mkt:dl:${downloadToken}`);
+
+    const { data: dl } = await db().from('download_tokens').select('purchase_id').eq('token', downloadToken).single();
     if (dl) {
-      await kv.del(`tb:mkt:dl:${downloadToken}`);
-      if (dl.purchaseId) {
-        const purchase = await kv.get(`tb:mkt:purchase:${dl.purchaseId}`);
-        if (purchase) {
-          purchase.downloaded = true;
-          purchase.downloadedAt = Date.now();
-          await kv.set(`tb:mkt:purchase:${dl.purchaseId}`, purchase, { ex: 21600 });
-          const plist = await kv.get('tb:mkt:purchases') || [];
-          const pIdx = plist.findIndex(p => p.purchaseId === dl.purchaseId);
-          if (pIdx >= 0) { plist[pIdx].downloaded = true; await kv.set('tb:mkt:purchases', plist); }
-        }
+      const now = Date.now();
+      await db().from('download_tokens').update({ consumed: true }).eq('token', downloadToken);
+      if (dl.purchase_id) {
+        await db().from('purchases').update({ downloaded: true, downloaded_at: now, status: 'downloaded' }).eq('purchase_id', dl.purchase_id);
       }
     }
     return res.json({ ok: true });
   }
 
-  /* ── Admin: approve purchase → assign sheets → generate download token ── */
-  if (action === 'approve-purchase') {
-    if (await rateLimit(req, 'approvepurchase', 60, 3600))
-      return res.status(429).json({ error: 'Too many requests' });
-    const { password, purchaseId } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
-
-    const purchase = await kv.get(`tb:mkt:purchase:${purchaseId}`);
-    if (!purchase) return res.status(404).json({ error: 'Purchase not found' });
-    if (purchase.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
-
-    const game = await kv.get(`tb:mkt:game:${purchase.gameId}`);
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-
-    const sheetsData2 = await kv.hgetall('tb:mkt:sheets:hash') || {};
-    const allSheets = Object.values(sheetsData2).map(v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch(e) { return null; } }).filter(Boolean);
-    const soldNums = new Set(game.soldSheetNums || []);
-    const available = allSheets.filter(s => s.n >= game.sheetFrom && s.n <= game.sheetTo && !soldNums.has(s.n));
-    if (available.length < purchase.quantity)
-      return res.status(409).json({ error: `Only ${available.length} sheets left in this game` });
-
-    // Honor player's requested sheet numbers if they specified any
-    let assigned;
-    if (purchase.requestedSheetNums && purchase.requestedSheetNums.length) {
-      const reqSet = new Set(purchase.requestedSheetNums);
-      const requested = available.filter(s => reqSet.has(s.n));
-      const rest = available.filter(s => !reqSet.has(s.n));
-      assigned = [...requested, ...rest].slice(0, purchase.quantity);
-    } else {
-      assigned = available.slice(0, purchase.quantity);
-    }
-    const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
-
-    const dlToken = genToken();
-    await kv.set(`tb:mkt:dl:${dlToken}`, { sheets: sheetList, gameName: game.name, purchaseId }, { ex: 21600 });
-
-    const newSold = [...(game.soldSheetNums || []), ...assigned.map(s => s.n)];
-    game.soldSheetNums = newSold; game.soldCount = newSold.length;
-    await kv.set(`tb:mkt:game:${purchase.gameId}`, game);
-
-    const games = await kv.get('tb:mkt:games') || [];
-    const gIdx = games.findIndex(g => g.id === purchase.gameId);
-    if (gIdx >= 0) { games[gIdx].soldCount = game.soldCount; await kv.set('tb:mkt:games', games); }
-
-    purchase.status = 'approved'; purchase.downloadToken = dlToken;
-    purchase.approvedAt = Date.now();
-    purchase.sheetNums = assigned.map(s => s.n);
-    await kv.set(`tb:mkt:purchase:${purchaseId}`, purchase, { ex: 21600 });
-
-    const plist = await kv.get('tb:mkt:purchases') || [];
-    const pIdx = plist.findIndex(p => p.purchaseId === purchaseId);
-    if (pIdx >= 0) { plist[pIdx] = purchase; await kv.set('tb:mkt:purchases', plist); }
-
-    // Send push notification to player
-    try {
-      const np = normPhone(purchase.phone);
-      const pushSub = await kv.get(`tb:push:${np}`);
-      if (pushSub) await sendPushVapid(pushSub);
-    } catch(pushErr) { console.error('Push failed:', pushErr.message); }
-
-    return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
-  }
-
-  /* ── Admin: delete a game ── */
-  if (action === 'delete-game') {
-    const { password, gameId } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!gameId) return res.status(400).json({ error: 'gameId required' });
-
-    // Remove game record and from games list
-    await kv.del(`tb:mkt:game:${gameId}`);
-    const games = await kv.get('tb:mkt:games') || [];
-    await kv.set('tb:mkt:games', games.filter(g => g.id !== gameId));
-
-    // Remove all purchases for this game (individual keys + list)
-    const purchases = await kv.get('tb:mkt:purchases') || [];
-    const toDelete = purchases.filter(p => p.gameId === gameId);
-    const remaining = purchases.filter(p => p.gameId !== gameId);
-    await kv.set('tb:mkt:purchases', remaining);
-    await Promise.all(toDelete.map(p => kv.del(`tb:mkt:purchase:${p.purchaseId}`)));
-
-    return res.json({ ok: true });
-  }
-
-  /* ── Public: get live game called numbers (polled by Tungbola) ── */
+  /* ── Public: get live game called numbers ── */
   if (action === 'get-live-game') {
     if (await rateLimit(req, 'getlive', 300, 60))
       return res.status(429).json({ error: 'Too many requests' });
     const { gameId } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
-    const state = await kv.get(`tb:live:${gameId}`) || { calledNumbers: [], lastNumber: null };
-    return res.json({ ok: true, calledNumbers: state.calledNumbers, lastNumber: state.lastNumber, lastCalledAt: state.lastCalledAt });
-  }
 
-  /* ── Admin: create an operator account ── */
-  if (action === 'create-operator') {
-    const { password, name, email, phone, plan } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!name || !plan) return res.status(400).json({ error: 'name and plan required' });
-    if (!['own-sheets', 'generate'].includes(plan))
-      return res.status(400).json({ error: 'plan must be own-sheets or generate' });
-
-    const id = 'op_' + genId();
-    const apiKey = genApiKey();
-    const operator = {
-      id, name: String(name).trim().slice(0, 80),
-      email: String(email || '').trim().slice(0, 100),
-      phone: String(phone || '').trim().slice(0, 20),
-      plan, apiKey, createdAt: Date.now(), active: true
-    };
-    await kv.set(`tb:op:${id}`, operator);
-    const ops = await kv.get('tb:ops') || [];
-    ops.unshift({ id, name: operator.name, plan, apiKey, createdAt: operator.createdAt });
-    await kv.set('tb:ops', ops);
-    return res.json({ ok: true, operator });
-  }
-
-  /* ── Admin: list operators ── */
-  if (action === 'list-operators') {
-    const { password } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    const ops = await kv.get('tb:ops') || [];
-    return res.json({ ok: true, operators: ops });
-  }
-
-  /* ── Admin: delete operator ── */
-  if (action === 'delete-operator') {
-    const { password, operatorId } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!operatorId) return res.status(400).json({ error: 'operatorId required' });
-    await kv.del(`tb:op:${operatorId}`);
-    const ops = await kv.get('tb:ops') || [];
-    await kv.set('tb:ops', ops.filter(o => o.id !== operatorId));
-    return res.json({ ok: true });
+    const { data } = await db().from('live_games').select('*').eq('game_id', gameId).single();
+    return res.json({
+      ok: true,
+      calledNumbers: data?.called_numbers || [],
+      lastNumber: data?.last_number || null,
+      lastCalledAt: data?.last_called_at || null
+    });
   }
 
   return res.status(400).json({ error: 'Unknown action' });

@@ -1396,11 +1396,28 @@ function goHome() {
 async function shareGame(gameId) {
   const g = games.find(x => x.id === gameId);
   if (!g) return;
-  const marketUrl = window.location.origin + `/api/og?id=${gameId}`;
-  const topPrize = (g.prizes||[]).find(p => /full house/i.test(p.name));
-  const prizeStr = topPrize && topPrize.kind === 'cash' ? `Win up to ₹${(topPrize.amount||0).toLocaleString('en-IN')}! ` : '';
+  const marketUrl = window.location.origin + `/g/${gameId}`;
+
+  // Build prize list (sorted by priority, top 5)
+  const PRIO_RE = [[/^full house$/i,1],[/^second full house$/i,2],[/^third full house$/i,3],[/^upper line$/i,4],[/^middle line$/i,5],[/^bottom line$/i,6],[/^ticket corners$/i,7],[/^sheet corner$/i,8],[/^early [567]$/i,9]];
+  const ICONS = {1:'👑',2:'🥈',3:'🥉',4:'⭐',5:'⭐',6:'⭐',7:'💎',8:'💎',9:'⚡'};
+  function gPrio(n){for(const[re,r]of PRIO_RE)if(re.test(n))return r;return 10}
+  const sorted = [...(g.prizes||[])].sort((a,b)=>gPrio(a.name)-gPrio(b.name));
+  const prizeLines = sorted.slice(0,5).map(p=>{
+    const icon = ICONS[gPrio(p.name)]||'⭐';
+    const val = p.kind==='cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : (p.description||'');
+    return `${icon} ${p.name}: ${val}`;
+  }).join('\n');
+
+  // Pricing
+  const tiers = Array.isArray(g.pricingTiers) ? g.pricingTiers : [];
+  const priceLine = tiers.length
+    ? tiers.slice(0,3).map(t=>`${t.qty} sheets ₹${t.price}`).join(' · ') + ` | Single ₹${g.pricePerSheet}`
+    : `₹${g.pricePerSheet} per sheet`;
+
   const dateStr = g.gameDate ? `📅 ${g.gameDate}\n` : '';
-  const shareText = `🎯 ${g.name}\n${dateStr}💰 ${prizeStr}Sheets from ₹${g.pricePerSheet} each.\n👇 Book your lucky sheet!`;
+  const prizeSection = prizeLines ? `\n🏆 Prizes:\n${prizeLines}\n` : '';
+  const shareText = `🎯 ${g.name}\n${dateStr}${prizeSection}\n💰 ${priceLine}\n👇 Book your lucky number now!`;
   const shareData = { title: g.name, text: shareText, url: marketUrl };
   if (g.thumbnail && navigator.canShare) {
     try {

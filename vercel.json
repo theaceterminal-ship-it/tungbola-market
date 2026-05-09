@@ -4,6 +4,9 @@
   "functions": {
     "api/*.js": { "maxDuration": 15 }
   },
+  "rewrites": [
+    { "source": "/g/:id", "destination": "/api/og?id=:id" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

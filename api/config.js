@@ -1,6 +1,5 @@
-const { Redis } = require('@upstash/redis');
 const { secureHeaders, rateLimit } = require('./_security');
-const kv = Redis.fromEnv();
+const { db } = require('./_db');
 
 module.exports = async function(req, res) {
   secureHeaders(res);
@@ -9,8 +8,8 @@ module.exports = async function(req, res) {
   if (await rateLimit(req, 'mktcfg', 60, 60))
     return res.status(429).json({ error: 'Too many requests' });
   try {
-    const cfg = await kv.get('tb:config') || { pricePerSheet: 5, upiId: '', whatsappNumber: '' };
-    res.json(cfg);
+    const { data } = await db().from('config').select('value').eq('key', 'app_config').single();
+    res.json(data?.value || { pricePerSheet: 5, upiId: '', whatsappNumber: '' });
   } catch(e) {
     res.json({ pricePerSheet: 5, upiId: '', whatsappNumber: '' });
   }
