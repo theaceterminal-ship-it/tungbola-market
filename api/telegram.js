@@ -131,9 +131,6 @@ module.exports = async function(req, res) {
       return res.status(401).end();
   }
 
-  // Always respond 200 immediately (Telegram retries if it gets anything else)
-  res.status(200).json({ ok: true });
-
   try {
     const update = req.body || {};
 
@@ -145,7 +142,7 @@ module.exports = async function(req, res) {
       const messageId = cb.message?.message_id;
       const callbackQueryId = cb.id;
 
-      if (!purchaseId || !chatId || !messageId) return;
+      if (!purchaseId || !chatId || !messageId) return res.status(200).json({ ok: true });
 
       if (cbAction === 'approve') {
         await handleApprove(purchaseId, chatId, messageId, callbackQueryId);
@@ -156,4 +153,7 @@ module.exports = async function(req, res) {
   } catch(e) {
     console.error('Telegram webhook error:', e.message);
   }
+
+  // Send 200 AFTER all work completes — Vercel kills the function on response
+  return res.status(200).json({ ok: true });
 };
