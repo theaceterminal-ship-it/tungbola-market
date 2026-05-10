@@ -262,7 +262,18 @@ module.exports = async function(req, res) {
     if (!gRow) return res.status(404).json({ error: 'Game not found' });
     const game = gameFromRow(gRow);
 
-    const { data: allSheets } = await db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    // Use operator_sheets for Plan A operators, shared sheets for everything else
+    let allSheetsQuery;
+    if (gRow.operator_id) {
+      const { data: opRow } = await db().from('operators').select('plan').eq('id', gRow.operator_id).single();
+      allSheetsQuery = opRow?.plan === 'own-sheets'
+        ? db().from('operator_sheets').select('*').eq('operator_id', gRow.operator_id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
+        : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    } else {
+      allSheetsQuery = db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    }
+    const { data: allSheets } = await allSheetsQuery;
+
     const soldSet = new Set(game.soldSheetNums);
     const available = (allSheets || []).filter(s => !soldSet.has(s.n));
 
@@ -514,7 +525,17 @@ module.exports = async function(req, res) {
     if (!gRow) return res.status(404).json({ error: 'Game not found' });
     const game = gameFromRow(gRow);
 
-    const { data: sheetRows } = await db().from('sheets').select('n').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    let sheetQuery;
+    if (gRow.operator_id) {
+      const { data: opRow } = await db().from('operators').select('plan').eq('id', gRow.operator_id).single();
+      sheetQuery = opRow?.plan === 'own-sheets'
+        ? db().from('operator_sheets').select('n').eq('operator_id', gRow.operator_id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
+        : db().from('sheets').select('n').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    } else {
+      sheetQuery = db().from('sheets').select('n').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    }
+    const { data: sheetRows } = await sheetQuery;
+
     const soldSet = new Set(game.soldSheetNums);
     const allNums = (sheetRows || []).map(s => s.n).sort((a, b) => a - b);
     return res.json({
