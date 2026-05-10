@@ -653,6 +653,47 @@ async function broadcastGame(channelId, game) {
 // Approve / Reject
 // ─────────────────────────────────────────────────────────────
 
+async function handleVerifyPay(paymentId, chatId, messageId, callbackQueryId, senderTgId) {
+  // Only admin can verify (check sender against TELEGRAM_ADMIN_CHAT_ID)
+  const adminChatId = String(process.env.TELEGRAM_ADMIN_CHAT_ID || '');
+  if (adminChatId && String(chatId) !== adminChatId) {
+    await answerCallback(callbackQueryId, 'Not authorized.'); return;
+  }
+
+  const { data: payRow } = await db().from('platform_payments').select('*').eq('id', paymentId).single();
+  if (!payRow) { await answerCallback(callbackQueryId, 'Payment not found.'); return; }
+  if (payRow.status !== 'pending') {
+    await answerCallback(callbackQueryId, `Already ${payRow.status}.`);
+    await editMessage(chatId, messageId, `✅ *Listing Payment*\nGame: ${payRow.game_name}\nStatus: already ${payRow.status}`);
+    return;
+  }
+
+  const now = Date.now();
+  await Promise.all([
+    db().from('platform_payments').update({ status: 'verified', verified_at: now }).eq('id', paymentId),
+    db().from('games').update({ status: 'listed' }).eq('id', payRow.game_id)
+  ]);
+
+  await answerCallback(callbackQueryId, '✅ Payment verified — game is now live!');
+  await editMessage(chatId, messageId,
+    `✅ *Payment Verified*\n\nOperator: ${payRow.operator_name}\nGame: *${payRow.game_name}*\n📋 ${payRow.sheet_count} sheets · ₹${payRow.amount}\nUTR: \`${payRow.utr}\`\n\n_Game is now live on marketplace._`
+  );
+
+  // Notify operator
+  const { data: opRow } = await db().from('operators')
+    .select('telegram_chat_id, telegram_id').eq('id', payRow.operator_id).single();
+  const opChatId = opRow?.telegram_chat_id || opRow?.telegram_id;
+  if (opChatId) {
+    const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+    await tgSend('sendMessage', {
+      chat_id: opChatId,
+      text: `✅ *Payment Verified!*\n\n🎮 *${payRow.game_name}* is now live on TungbolaMarket!\n\n📋 ${payRow.sheet_count} sheets · ₹${payRow.amount}\n\nPlayers can start booking now! 🎉`,
+      parse_mode: 'Markdown',
+      reply_markup: { inline_keyboard: [[{ text: '🎮 View Game', url: `https://${host}/g/${payRow.game_id}` }]] }
+    });
+  }
+}
+
 async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   const { data: pRow } = await db().from('purchases').select('*').eq('purchase_id', purchaseId).single();
   if (!pRow) { await answerCallback(callbackQueryId, 'Order not found.'); return; }
@@ -773,7 +814,9 @@ module.exports = async function(req, res) {
       const cbqId  = cb.id;
       if (!chatId) return res.status(200).json({ ok: true });
 
-      if (cbData.startsWith('approve:')) {
+      if (cbData.startsWith('verifypay:')) {
+        await handleVerifyPay(cbData.slice(10), chatId, msgId, cbqId, String(tgId || ''));
+      } else if (cbData.startsWith('approve:')) {
         await handleApprove(cbData.slice(8), chatId, msgId, cbqId);
       } else if (cbData.startsWith('reject:')) {
         await handleReject(cbData.slice(7), chatId, msgId, cbqId);

@@ -76,11 +76,22 @@ module.exports = async function(req, res) {
 
   /* ── Get operator info + their games ── */
   if (action === 'get-info') {
-    const { data: gameRows } = await db().from('games').select('*').eq('operator_id', operator.id).order('created_at', { ascending: false });
+    const [{ data: gameRows }, { data: cfgRow }, { data: payRows }] = await Promise.all([
+      db().from('games').select('*').eq('operator_id', operator.id).order('created_at', { ascending: false }),
+      db().from('config').select('value').eq('key', 'settings').single(),
+      db().from('platform_payments').select('game_id,status').eq('operator_id', operator.id).order('created_at', { ascending: false })
+    ]);
+    const adminUpiId = cfgRow?.value?.upiId || '';
+    // Most recent payment status per game (pending beats rejected)
+    const payMap = {};
+    for (const p of (payRows || [])) {
+      if (!payMap[p.game_id] || p.status === 'pending') payMap[p.game_id] = p.status;
+    }
     return res.json({
       ok: true,
       operator: { id: operator.id, name: operator.name, plan: operator.plan, telegramChatId: operator.telegramChatId },
-      games: (gameRows || []).map(gameFromRow)
+      games: (gameRows || []).map(r => ({ ...gameFromRow(r), platformPaymentStatus: payMap[r.id] || null })),
+      adminUpiId
     });
   }
 
@@ -369,6 +380,68 @@ module.exports = async function(req, res) {
     const { data: sheetRow } = await db().from('operator_sheets').select('*').eq('operator_id', operator.id).eq('n', num).single();
     if (!sheetRow) return res.status(404).json({ error: 'Sheet not found' });
     return res.json({ ok: true, sheet: sheetFromRow(sheetRow) });
+  }
+
+  /* ── Submit platform payment (listing fee) ── */
+  if (action === 'submit-platform-payment') {
+    const { gameId, utr } = body;
+    if (!gameId || !utr) return res.status(400).json({ error: 'gameId and utr required' });
+    const utrClean = String(utr).trim().toUpperCase().slice(0, 50);
+    if (utrClean.length < 6) return res.status(400).json({ error: 'Invalid UTR — must be at least 6 characters' });
+
+    const { data: gRow } = await db().from('games').select('*').eq('id', gameId).single();
+    if (!gRow) return res.status(404).json({ error: 'Game not found' });
+    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    if (!gRow.sheet_count) return res.status(400).json({ error: 'Assign sheets before publishing' });
+    if (gRow.status === 'listed') return res.status(409).json({ error: 'Game is already listed' });
+
+    // Block duplicate pending submissions
+    const { data: existing } = await db().from('platform_payments')
+      .select('id').eq('game_id', gameId).eq('status', 'pending').maybeSingle();
+    if (existing) return res.status(409).json({ error: 'Payment already submitted — awaiting admin verification.' });
+
+    const amount = Math.round(gRow.sheet_count * 1.99 * 100) / 100;
+    const payId  = genId();
+    await db().from('platform_payments').insert({
+      id: payId, game_id: gameId, operator_id: operator.id,
+      game_name: gRow.name, operator_name: operator.name,
+      sheet_count: gRow.sheet_count, amount, utr: utrClean,
+      status: 'pending', created_at: Date.now()
+    });
+
+    // Notify admin via Telegram
+    const token     = process.env.TELEGRAM_BOT_TOKEN;
+    const adminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    if (token && adminChat) {
+      const payload = JSON.stringify({
+        chat_id: adminChat,
+        text: `💰 *New Listing Payment*\n\nOperator: *${operator.name}*\nGame: *${gRow.name}*\n📋 ${gRow.sheet_count} sheets · ₹${amount}\nUTR: \`${utrClean}\`\n\n_Verify in admin panel or tap below._`,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: [[{ text: '✅ Verify & List', callback_data: `verifypay:${payId}` }]] }
+      });
+      const httpReq = require('https').request({
+        hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+      }, r => r.resume());
+      httpReq.on('error', () => {});
+      httpReq.write(payload); httpReq.end();
+    }
+
+    return res.json({ ok: true, paymentId: payId, amount, sheetCount: gRow.sheet_count });
+  }
+
+  /* ── Get latest platform payment for a game ── */
+  if (action === 'get-game-payment') {
+    const { gameId } = body;
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+    const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
+    if (!gRow || gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    const { data: payRow } = await db().from('platform_payments')
+      .select('*').eq('game_id', gameId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    return res.json({ ok: true, payment: payRow ? {
+      id: payRow.id, status: payRow.status, amount: payRow.amount,
+      sheetCount: payRow.sheet_count, utr: payRow.utr, createdAt: payRow.created_at
+    } : null });
   }
 
   return res.status(400).json({ error: 'Unknown action' });

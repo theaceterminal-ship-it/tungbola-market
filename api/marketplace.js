@@ -91,6 +91,11 @@ module.exports = async function(req, res) {
       const { data } = await db().from('config').select('value').eq('key', 'settings').single();
       return res.json({ settings: data?.value || {} });
     }
+    if (type === 'platform-payments') {
+      const { data } = await db().from('platform_payments')
+        .select('*').order('created_at', { ascending: false }).limit(200);
+      return res.json({ payments: data || [] });
+    }
     const { data } = await db().from('games').select('*').order('created_at', { ascending: false }).limit(200);
     return res.json({ games: (data || []).map(gameFromRow) });
   }
@@ -583,6 +588,83 @@ module.exports = async function(req, res) {
         await db().from('purchases').update({ downloaded: true, downloaded_at: now, status: 'downloaded' }).eq('purchase_id', dl.purchase_id);
       }
     }
+    return res.json({ ok: true });
+  }
+
+  /* ── Admin: verify platform payment → auto-list game ── */
+  if (action === 'verify-platform-payment') {
+    const { password, paymentId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!paymentId) return res.status(400).json({ error: 'paymentId required' });
+
+    const { data: payRow } = await db().from('platform_payments').select('*').eq('id', paymentId).single();
+    if (!payRow) return res.status(404).json({ error: 'Payment not found' });
+    if (payRow.status !== 'pending') return res.status(409).json({ error: `Payment already ${payRow.status}` });
+
+    const now = Date.now();
+    await Promise.all([
+      db().from('platform_payments').update({ status: 'verified', verified_at: now }).eq('id', paymentId),
+      db().from('games').update({ status: 'listed' }).eq('id', payRow.game_id)
+    ]);
+
+    // Notify operator via Telegram
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (token) {
+      const { data: opRow } = await db().from('operators')
+        .select('telegram_chat_id, telegram_id').eq('id', payRow.operator_id).single();
+      const chatId = opRow?.telegram_chat_id || opRow?.telegram_id;
+      if (chatId) {
+        const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+        const txt  = `✅ *Payment Verified!*\n\n🎮 *${payRow.game_name}* is now live on TungbolaMarket!\n\n📋 ${payRow.sheet_count} sheets · ₹${payRow.amount}\n\nPlayers can start booking now! 🎉`;
+        const pl   = JSON.stringify({
+          chat_id: chatId, text: txt, parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [[{ text: '🎮 View Game', url: `https://${host}/g/${payRow.game_id}` }]] }
+        });
+        const r = require('https').request({
+          hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(pl) }
+        }, x => x.resume());
+        r.on('error', () => {}); r.write(pl); r.end();
+      }
+    }
+
+    return res.json({ ok: true });
+  }
+
+  /* ── Admin: reject platform payment ── */
+  if (action === 'reject-platform-payment') {
+    const { password, paymentId } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!paymentId) return res.status(400).json({ error: 'paymentId required' });
+
+    const { data: payRow } = await db().from('platform_payments').select('status,operator_id,game_name,operator_name').eq('id', paymentId).single();
+    if (!payRow) return res.status(404).json({ error: 'Payment not found' });
+    if (payRow.status !== 'pending') return res.status(409).json({ error: `Payment already ${payRow.status}` });
+
+    await db().from('platform_payments').update({ status: 'rejected' }).eq('id', paymentId);
+
+    // Notify operator
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (token) {
+      const { data: opRow } = await db().from('operators')
+        .select('telegram_chat_id, telegram_id').eq('id', payRow.operator_id).single();
+      const chatId = opRow?.telegram_chat_id || opRow?.telegram_id;
+      if (chatId) {
+        const pl = JSON.stringify({
+          chat_id: chatId,
+          text: `❌ *Payment Rejected*\n\nYour listing payment for *${payRow.game_name}* was rejected.\n\nPlease re-submit with the correct UTR number.`,
+          parse_mode: 'Markdown'
+        });
+        const r = require('https').request({
+          hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(pl) }
+        }, x => x.resume());
+        r.on('error', () => {}); r.write(pl); r.end();
+      }
+    }
+
     return res.json({ ok: true });
   }
 

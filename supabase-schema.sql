@@ -205,3 +205,22 @@ CREATE TABLE IF NOT EXISTS player_telegram (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_player_telegram_tg ON player_telegram(telegram_id);
+
+-- Platform payments (SaaS billing — operator pays ₹1.99/sheet to list a game)
+CREATE TABLE IF NOT EXISTS platform_payments (
+  id            TEXT    PRIMARY KEY,
+  game_id       TEXT    NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  operator_id   TEXT    NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+  game_name     TEXT    NOT NULL,
+  operator_name TEXT    NOT NULL,
+  sheet_count   INTEGER NOT NULL,
+  amount        NUMERIC(10,2) NOT NULL,
+  utr           TEXT    NOT NULL,
+  status        TEXT    NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending','verified','rejected')),
+  created_at    BIGINT  NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+  verified_at   BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_platform_payments_status   ON platform_payments(status);
+CREATE INDEX IF NOT EXISTS idx_platform_payments_operator ON platform_payments(operator_id);
+CREATE INDEX IF NOT EXISTS idx_platform_payments_game     ON platform_payments(game_id);
