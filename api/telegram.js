@@ -706,6 +706,19 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   const purchase = purchaseFromRow(pRow);
   const { data: gRow } = await db().from('games').select('*').eq('id', purchase.gameId).single();
   if (!gRow) { await answerCallback(callbackQueryId, 'Game not found.'); return; }
+
+  // Verify the caller owns this game
+  if (gRow.operator_id) {
+    const { data: opRow } = await db().from('operators').select('telegram_chat_id').eq('id', gRow.operator_id).single();
+    if (opRow?.telegram_chat_id && String(opRow.telegram_chat_id) !== String(chatId)) {
+      await answerCallback(callbackQueryId, '⛔ Not your order.'); return;
+    }
+  } else {
+    const adminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    if (adminChat && String(adminChat) !== String(chatId)) {
+      await answerCallback(callbackQueryId, '⛔ Not authorized.'); return;
+    }
+  }
   const game = gameFromRow(gRow);
 
   let sheetQuery;
@@ -767,10 +780,24 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
 
 async function handleReject(purchaseId, chatId, messageId, callbackQueryId) {
   const { data: pRow } = await db().from('purchases')
-    .select('status, phone, player_name, game_name, quantity, amount')
+    .select('status, phone, player_name, game_name, quantity, amount, game_id')
     .eq('purchase_id', purchaseId).single();
   if (!pRow) { await answerCallback(callbackQueryId, 'Order not found.'); return; }
   if (pRow.status !== 'pending') { await answerCallback(callbackQueryId, `Already ${pRow.status}.`); return; }
+
+  // Verify the caller owns this game
+  const { data: gRow } = await db().from('games').select('operator_id').eq('id', pRow.game_id).single();
+  if (gRow?.operator_id) {
+    const { data: opRow } = await db().from('operators').select('telegram_chat_id').eq('id', gRow.operator_id).single();
+    if (opRow?.telegram_chat_id && String(opRow.telegram_chat_id) !== String(chatId)) {
+      await answerCallback(callbackQueryId, '⛔ Not your order.'); return;
+    }
+  } else {
+    const adminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    if (adminChat && String(adminChat) !== String(chatId)) {
+      await answerCallback(callbackQueryId, '⛔ Not authorized.'); return;
+    }
+  }
 
   await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
 
@@ -905,5 +932,7 @@ module.exports = async function(req, res) {
   return res.status(200).json({ ok: true });
 };
 
-module.exports.broadcastGame = broadcastGame;
-module.exports.tgSend        = tgSend;
+module.exports.broadcastGame        = broadcastGame;
+module.exports.tgSend               = tgSend;
+module.exports.notifyPlayerApproved = notifyPlayerApproved;
+module.exports.notifyPlayerRejected = notifyPlayerRejected;

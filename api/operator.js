@@ -3,6 +3,7 @@ const { handleUpload } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit } = require('./_security');
 const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow, sheetFromRow } = require('./_db');
 const { sendPush } = require('./_push');
+const { notifyPlayerApproved, notifyPlayerRejected } = require('./telegram');
 const crypto = require('crypto');
 
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -277,12 +278,15 @@ module.exports = async function(req, res) {
       db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
     ]);
 
-    // Push notification to player
+    // Push + Telegram notifications to player
+    const np = String(purchase.phone).replace(/\D/g, '');
     try {
-      const np = String(purchase.phone).replace(/\D/g, '');
       const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', np).single();
       if (pushRow?.subscription) await sendPush(pushRow.subscription);
     } catch(e) { console.error('Push failed:', e.message); }
+    try {
+      await notifyPlayerApproved(np, game.name, purchase.quantity, purchase.amount, dlToken);
+    } catch(e) { console.error('Telegram notify failed:', e.message); }
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
@@ -292,7 +296,7 @@ module.exports = async function(req, res) {
     const { purchaseId } = body;
     if (!purchaseId) return res.status(400).json({ error: 'purchaseId required' });
 
-    const { data: pRow } = await db().from('purchases').select('game_id,status').eq('purchase_id', purchaseId).single();
+    const { data: pRow } = await db().from('purchases').select('*').eq('purchase_id', purchaseId).single();
     if (!pRow) return res.status(404).json({ error: 'Purchase not found' });
     if (pRow.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
 
@@ -300,6 +304,12 @@ module.exports = async function(req, res) {
     if (gRow?.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
 
     await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
+
+    try {
+      const np = String(pRow.phone || '').replace(/\D/g, '');
+      await notifyPlayerRejected(np, pRow.game_name, pRow.quantity, pRow.amount);
+    } catch(e) { console.error('Telegram notify failed:', e.message); }
+
     return res.json({ ok: true });
   }
 
