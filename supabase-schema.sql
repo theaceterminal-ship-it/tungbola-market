@@ -206,6 +206,11 @@ CREATE TABLE IF NOT EXISTS player_telegram (
 );
 CREATE INDEX IF NOT EXISTS idx_player_telegram_tg ON player_telegram(telegram_id);
 
+-- Operator public profile (display name, support contact, UPI ID for payments)
+ALTER TABLE operators ADD COLUMN IF NOT EXISTS display_name  TEXT;
+ALTER TABLE operators ADD COLUMN IF NOT EXISTS support_phone TEXT;
+ALTER TABLE operators ADD COLUMN IF NOT EXISTS upi_id        TEXT;
+
 -- Platform payments (SaaS billing — operator pays ₹1.99/sheet to list a game)
 CREATE TABLE IF NOT EXISTS platform_payments (
   id            TEXT    PRIMARY KEY,
@@ -224,3 +229,6 @@ CREATE TABLE IF NOT EXISTS platform_payments (
 CREATE INDEX IF NOT EXISTS idx_platform_payments_status   ON platform_payments(status);
 CREATE INDEX IF NOT EXISTS idx_platform_payments_operator ON platform_payments(operator_id);
 CREATE INDEX IF NOT EXISTS idx_platform_payments_game     ON platform_payments(game_id);
+
+-- Player UTR for Telegram purchase tracking (cross-ref against bank statement)
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS utr TEXT;

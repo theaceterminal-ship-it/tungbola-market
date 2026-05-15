@@ -1169,19 +1169,20 @@ function openQRModal() {
 
   const count = selectedNums.size;
   const amount = calcClientAmount(currentGame, count);
-  const upiId = cfg.upiId || '';
+  // Use operator's own UPI if set, fall back to admin-configured UPI
+  const upiId = currentGame?.operatorUpiId || cfg.upiId || '';
+  const payeeName = encodeURIComponent(currentGame?.operatorDisplayName || currentGame?.operatorName || cfg.operatorName || 'Tungbola');
 
   document.getElementById('modalSub').textContent = `${count} sheet${count !== 1 ? 's' : ''} · ₹${amount.toLocaleString('en-IN')} · ${currentGame?.name || ''}`;
 
   const qrContainer = document.getElementById('qrContainer');
   qrContainer.innerHTML = '';
   if (upiId) {
-    const payeeName = encodeURIComponent(cfg.operatorName || 'Tungbola');
     const upiStr = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${payeeName}&am=${amount}&cu=INR&tn=Tambola+Sheets`;
     try { new QRCode(qrContainer, { text: upiStr, width: 200, height: 200, colorDark: '#1C1B1F', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch(e) {}
     document.getElementById('qrUpiTxt').textContent = `UPI ID: ${upiId}`;
   } else {
-    qrContainer.innerHTML = `<div style="padding:24px;font-size:13px;color:var(--muted);text-align:center">UPI not configured.<br>Contact admin.</div>`;
+    qrContainer.innerHTML = `<div style="padding:24px;font-size:13px;color:var(--muted);text-align:center">UPI not configured.<br>Contact operator.</div>`;
     document.getElementById('qrUpiTxt').textContent = '';
   }
 

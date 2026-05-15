@@ -134,7 +134,13 @@ async function notifyPlayerRejected(phone, gameName, quantity, amount) {
 
 async function getSession(telegramId) {
   const { data } = await db().from('bot_sessions').select('*').eq('telegram_id', String(telegramId)).single();
-  return data || null;
+  if (!data) return null;
+  // Expire sessions idle for more than 24 hours
+  if (Date.now() - new Date(data.updated_at).getTime() > 86400000) {
+    await db().from('bot_sessions').delete().eq('telegram_id', String(telegramId));
+    return null;
+  }
+  return data;
 }
 
 async function setSession(telegramId, step, data) {
@@ -192,7 +198,7 @@ const TIME_KB = {
 };
 
 const SKIP_KB = { inline_keyboard: [[{ text: 'Skip', callback_data: 'w_skip' }]] };
-const NOW_KB  = { inline_keyboard: [[{ text: '🚀 Publish Now', callback_data: 'w_sched:now' }]] };
+const NOW_KB  = { inline_keyboard: [[{ text: '🚀 List immediately', callback_data: 'w_sched:now' }]] };
 
 // ─────────────────────────────────────────────────────────────
 // Operator commands
@@ -201,11 +207,11 @@ const NOW_KB  = { inline_keyboard: [[{ text: '🚀 Publish Now', callback_data: 
 async function handleOperatorHelp(chatId) {
   await tgReply(chatId,
     `*Tungbola Operator Bot*\n\n` +
-    `/newgame — Create & schedule a game\n` +
-    `/stats — Live stats\n` +
-    `/setchannel @ch — Set player channel\n` +
-    `/link APIKEY — Link account\n` +
-    `/cancel — Cancel wizard`
+    `/newgame — Create a game _(listing fee applies)_\n` +
+    `/stats — Live sales stats\n` +
+    `/setchannel @ch — Set your player channel\n` +
+    `/link APIKEY — Link your account\n` +
+    `/cancel — Cancel current action`
   );
 }
 
@@ -304,7 +310,7 @@ async function handlePlayerStart(chatId, telegramId) {
   const existing = await getPlayerPhone(telegramId);
   if (existing) {
     await tgReply(chatId,
-      `👋 *Welcome back!*\n\nYou're linked. You'll automatically receive download links here when orders are approved.\n\n/myorders — Check your orders`
+      `👋 *Welcome back!*\n\nDownload links arrive here automatically when orders are approved.\n\n/games — Browse & buy sheets\n/myorders — Your orders`
     );
     return;
   }
@@ -347,12 +353,103 @@ async function handleMyOrders(chatId, telegramId, args) {
   for (const o of orders) {
     const e = o.status === 'approved' ? '✅' : o.status === 'downloaded' ? '📥' : o.status === 'pending' ? '⏳' : '❌';
     msg += `${e} *${o.game_name}* — ${o.quantity} sheets · ₹${o.amount}\n`;
-    if ((o.status === 'approved') && o.download_token) {
+    if (o.status === 'approved' && o.download_token) {
       keyboard.push([{ text: `📥 Download — ${o.game_name}`, url: `https://${host}/?dl=${o.download_token}` }]);
+    } else if (o.status === 'downloaded') {
+      keyboard.push([{ text: `🔄 New link — ${o.game_name}`, callback_data: `p_resend:${o.purchase_id}` }]);
     }
   }
 
   await tgReply(chatId, msg, keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {});
+}
+
+// ─────────────────────────────────────────────────────────────
+// Player — Browse & Buy via Telegram
+// ─────────────────────────────────────────────────────────────
+
+async function handleGames(chatId) {
+  const { data: gameRows } = await db().from('games')
+    .select('id, name, game_date, join_time, price_per_sheet, pricing_tiers, sheet_count, sold_count')
+    .eq('status', 'listed')
+    .order('created_at', { ascending: false })
+    .limit(8);
+
+  if (!gameRows?.length) {
+    await tgReply(chatId, '📋 No games available right now. Check back soon!');
+    return;
+  }
+
+  let msg = '🎮 *Available Games*\n\n';
+  const keyboard = [];
+
+  for (const g of gameRows) {
+    const rem = Math.max(0, (g.sheet_count || 0) - (g.sold_count || 0));
+    if (rem <= 0) continue;
+    const price = Array.isArray(g.pricing_tiers) && g.pricing_tiers.length
+      ? `₹${g.price_per_sheet}+` : `₹${g.price_per_sheet}/sheet`;
+    msg += `🎯 *${g.name}*`;
+    if (g.game_date) msg += ` — ${g.game_date}`;
+    msg += `\n   ${price} · ${rem} sheets left\n\n`;
+    keyboard.push([{ text: `🎟 Buy — ${g.name}`, callback_data: `p_buy:${g.id}` }]);
+  }
+
+  if (!keyboard.length) {
+    await tgReply(chatId, '😔 All games are currently sold out. Check back soon!');
+    return;
+  }
+
+  await tgReply(chatId, msg, { reply_markup: { inline_keyboard: keyboard } });
+}
+
+async function handleBuyGame(chatId, telegramId, gameId) {
+  if (!gameId) { await handleGames(chatId); return; }
+
+  const phone = await getPlayerPhone(telegramId);
+  if (!phone) {
+    await clearSession(telegramId);
+    await setSession(telegramId, 'p_phone', { pendingGameId: gameId });
+    await tgReply(chatId,
+      `📱 *Send your phone number to get started*\n\nYour sheets will be delivered here automatically once your order is approved.\n\n_/cancel to start over_`
+    );
+    return;
+  }
+
+  const { data: gRow } = await db().from('games')
+    .select('*').eq('id', gameId).eq('status', 'listed').single();
+  if (!gRow) { await tgReply(chatId, '❌ Game not found or no longer available.'); return; }
+
+  let operatorUpiId = null;
+  if (gRow.operator_id) {
+    const { data: opRow } = await db().from('operators').select('upi_id').eq('id', gRow.operator_id).single();
+    operatorUpiId = opRow?.upi_id || null;
+  }
+  if (!operatorUpiId) {
+    await tgReply(chatId, '❌ This game is not accepting payments yet. Try the website or contact the organiser.');
+    return;
+  }
+
+  const rem = Math.max(0, (gRow.sheet_count || 0) - (gRow.sold_count || 0));
+  if (rem <= 0) { await tgReply(chatId, '😔 *Sold out!* All sheets taken.\n\n/games to see other games.'); return; }
+
+  const maxQty = Math.min(rem, 10);
+  const priceLines = Array.isArray(gRow.pricing_tiers) && gRow.pricing_tiers.length
+    ? gRow.pricing_tiers.map(t => `${t.qty} sheets → ₹${t.price}`).join('\n') + `\n1 sheet → ₹${gRow.price_per_sheet}`
+    : `₹${gRow.price_per_sheet} per sheet`;
+
+  await setSession(telegramId, 'p_buy_qty', {
+    gameId: gRow.id, gameName: gRow.name,
+    pricePerSheet: gRow.price_per_sheet, pricingTiers: gRow.pricing_tiers || [],
+    operatorUpiId, sheetCount: gRow.sheet_count, soldCount: gRow.sold_count
+  });
+
+  await tgReply(chatId,
+    `🎯 *${gRow.name}*\n` +
+    (gRow.game_date ? `📅 ${gRow.game_date}${gRow.join_time ? ` · ⏰ ${gRow.join_time}` : ''}\n` : '') +
+    `\n💰 *Pricing:*\n${priceLines}\n\n` +
+    `📋 ${rem} sheets remaining\n\n` +
+    `*How many sheets?* _(1–${maxQty})_\n\n_/cancel to start over_`,
+    { reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'p_cancel' }]] } }
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -362,11 +459,18 @@ async function handleMyOrders(chatId, telegramId, args) {
 async function handleNewGame(chatId, telegramId) {
   const op = await getOpByTgId(telegramId);
   if (!op) { await tgReply(chatId, '❌ Not linked. Use `/link YOUR_API_KEY` first.'); return; }
+  if (!op.upi_id) {
+    await tgReply(chatId,
+      `❌ *UPI not set up*\n\nPlayers pay you via UPI — you must add your UPI ID before listing games.\n\n` +
+      `Open the *Operator Web App → Profile → UPI ID*, then try again.`
+    );
+    return;
+  }
   await setSession(telegramId, 'w_name', { operatorId: op.id, operatorName: op.name });
   await tgReply(chatId, `🎯 *New Game* — ${op.name}\n\n*Game name?*`);
 }
 
-async function processWizard(chatId, telegramId, text, photoFileId) {
+async function processWizard(chatId, telegramId, text, photoFileId, tgUser = null) {
   const session = await getSession(telegramId);
   if (!session) return false;
 
@@ -375,11 +479,17 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
   // ── Player phone linking ──────────────────────────────────────
   if (step === 'p_phone') {
     const phone = (text || '').replace(/\D/g, '');
-    if (phone.length < 10) { await tgReply(chatId, '❌ Enter your registered phone number.'); return true; }
-    const { data: player } = await db().from('players').select('phone, name').eq('phone', phone).single();
+    if (phone.length < 10) { await tgReply(chatId, '❌ Enter a valid 10-digit phone number.'); return true; }
+    let { data: player } = await db().from('players').select('phone, name').eq('phone', phone).single();
     if (!player) {
-      await tgReply(chatId, '❌ Phone not found. Make sure you\'re registered on the marketplace first.');
-      return true;
+      // New player — register inline from Telegram profile (no web signup required)
+      const firstName = (tgUser?.first_name || '').trim();
+      const lastName  = (tgUser?.last_name  || '').trim();
+      const tgName    = (firstName + (lastName ? ' ' + lastName : '')) || tgUser?.username || `Player${phone.slice(-4)}`;
+      const playerId  = 'tg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const fakeHash  = crypto.randomBytes(16).toString('hex');
+      await db().from('players').insert({ phone, id: playerId, name: tgName, password_hash: fakeHash });
+      player = { name: tgName };
     }
     await db().from('player_telegram').upsert(
       { phone, telegram_id: String(telegramId) },
@@ -387,8 +497,9 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     );
     await clearSession(telegramId);
     await tgReply(chatId,
-      `✅ *Linked, ${player.name}!*\n\nYou'll automatically receive download links here when your orders are approved.\n\n/myorders — Check your orders`
+      `✅ *Welcome, ${player.name}!*\n\nYour account is linked — download links arrive here automatically when orders are approved.\n\n/games — Browse & buy sheets\n/myorders — Your orders`
     );
+    if (data.pendingGameId) await handleBuyGame(chatId, telegramId, data.pendingGameId);
     return true;
   }
 
@@ -496,7 +607,7 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
         thumbnail = val;
     }
     await setSession(telegramId, 'w_schedule', { ...data, thumbnail });
-    await tgReply(chatId, `⏱ *Publish when?*\nOr type a date: \`15 May 7:00 PM\``, { reply_markup: NOW_KB });
+    await tgReply(chatId, `⏱ *When to list?*\n_Goes live after your listing fee is verified._\nOr schedule: \`15 May 7:00 PM\``, { reply_markup: NOW_KB });
     return true;
   }
 
@@ -512,6 +623,104 @@ async function processWizard(chatId, telegramId, text, photoFileId) {
     if      (val === 'yes') { await finishGame(chatId, telegramId, data); }
     else if (val === 'no')  { await clearSession(telegramId); await tgReply(chatId, '❌ Cancelled. /newgame to restart.'); }
     else                    { await tgReply(chatId, 'Tap a button above or reply *yes* / *no*.'); }
+    return true;
+  }
+
+  // ── w_utr: operator submits listing-fee UTR ──────────────────
+  if (step === 'w_utr') {
+    const utrClean = (text || '').trim().toUpperCase().replace(/\s/g, '');
+    if (utrClean.length < 6) { await tgReply(chatId, '❌ UTR must be at least 6 characters. Try again.'); return true; }
+
+    const { gameId, amount, sheetCount, operatorId, operatorName, name } = data;
+    const payId = 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+    const { error } = await db().from('platform_payments').insert({
+      id: payId, game_id: gameId, operator_id: operatorId,
+      game_name: name, operator_name: operatorName,
+      sheet_count: sheetCount, amount, utr: utrClean,
+      status: 'pending', created_at: Date.now()
+    });
+    if (error) { await tgReply(chatId, `❌ Failed to submit: ${error.message}`); return true; }
+
+    await clearSession(telegramId);
+
+    const adminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    if (adminChat) {
+      await tgSend('sendMessage', {
+        chat_id: adminChat,
+        text: `💰 *New Listing Payment*\n\nOperator: *${operatorName}*\nGame: *${name}*\n📋 ${sheetCount} sheets · ₹${amount}\nUTR: \`${utrClean}\``,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: [[{ text: '✅ Verify & List', callback_data: `verifypay:${payId}` }]] }
+      });
+    }
+
+    await tgReply(chatId,
+      `✅ *Payment submitted!*\n\nUTR: \`${utrClean}\`\n\nGame goes live once verified — you'll be notified here. 🎉\n\n/stats to check status.`
+    );
+    return true;
+  }
+
+  // ── p_buy_qty: player picks quantity ─────────────────────────
+  if (step === 'p_buy_qty') {
+    const qty = parseInt((text || '').trim());
+    const rem = Math.max(0, (data.sheetCount || 0) - (data.soldCount || 0));
+    const maxQty = Math.min(rem, 10);
+    if (!qty || qty < 1) { await tgReply(chatId, `❌ Enter a number between 1 and ${maxQty}.`); return true; }
+    if (qty > maxQty)    { await tgReply(chatId, `❌ Max ${maxQty} sheets per order.`); return true; }
+
+    let amount = data.pricePerSheet * qty;
+    if (Array.isArray(data.pricingTiers) && data.pricingTiers.length) {
+      const tier = data.pricingTiers.find(t => t.qty === qty);
+      if (tier) amount = tier.price;
+    }
+
+    await showPickScreen(chatId, telegramId, { ...data, quantity: qty, amount });
+    return true;
+  }
+
+  // ── p_buy_pick: player picks lucky numbers or skips ──────────
+  if (step === 'p_buy_pick') {
+    let pickedNums = null;
+    const val = (text || '').trim().toLowerCase();
+
+    if (val !== 'skip') {
+      const nums = (text || '').match(/\d+/g)?.map(Number).filter(n => n > 0) || [];
+      if (!nums.length) { await tgReply(chatId, '❌ Type sheet number(s) or tap *Random*.'); return true; }
+      if (nums.length > data.quantity) {
+        await tgReply(chatId, `❌ You ordered *${data.quantity}* sheet${data.quantity > 1 ? 's' : ''} — pick at most ${data.quantity} number${data.quantity > 1 ? 's' : ''}.`);
+        return true;
+      }
+      // Validate availability
+      const { data: gRow } = await db().from('games')
+        .select('sheet_from, sheet_to, sold_sheet_nums').eq('id', data.gameId).single();
+      const soldSet = new Set((gRow?.sold_sheet_nums || []).map(Number));
+      const bad = nums.filter(n => n < gRow.sheet_from || n > gRow.sheet_to || soldSet.has(n));
+      if (bad.length) {
+        await tgReply(chatId, `❌ Sheet${bad.length > 1 ? 's' : ''} *#${bad.join(', #')}* ${bad.length > 1 ? 'are' : 'is'} not available. Check the list and try again.`);
+        return true;
+      }
+      pickedNums = nums;
+    }
+
+    await setSession(telegramId, 'p_buy_confirm', { ...data, pickedNums });
+    await showBuyConfirmation(chatId, { ...data, pickedNums });
+    return true;
+  }
+
+  // ── p_buy_utr: player submits payment transaction ID ─────────
+  if (step === 'p_buy_utr') {
+    const utr = (text || '').trim().replace(/\s/g, '');
+    if (utr.length < 6) {
+      await tgReply(chatId, '❌ That doesn\'t look right — enter the transaction/reference ID from your UPI app.\n\n_/cancel to start over_');
+      return true;
+    }
+    await confirmBuyOrder(chatId, null, telegramId, { ...data, utr });
+    return true;
+  }
+
+  // Catch-all: session exists but step not handled (stale/corrupt state)
+  if (session) {
+    await tgReply(chatId, '❓ Something went wrong. Type /cancel to start over.');
     return true;
   }
 
@@ -551,7 +760,7 @@ async function showSummary(chatId, data) {
     .map(p => `${PRIZE_EMOJI[p.name] || '🎯'} ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`)
     .join('\n') || '  —';
 
-  const when = data.publishNow ? '🚀 Now' : `📅 ${new Date(data.scheduledFor).toLocaleString('en-IN')}`;
+  const when = data.publishNow ? '🚀 Immediately after payment verified' : `📅 ${new Date(data.scheduledFor).toLocaleString('en-IN')} (after payment)`;
 
   const lines = [
     `✅ *Confirm Game*\n`,
@@ -560,7 +769,7 @@ async function showSummary(chatId, data) {
     `📋 Sheets ${data.sheetFrom}–${data.sheetTo} (${data.sheetCount})  💰 ${priceStr}`,
     data.description ? `📝 ${data.description}` : null,
     `\n*Prizes:*\n${prizeLines}`,
-    `\n*Publish:* ${when}`
+    `\n*Listing:* ${when}`
   ].filter(Boolean).join('\n');
 
   await tgReply(chatId, lines, {
@@ -575,7 +784,6 @@ async function showSummary(chatId, data) {
 
 async function finishGame(chatId, telegramId, data) {
   const gameId = 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  const status = data.publishNow ? 'listed' : 'draft';
 
   const { error } = await db().from('games').insert({
     id: gameId,
@@ -590,7 +798,7 @@ async function finishGame(chatId, telegramId, data) {
     description: data.description || '',
     prizes: data.prizes || [],
     thumbnail: data.thumbnail || null,
-    status,
+    status: 'draft',
     sheet_from: data.sheetFrom,
     sheet_to: data.sheetTo,
     sheet_count: data.sheetCount,
@@ -601,17 +809,195 @@ async function finishGame(chatId, telegramId, data) {
   });
 
   if (error) { await tgReply(chatId, `❌ Failed: ${error.message}`); return; }
+
+  const amount = Math.round(data.sheetCount * 1.99 * 100) / 100;
+  const { data: cfgRow } = await db().from('config').select('value').eq('key', 'settings').single();
+  const adminUpiId = cfgRow?.value?.upiId || '';
+
+  await setSession(telegramId, 'w_utr', { ...data, gameId, amount });
+
+  await tgReply(chatId,
+    `✅ *Game Saved: ${data.name}*\n\n` +
+    `━━━━━━━━━━━━\n` +
+    `💰 *Listing Fee*\n` +
+    `${data.sheetCount} sheets × ₹1.99 = *₹${amount}*\n\n` +
+    `Pay to UPI:\n\`${adminUpiId || 'Contact admin for UPI ID'}\`\n` +
+    `━━━━━━━━━━━━\n\n` +
+    `After payment reply with your *UTR / transaction ID* to activate the game.`
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Player buy — screens + order creation
+// ─────────────────────────────────────────────────────────────
+
+async function showPickScreen(chatId, telegramId, data) {
+  const { data: gRow } = await db().from('games')
+    .select('sheet_from, sheet_to, sold_sheet_nums').eq('id', data.gameId).single();
+  const soldSet = new Set((gRow?.sold_sheet_nums || []).map(Number));
+  const from = gRow?.sheet_from || 1, to = gRow?.sheet_to || 1;
+  const available = [];
+  for (let n = from; n <= to; n++) if (!soldSet.has(n)) available.push(n);
+
+  const shown = available.slice(0, 120);
+  const rows = [];
+  for (let i = 0; i < shown.length; i += 15)
+    rows.push(shown.slice(i, i + 15).map(n => String(n).padStart(3, ' ')).join(' '));
+  const numBlock = rows.join('\n');
+  const extraNote = available.length > 120 ? `\n_...and ${available.length - 120} more in range ${from}–${to}_` : '';
+
+  const qty = data.quantity;
+  await setSession(telegramId, 'p_buy_pick', data);
+  await tgReply(chatId,
+    `📋 *Available sheets (${available.length} remaining):*\n\`\`\`\n${numBlock}\`\`\`${extraNote}\n\n` +
+    `Type your lucky number${qty > 1 ? `s (up to ${qty}, e.g. \`7 23\`)` : ` (e.g. \`7\`)`} from the list.\n` +
+    `Or tap below for random assignment.\n\n_/cancel to start over_`,
+    { reply_markup: { inline_keyboard: [[{ text: '🎲 Random — surprise me!', callback_data: 'w_skip' }]] } }
+  );
+}
+
+// Screen 1 — order review (edit before paying)
+async function showBuyConfirmation(chatId, data) {
+  const pickStr = data.pickedNums?.length
+    ? `🎫 Your picks: *#${data.pickedNums.join(', #')}*`
+    : `🎲 *Random assignment*`;
+
+  await tgReply(chatId,
+    `✅ *Review Your Order*\n\n` +
+    `🎯 ${data.gameName}\n` +
+    `📋 ${data.quantity} sheet${data.quantity > 1 ? 's' : ''} · *₹${data.amount}*\n` +
+    `${pickStr}\n\n` +
+    `Everything look right?\n\n_/cancel to start over_`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '✅ Looks good — Pay now', callback_data: 'p_confirm' }],
+          [
+            { text: '✏️ Change picks', callback_data: 'p_edit_picks' },
+            { text: '❌ Cancel',        callback_data: 'p_cancel'     }
+          ]
+        ]
+      }
+    }
+  );
+}
+
+// Screen 2 — payment (shown after player confirms order details)
+async function showPaymentScreen(chatId, msgId, telegramId, data) {
+  const upiLink =
+    `upi://pay?pa=${encodeURIComponent(data.operatorUpiId)}` +
+    `&pn=${encodeURIComponent(data.operatorName || 'Operator')}` +
+    `&am=${data.amount}` +
+    `&tn=${encodeURIComponent(data.gameName + ' Sheets')}` +
+    `&cu=INR`;
+
+  await setSession(telegramId, 'p_buy_pay', data);
+
+  await editMessage(chatId, msgId,
+    `💰 *Pay ₹${data.amount}*\n\n` +
+    `Tap the button below — your UPI app opens with the amount pre-filled.\n\n` +
+    `Once you've paid, tap *I've Paid* to submit your order to the organiser.`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: `💳 Pay ₹${data.amount} via UPI`, url: upiLink }],
+          [
+            { text: "✅ I've Paid — Submit Order", callback_data: 'p_paid' },
+            { text: '❌ Cancel',                   callback_data: 'p_cancel' }
+          ]
+        ]
+      }
+    }
+  );
+}
+
+async function sendTelegramOrderNotification(purchase, game) {
+  const { data: opRow } = await db().from('operators')
+    .select('telegram_chat_id, telegram_id').eq('id', game.operatorId).single();
+  const opChatId = opRow?.telegram_chat_id || opRow?.telegram_id;
+  if (!opChatId) return;
+
+  const pickNote = purchase.requestedSheetNums?.length
+    ? `🎫 Requested: #${purchase.requestedSheetNums.join(', #')}`
+    : '🎲 Random assignment';
+  const utrNote = purchase.utr ? `\n💳 UTR: \`${purchase.utr}\`` : '';
+
+  await tgSend('sendMessage', {
+    chat_id: opChatId,
+    text:
+      `🛒 *New Order!*\n\n` +
+      `👤 ${purchase.playerName} · 📞 ${purchase.phone}\n` +
+      `🎮 ${purchase.gameName}\n` +
+      `📋 ${purchase.quantity} sheet${purchase.quantity > 1 ? 's' : ''} · ₹${purchase.amount}\n` +
+      `${pickNote}${utrNote}\n\n` +
+      `🆔 Order: \`${purchase.purchaseId}\``,
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [[
+        { text: '✅ Approve', callback_data: `approve:${purchase.purchaseId}` },
+        { text: '❌ Reject',  callback_data: `reject:${purchase.purchaseId}` }
+      ]]
+    }
+  });
+}
+
+async function confirmBuyOrder(chatId, msgId, telegramId, data) {
+  const phone = await getPlayerPhone(telegramId);
+  if (!phone) {
+    await clearSession(telegramId);
+    await tgReply(chatId, '❌ Session expired. Use /games to start over.');
+    return;
+  }
+
+  const { data: playerRow } = await db().from('players').select('name').eq('phone', phone).single();
+  if (!playerRow) { await clearSession(telegramId); await tgReply(chatId, '❌ Account not found. Use /start to re-link.'); return; }
+
+  const { data: gRow } = await db().from('games')
+    .select('sold_count, sheet_count, operator_id, operator_name')
+    .eq('id', data.gameId).eq('status', 'listed').single();
+  if (!gRow) { await clearSession(telegramId); await tgReply(chatId, '❌ Game no longer available.'); return; }
+  if (Math.max(0, gRow.sheet_count - gRow.sold_count) < data.quantity) {
+    await clearSession(telegramId);
+    await tgReply(chatId, '❌ Not enough sheets left. Use /games to check availability.');
+    return;
+  }
+
+  const purchaseId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const { error } = await db().from('purchases').insert({
+    purchase_id: purchaseId, player_name: playerRow.name, phone,
+    game_id: data.gameId, game_name: data.gameName,
+    quantity: data.quantity, amount: data.amount,
+    requested_sheet_nums: data.pickedNums || null, status: 'pending',
+    download_token: null, sheet_nums: null, created_at: Date.now(),
+    utr: data.utr || null
+  });
+  if (error) { await tgReply(chatId, `❌ Order failed: ${error.message}`); return; }
+
   await clearSession(telegramId);
 
-  if (data.publishNow) {
-    const { data: opRow } = await db().from('operators').select('player_channel_id').eq('id', data.operatorId).single();
-    if (opRow?.player_channel_id) await broadcastGame(opRow.player_channel_id, { id: gameId, ...data });
-    await tgReply(chatId, `🎉 *${data.name}* is live!\nID: \`${gameId}\`\n\n/stats to monitor.`);
+  const successText =
+    `✅ *Order Submitted!*\n\n` +
+    `🎮 ${data.gameName}\n` +
+    `📋 ${data.quantity} sheet${data.quantity > 1 ? 's' : ''} · ₹${data.amount}\n` +
+    `${data.pickedNums?.length ? `🎫 Requested: #${data.pickedNums.join(', #')}` : '🎲 Random assignment'}\n` +
+    (data.utr ? `💳 UTR: \`${data.utr}\`\n` : '') +
+    `\n⏳ Awaiting approval. Your sheets will arrive here once approved.\n\n/myorders to track.`;
+
+  if (msgId) {
+    await editMessage(chatId, msgId, successText);
   } else {
-    await tgReply(chatId,
-      `✅ *Scheduled!*\n${data.name}\nGoes live: *${new Date(data.scheduledFor).toLocaleString('en-IN')}*\nID: \`${gameId}\``
-    );
+    await tgReply(chatId, successText);
   }
+
+  try {
+    await sendTelegramOrderNotification(
+      { purchaseId, playerName: playerRow.name, phone, gameName: data.gameName,
+        quantity: data.quantity, amount: data.amount,
+        requestedSheetNums: data.pickedNums || null, createdAt: Date.now(),
+        utr: data.utr || null },
+      { id: data.gameId, operatorId: gRow.operator_id, operatorName: gRow.operator_name }
+    );
+  } catch(e) {}
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -638,15 +1024,20 @@ async function broadcastGame(channelId, game) {
   if (prizeLines) msg += `\n\n🏆 *Prizes:*\n${prizeLines}`;
   msg += `\n\n📋 ${game.sheetCount} sheets available`;
 
-  const keyboard = [[{ text: '🎟 Book Sheets Now', url }]];
-  if (botUsername) keyboard.push([{ text: '📲 Get sheets in Telegram', url: `https://t.me/${botUsername}` }]);
+  const keyboard = [[{ text: '🌐 Book on Website', url }]];
+  if (botUsername) keyboard.push([{ text: '🍀 Buy your lucky sheets', url: `https://t.me/${botUsername}?start=buy_${game.id}` }]);
+  const replyMarkup = { inline_keyboard: keyboard };
 
-  await tgSend('sendMessage', {
-    chat_id: channelId,
-    text: msg,
-    parse_mode: 'Markdown',
-    reply_markup: { inline_keyboard: keyboard }
-  });
+  if (game.thumbnail) {
+    await tgSend('sendPhoto', {
+      chat_id: channelId, photo: game.thumbnail,
+      caption: msg, parse_mode: 'Markdown', reply_markup: replyMarkup
+    });
+  } else {
+    await tgSend('sendMessage', {
+      chat_id: channelId, text: msg, parse_mode: 'Markdown', reply_markup: replyMarkup
+    });
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -681,7 +1072,7 @@ async function handleVerifyPay(paymentId, chatId, messageId, callbackQueryId, se
 
   // Notify operator
   const { data: opRow } = await db().from('operators')
-    .select('telegram_chat_id, telegram_id').eq('id', payRow.operator_id).single();
+    .select('telegram_chat_id, telegram_id, player_channel_id').eq('id', payRow.operator_id).single();
   const opChatId = opRow?.telegram_chat_id || opRow?.telegram_id;
   if (opChatId) {
     const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
@@ -692,6 +1083,11 @@ async function handleVerifyPay(paymentId, chatId, messageId, callbackQueryId, se
       reply_markup: { inline_keyboard: [[{ text: '🎮 View Game', url: `https://${host}/g/${payRow.game_id}` }]] }
     });
   }
+  // Broadcast to player channel with thumbnail
+  try {
+    const { data: gRow } = await db().from('games').select('*').eq('id', payRow.game_id).single();
+    if (opRow?.player_channel_id && gRow) await broadcastGame(opRow.player_channel_id, gameFromRow(gRow));
+  } catch(e) { console.error('Broadcast on verify failed:', e.message); }
 }
 
 async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
@@ -753,9 +1149,17 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   const now         = Date.now();
   const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
 
+  // Atomic: only update game if sold_count hasn't changed since we read it (prevents race on concurrent approvals)
+  const { data: lockCheck } = await db().from('games')
+    .update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length })
+    .eq('id', game.id).eq('sold_count', game.soldCount).select('id');
+  if (!lockCheck?.length) {
+    await answerCallback(callbackQueryId, '⚠️ Conflict — another order was just approved. Please try again.');
+    return;
+  }
+
   await Promise.all([
     db().from('download_tokens').insert({ token: dlToken, sheets: sheetList, game_name: game.name, purchase_id: purchaseId }),
-    db().from('games').update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length }).eq('id', game.id),
     db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
   ]);
 
@@ -875,6 +1279,72 @@ module.exports = async function(req, res) {
           await clearSession(tgId);
           await tgReply(chatId, '❌ Cancelled. /newgame to restart.');
         }
+      } else if (cbData === 'p_confirm') {
+        const session = await getSession(tgId);
+        if (!session || session.step !== 'p_buy_confirm') {
+          await answerCallback(cbqId, 'Session expired — use /games to start over.');
+        } else {
+          await answerCallback(cbqId, '');
+          await showPaymentScreen(chatId, msgId, tgId, session.data);
+        }
+      } else if (cbData === 'p_paid') {
+        const session = await getSession(tgId);
+        if (!session || session.step !== 'p_buy_pay') {
+          await answerCallback(cbqId, 'Session expired — use /games to start over.');
+        } else {
+          await answerCallback(cbqId, '');
+          await setSession(tgId, 'p_buy_utr', session.data);
+          await tgReply(chatId,
+            `🧾 *Enter your transaction ID (UTR)*\n\n` +
+            `Open your UPI app — look for the *transaction/reference ID* \\(usually 12 digits\\)\\.\n\n` +
+            `Example: \`123456789012\`\n\n_/cancel to start over_`
+          );
+        }
+      } else if (cbData === 'p_edit_picks') {
+        const session = await getSession(tgId);
+        if (!session || session.step !== 'p_buy_confirm') {
+          await answerCallback(cbqId, 'Session expired — use /games to start over.');
+        } else {
+          await answerCallback(cbqId, '');
+          await showPickScreen(chatId, tgId, session.data);
+        }
+      } else if (cbData.startsWith('p_buy:')) {
+        await answerCallback(cbqId, '');
+        await handleBuyGame(chatId, tgId, cbData.slice(6));
+      } else if (cbData === 'p_cancel') {
+        await clearSession(tgId);
+        await answerCallback(cbqId, 'Cancelled.');
+        await editMessage(chatId, msgId, '❌ Order cancelled. /games to browse again.');
+      } else if (cbData.startsWith('p_resend:')) {
+        const purchaseId = cbData.slice(9);
+        await answerCallback(cbqId, '⏳ Generating new link...');
+        const phone = await getPlayerPhone(tgId);
+        if (!phone) { await tgReply(chatId, '❌ Account not linked. Use /start.'); }
+        else {
+          const { data: pRow } = await db().from('purchases')
+            .select('status, game_name, quantity, amount').eq('purchase_id', purchaseId).eq('phone', phone).single();
+          if (!pRow || !['approved', 'downloaded'].includes(pRow.status)) {
+            await tgReply(chatId, '❌ Order not found or not yet approved.');
+          } else {
+            const { data: tokenRows } = await db().from('download_tokens')
+              .select('sheets, game_name').eq('purchase_id', purchaseId)
+              .order('expires_at', { ascending: false }).limit(1);
+            if (!tokenRows?.length) {
+              await tgReply(chatId, '❌ Sheet data not found. Please contact the organiser.');
+            } else {
+              const newToken = Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
+              await db().from('download_tokens').insert({ token: newToken, sheets: tokenRows[0].sheets, game_name: tokenRows[0].game_name, purchase_id: purchaseId });
+              await db().from('purchases').update({ download_token: newToken, downloaded: false, downloaded_at: null, status: 'approved' }).eq('purchase_id', purchaseId);
+              const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+              await tgSend('sendMessage', {
+                chat_id: chatId,
+                text: `✅ *New download link ready!*\n\n🎮 ${pRow.game_name}\n\n_Link expires in 6 hours._`,
+                parse_mode: 'Markdown',
+                reply_markup: { inline_keyboard: [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${newToken}` }]] }
+              });
+            }
+          }
+        }
       } else {
         await answerCallback(cbqId, '');
       }
@@ -900,12 +1370,17 @@ module.exports = async function(req, res) {
 
         if (cmd === 'start') {
           const op = await getOpByTgId(tgId);
-          if (op) await handleOperatorHelp(chatId);
-          else    await handlePlayerStart(chatId, tgId);
+          if (op) {
+            await handleOperatorHelp(chatId);
+          } else if (args && args.startsWith('buy_')) {
+            await handleBuyGame(chatId, tgId, args.slice(4));
+          } else {
+            await handlePlayerStart(chatId, tgId);
+          }
         } else if (cmd === 'help') {
           const op = await getOpByTgId(tgId);
           if (op) await handleOperatorHelp(chatId);
-          else    await tgReply(chatId, `/myorders — your orders\n/help — this message`);
+          else    await tgReply(chatId, `/games — browse & buy sheets\n/myorders — your orders`);
         } else if (cmd === 'myorders') {
           await handleMyOrders(chatId, tgId, args);
         } else if (cmd === 'link') {
@@ -918,11 +1393,15 @@ module.exports = async function(req, res) {
           await handleSetChannel(chatId, tgId, args);
         } else if (cmd === 'cancel') {
           await handleCancel(chatId, tgId);
+        } else if (cmd === 'games' || cmd === 'shop') {
+          await handleGames(chatId);
+        } else if (cmd === 'buy') {
+          await handleBuyGame(chatId, tgId, args.split(' ')[0]);
         }
         return res.status(200).json({ ok: true });
       }
 
-      const consumed = await processWizard(chatId, tgId, text, photoFileId);
+      const consumed = await processWizard(chatId, tgId, text, photoFileId, msg.from);
       if (!consumed && text) await tgReply(chatId, 'Use /help to see commands.');
     }
   } catch (e) {

@@ -75,7 +75,10 @@ function operatorFromRow(r) {
     id: r.id, name: r.name, email: r.email || '', phone: r.phone || '',
     plan: r.plan, apiKey: r.api_key, telegramChatId: r.telegram_chat_id || null,
     telegramId: r.telegram_id || null, playerChannelId: r.player_channel_id || null,
-    active: r.active, createdAt: r.created_at
+    active: r.active, createdAt: r.created_at,
+    displayName: r.display_name || null,
+    supportPhone: r.support_phone || null,
+    upiId: r.upi_id || null,
   };
 }
 

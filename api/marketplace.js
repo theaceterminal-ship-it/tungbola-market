@@ -2,6 +2,7 @@ const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow } = require('./_db');
 const { sendPush } = require('./_push');
+const { broadcastGame, notifyPlayerApproved, notifyPlayerRejected } = require('./telegram');
 const crypto = require('crypto');
 
 // ── Telegram notification ────────────────────────────────────
@@ -76,8 +77,24 @@ module.exports = async function(req, res) {
     const { password, type } = req.query;
 
     if (!password) {
-      const { data } = await db().from('games').select('*').eq('status', 'listed').order('created_at', { ascending: false }).limit(200);
-      return res.json({ games: (data || []).map(gameFromRow) });
+      const { data: gameRows } = await db().from('games').select('*').eq('status', 'listed').order('created_at', { ascending: false }).limit(200);
+      // Batch-load operator UPI/support info for games that have an operator
+      const opIds = [...new Set((gameRows || []).filter(g => g.operator_id).map(g => g.operator_id))];
+      let opMap = {};
+      if (opIds.length) {
+        const { data: opRows } = await db().from('operators').select('id,upi_id,support_phone,display_name').in('id', opIds);
+        for (const op of opRows || []) opMap[op.id] = op;
+      }
+      return res.json({ games: (gameRows || []).map(r => {
+        const g = gameFromRow(r);
+        if (r.operator_id && opMap[r.operator_id]) {
+          const op = opMap[r.operator_id];
+          g.operatorUpiId        = op.upi_id        || null;
+          g.operatorSupportPhone = op.support_phone  || null;
+          g.operatorDisplayName  = op.display_name   || null;
+        }
+        return g;
+      }) });
     }
 
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
@@ -293,17 +310,24 @@ module.exports = async function(req, res) {
     const now = Date.now();
     const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
 
+    // Atomic: only update game if sold_count hasn't changed since we read it (prevents race on concurrent approvals)
+    const { data: lockCheck } = await db().from('games')
+      .update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length })
+      .eq('id', game.id).eq('sold_count', game.soldCount).select('id');
+    if (!lockCheck?.length)
+      return res.status(409).json({ error: 'Another order was approved at the same time — please try again.' });
+
     await Promise.all([
       db().from('download_tokens').insert({ token: dlToken, sheets: sheetList, game_name: game.name, purchase_id: purchaseId }),
-      db().from('games').update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length }).eq('id', game.id),
       db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
     ]);
 
-    // Push notification to player
+    // Push + Telegram notifications to player
     try {
       const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', normPhone(purchase.phone)).single();
       if (pushRow?.subscription) await sendPush(pushRow.subscription);
     } catch(e) { console.error('Push failed:', e.message); }
+    try { await notifyPlayerApproved(normPhone(purchase.phone), game.name, purchase.quantity, purchase.amount, dlToken); } catch(e) {}
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
@@ -319,7 +343,11 @@ module.exports = async function(req, res) {
     if (!pRow) return res.status(404).json({ error: 'Purchase not found' });
     if (pRow.status !== 'pending') return res.status(409).json({ error: 'Already processed' });
 
+    const { data: fullPRow } = await db().from('purchases').select('phone, player_name, game_name, quantity, amount').eq('purchase_id', purchaseId).single();
     await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
+    if (fullPRow) {
+      try { await notifyPlayerRejected(normPhone(fullPRow.phone), fullPRow.game_name, fullPRow.quantity, fullPRow.amount); } catch(e) {}
+    }
     return res.json({ ok: true });
   }
 
@@ -612,6 +640,36 @@ module.exports = async function(req, res) {
     return res.json({ ok: true });
   }
 
+  /* ── Player: resend expired download link ── */
+  if (action === 'resend-download') {
+    if (await rateLimit(req, 'resenddl', 5, 3600))
+      return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    const { sessionToken, purchaseId } = body;
+    if (!sessionToken || !purchaseId) return res.status(400).json({ error: 'sessionToken and purchaseId required' });
+
+    const { data: session } = await db().from('sessions').select('phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
+    if (!session) return res.status(401).json({ error: 'Session expired' });
+
+    const { data: pRow } = await db().from('purchases').select('*').eq('purchase_id', purchaseId).eq('phone', normPhone(session.phone)).single();
+    if (!pRow) return res.status(404).json({ error: 'Order not found' });
+    if (!['approved', 'downloaded'].includes(pRow.status)) return res.status(409).json({ error: 'Order not yet approved' });
+
+    // Reuse sheets list from the most recent download token for this purchase
+    const { data: tokenRows } = await db().from('download_tokens')
+      .select('sheets, game_name').eq('purchase_id', purchaseId)
+      .order('expires_at', { ascending: false }).limit(1);
+    if (!tokenRows?.length) return res.status(404).json({ error: 'Sheet data not found. Please contact support.' });
+
+    const dlToken = genToken();
+    await db().from('download_tokens').insert({ token: dlToken, sheets: tokenRows[0].sheets, game_name: tokenRows[0].game_name, purchase_id: purchaseId });
+    await db().from('purchases').update({ download_token: dlToken, downloaded: false, downloaded_at: null, status: 'approved' }).eq('purchase_id', purchaseId);
+
+    // Re-notify player via Telegram
+    try { await notifyPlayerApproved(normPhone(session.phone), tokenRows[0].game_name, pRow.quantity, pRow.amount, dlToken); } catch(e) {}
+
+    return res.json({ ok: true, downloadToken: dlToken });
+  }
+
   /* ── Admin: verify platform payment → auto-list game ── */
   if (action === 'verify-platform-payment') {
     const { password, paymentId } = body;
@@ -629,11 +687,11 @@ module.exports = async function(req, res) {
       db().from('games').update({ status: 'listed' }).eq('id', payRow.game_id)
     ]);
 
-    // Notify operator via Telegram
+    // Notify operator + broadcast to player channel
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (token) {
       const { data: opRow } = await db().from('operators')
-        .select('telegram_chat_id, telegram_id').eq('id', payRow.operator_id).single();
+        .select('telegram_chat_id, telegram_id, player_channel_id').eq('id', payRow.operator_id).single();
       const chatId = opRow?.telegram_chat_id || opRow?.telegram_id;
       if (chatId) {
         const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
@@ -647,6 +705,13 @@ module.exports = async function(req, res) {
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(pl) }
         }, x => x.resume());
         r.on('error', () => {}); r.write(pl); r.end();
+      }
+      // Broadcast game announcement to player channel
+      if (opRow?.player_channel_id) {
+        try {
+          const { data: gRow } = await db().from('games').select('*').eq('id', payRow.game_id).single();
+          if (gRow) await broadcastGame(opRow.player_channel_id, gameFromRow(gRow));
+        } catch(e) { console.error('Broadcast on web verify failed:', e.message); }
       }
     }
 

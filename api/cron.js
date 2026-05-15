@@ -140,5 +140,11 @@ module.exports = async function(req, res) {
     }
   }
 
+  // ── 3. Stale bot session cleanup (older than 24 hours) ────────
+  try {
+    const cutoff = new Date(Date.now() - 86400000).toISOString();
+    await db().from('bot_sessions').delete().lt('updated_at', cutoff);
+  } catch(e) { console.error('Session cleanup error:', e.message); }
+
   return res.json({ ok: true, published, milestones, reminded });
 };

@@ -3,7 +3,7 @@ const { handleUpload } = require('@vercel/blob/client');
 const { secureHeaders, rateLimit } = require('./_security');
 const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow, sheetFromRow } = require('./_db');
 const { sendPush } = require('./_push');
-const { notifyPlayerApproved, notifyPlayerRejected } = require('./telegram');
+const { notifyPlayerApproved, notifyPlayerRejected, broadcastGame } = require('./telegram');
 const crypto = require('crypto');
 
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -90,10 +90,29 @@ module.exports = async function(req, res) {
     }
     return res.json({
       ok: true,
-      operator: { id: operator.id, name: operator.name, plan: operator.plan, telegramChatId: operator.telegramChatId },
+      operator: {
+        id: operator.id, name: operator.name, plan: operator.plan,
+        telegramChatId: operator.telegramChatId,
+        displayName: operator.displayName || null,
+        supportPhone: operator.supportPhone || null,
+        upiId: operator.upiId || null,
+      },
       games: (gameRows || []).map(r => ({ ...gameFromRow(r), platformPaymentStatus: payMap[r.id] || null })),
       adminUpiId
     });
+  }
+
+  /* ── Update operator profile ── */
+  if (action === 'update-profile') {
+    const { displayName, supportPhone, upiId } = body;
+    const updates = {};
+    if (displayName  !== undefined) updates.display_name  = displayName  ? String(displayName).trim().slice(0, 80)  : null;
+    if (supportPhone !== undefined) updates.support_phone = supportPhone ? String(supportPhone).trim().slice(0, 20)  : null;
+    if (upiId        !== undefined) updates.upi_id        = upiId        ? String(upiId).trim().slice(0, 100) : null;
+    if (Object.keys(updates).length) {
+      await db().from('operators').update(updates).eq('id', operator.id);
+    }
+    return res.json({ ok: true });
   }
 
   /* ── Update operator's Telegram chat ID ── */
@@ -196,13 +215,24 @@ module.exports = async function(req, res) {
     if (!['listed', 'ended', 'draft'].includes(status))
       return res.status(400).json({ error: 'status must be listed, ended or draft' });
 
-    const { data: gRow } = await db().from('games').select('operator_id,sheet_count').eq('id', gameId).single();
+    const { data: gRow } = await db().from('games').select('operator_id,sheet_count,status').eq('id', gameId).single();
     if (!gRow) return res.status(404).json({ error: 'Game not found' });
     if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    if (status === 'listed' && !operator.upiId)
+      return res.status(400).json({ error: 'Add your UPI ID in your operator profile before publishing a game.', code: 'NO_UPI' });
     if (status === 'listed' && !gRow.sheet_count)
       return res.status(400).json({ error: 'Assign sheets before listing' });
 
-    await db().from('games').update({ status }).eq('id', gameId);
+    const wasListed = gRow.status !== 'listed';
+    const { data: updatedGame } = await db().from('games').update({ status }).eq('id', gameId).select().single();
+
+    if (status === 'listed' && wasListed && updatedGame) {
+      try {
+        const { data: opRow } = await db().from('operators').select('player_channel_id').eq('id', operator.id).single();
+        if (opRow?.player_channel_id) await broadcastGame(opRow.player_channel_id, gameFromRow(updatedGame));
+      } catch(e) { console.error('Broadcast on set-status failed:', e.message); }
+    }
+
     return res.json({ ok: true });
   }
 
@@ -272,9 +302,15 @@ module.exports = async function(req, res) {
     const now = Date.now();
     const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
 
+    // Atomic: only update game if sold_count hasn't changed since we read it (prevents race on concurrent approvals)
+    const { data: lockCheck } = await db().from('games')
+      .update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length })
+      .eq('id', game.id).eq('sold_count', game.soldCount).select('id');
+    if (!lockCheck?.length)
+      return res.status(409).json({ error: 'Another order was approved at the same time — please try again.' });
+
     await Promise.all([
       db().from('download_tokens').insert({ token: dlToken, sheets: sheetList, game_name: game.name, purchase_id: purchaseId }),
-      db().from('games').update({ sold_sheet_nums: newSoldNums, sold_count: newSoldNums.length }).eq('id', game.id),
       db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
     ]);
 
