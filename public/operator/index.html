@@ -588,12 +588,13 @@ function buildPurCard(p) {
   const gameName = g ? esc(g.name) : 'Unknown Game';
   const nums = (p.sheetNums||p.requestedSheetNums||[]);
   const numsStr = nums.length ? `Sheets: #${nums.slice(0,4).join(', #')}${nums.length>4?`… +${nums.length-4}more`:''}` : '';
+  const utrStr = p.utr ? `<br>UTR: <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:10px">${esc(p.utr)}</code>` : '';
   return `<div class="pur-card" id="pur-${p.purchaseId}">
     <div class="pur-top">
       <div class="pur-avatar">${initials}</div>
       <div class="pur-info">
         <div class="pur-name">${esc(p.playerName||'Unknown')}</div>
-        <div class="pur-sub">${esc(p.phone||'')} · ${gameName}<br>${p.quantity} sheet${p.quantity!==1?'s':''} · ${timeAgo(p.createdAt)}${numsStr?'<br>'+numsStr:''}</div>
+        <div class="pur-sub">${esc(p.phone||'')} · ${gameName}<br>${p.quantity} sheet${p.quantity!==1?'s':''} · ${timeAgo(p.createdAt)}${numsStr?'<br>'+numsStr:''}${utrStr}</div>
       </div>
       <div class="pur-right">
         <div class="pur-amount">₹${(p.amount||0).toLocaleString('en-IN')}</div>

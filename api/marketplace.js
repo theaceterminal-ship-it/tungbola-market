@@ -203,12 +203,20 @@ module.exports = async function(req, res) {
     if (!['listed', 'ended', 'draft'].includes(status))
       return res.status(400).json({ error: 'status must be listed, ended or draft' });
 
-    const { data: gameRow } = await db().from('games').select('sheet_count').eq('id', gameId).single();
+    const { data: gameRow } = await db().from('games').select('*').eq('id', gameId).single();
     if (!gameRow) return res.status(404).json({ error: 'Game not found' });
     if (status === 'listed' && !gameRow.sheet_count)
       return res.status(400).json({ error: 'Assign sheets before listing the game' });
 
     await db().from('games').update({ status }).eq('id', gameId);
+
+    if (status === 'listed' && gameRow.operator_id) {
+      try {
+        const { data: opRow } = await db().from('operators').select('player_channel_id').eq('id', gameRow.operator_id).single();
+        if (opRow?.player_channel_id) await broadcastGame(opRow.player_channel_id, gameFromRow({ ...gameRow, status }));
+      } catch(e) { console.error('Broadcast on admin set-status failed:', e.message); }
+    }
+
     return res.json({ ok: true });
   }
 
@@ -280,9 +288,10 @@ module.exports = async function(req, res) {
     const game = gameFromRow(gRow);
 
     // Use operator_sheets for Plan A operators, shared sheets for everything else
-    let allSheetsQuery;
+    let allSheetsQuery, opPlan;
     if (gRow.operator_id) {
       const { data: opRow } = await db().from('operators').select('plan').eq('id', gRow.operator_id).single();
+      opPlan = opRow?.plan;
       allSheetsQuery = opRow?.plan === 'own-sheets'
         ? db().from('operator_sheets').select('*').eq('operator_id', gRow.operator_id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
         : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
@@ -290,6 +299,8 @@ module.exports = async function(req, res) {
       allSheetsQuery = db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
     }
     const { data: allSheets } = await allSheetsQuery;
+    if (opPlan === 'generate' && !allSheets?.length)
+      return res.status(409).json({ error: 'Generate plan is not yet configured for this game. Contact the platform admin.' });
 
     const soldSet = new Set(game.soldSheetNums);
     const available = (allSheets || []).filter(s => !soldSet.has(s.n));
@@ -436,8 +447,15 @@ module.exports = async function(req, res) {
 
     const np = normPhone(phone);
     const { data: player } = await db().from('players').select('*').eq('phone', np).single();
-    if (!player || player.password_hash !== hashPassword(password))
+    if (!player || player.password_hash !== hashPassword(password)) {
+      if (player) {
+        try {
+          const { data: tgRow } = await db().from('player_telegram').select('id').eq('phone', np).maybeSingle();
+          if (tgRow) return res.status(401).json({ error: 'This account was linked via Telegram. Use the bot to access your orders — /myorders' });
+        } catch(e) {}
+      }
       return res.status(401).json({ error: 'Wrong phone number or password' });
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 604800000).toISOString();

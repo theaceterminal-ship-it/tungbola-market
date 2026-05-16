@@ -54,7 +54,8 @@ function purchaseFromRow(r) {
     requestedSheetNums: r.requested_sheet_nums || null, status: r.status,
     downloadToken: r.download_token || null, sheetNums: r.sheet_nums || null,
     createdAt: r.created_at, approvedAt: r.approved_at || null,
-    downloaded: r.downloaded || false, downloadedAt: r.downloaded_at || null
+    downloaded: r.downloaded || false, downloadedAt: r.downloaded_at || null,
+    utr: r.utr || null
   };
 }
 

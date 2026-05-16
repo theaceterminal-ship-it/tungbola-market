@@ -745,17 +745,19 @@ async function checkMyOrders() {
 
 function renderOrdersList() {
   const el = document.getElementById('ordersList');
-  const visible = cachedOrders.filter(o => !o.downloaded);
-  if (!visible.length) {
-    el.innerHTML = '<div class="orders-empty">No pending orders</div>';
+  if (!cachedOrders.length) {
+    el.innerHTML = '<div class="orders-empty">No orders yet</div>';
     return;
   }
-  el.innerHTML = visible.map(o => {
+  el.innerHTML = cachedOrders.map(o => {
     const statusLabel = o.downloaded ? 'Downloaded' : o.status === 'approved' ? '✅ Approved — Ready!' : '⏳ Pending';
     const statusClass = o.downloaded ? 'os-downloaded' : o.status === 'approved' ? 'os-approved' : 'os-pending';
-    const dlBtn = (o.status === 'approved' && o.downloadToken && !o.downloaded)
-      ? `<button class="order-dl-btn" onclick="closeOrdersSheet();loadDownloads('${esc(o.downloadToken)}')">Download Sheets →</button>`
-      : '';
+    let dlBtn = '';
+    if (o.status === 'approved' && o.downloadToken && !o.downloaded) {
+      dlBtn = `<button class="order-dl-btn" onclick="closeOrdersSheet();loadDownloads('${esc(o.downloadToken)}')">Download Sheets →</button>`;
+    } else if (o.downloaded) {
+      dlBtn = `<button class="order-dl-btn" style="background:#6750A4" onclick="resendDownload('${esc(o.purchaseId)}',this)">Get New Link →</button>`;
+    }
     const date = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
     return `<div class="order-card">
       <div class="order-card-name">${esc(o.gameName)}</div>
@@ -764,6 +766,21 @@ function renderOrdersList() {
       ${dlBtn}
     </div>`;
   }).join('');
+}
+
+async function resendDownload(purchaseId, btn) {
+  if (!playerSession) return;
+  btn.disabled = true; btn.textContent = 'Requesting…';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resend-download', sessionToken: playerSession.token, purchaseId })
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.error || 'Failed'); btn.disabled = false; btn.textContent = 'Get New Link →'; return; }
+    closeOrdersSheet();
+    loadDownloads(data.downloadToken);
+  } catch(e) { toast('Network error. Try again.'); btn.disabled = false; btn.textContent = 'Get New Link →'; }
 }
 
 async function checkPushState() {

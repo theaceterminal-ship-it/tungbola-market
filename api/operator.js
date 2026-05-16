@@ -284,6 +284,9 @@ module.exports = async function(req, res) {
       : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
     const { data: allSheets } = await sheetQuery;
 
+    if (operator.plan === 'generate' && !allSheets?.length)
+      return res.status(409).json({ error: 'Generate plan is not yet configured for this game. Contact the platform admin.' });
+
     const soldSet = new Set(game.soldSheetNums);
     const available = (allSheets || []).filter(s => !soldSet.has(s.n));
     if (available.length < purchase.quantity)
