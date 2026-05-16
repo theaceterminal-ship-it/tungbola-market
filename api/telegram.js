@@ -919,7 +919,7 @@ async function showBuyConfirmation(chatId, data) {
   );
 }
 
-// Screen 2 — payment QR + UPI deep link (shown after player confirms order details)
+// Screen 2 — payment QR + UPI deep link
 async function showPaymentScreen(chatId, _msgId, telegramId, data) {
   const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
   const upiData =
@@ -937,7 +937,8 @@ async function showPaymentScreen(chatId, _msgId, telegramId, data) {
     `&am=${data.amount}` +
     `&tn=${encodeURIComponent((data.gameName || '') + ' Sheets')}`;
 
-  await setSession(telegramId, 'p_buy_pay', data);
+  // Go straight to screenshot step — no "I've Paid" button needed
+  await setSession(telegramId, 'p_buy_screenshot', data);
 
   await tgSend('sendPhoto', {
     chat_id: chatId,
@@ -946,15 +947,12 @@ async function showPaymentScreen(chatId, _msgId, telegramId, data) {
       `💰 *Pay ₹${data.amount}*\n\n` +
       `*${data.gameName}* — ${data.quantity} sheet${data.quantity > 1 ? 's' : ''}\n\n` +
       `Scan the QR above or tap *Open UPI App* below.\n\n` +
-      `After paying, tap *I've Paid* and send a screenshot of the payment.`,
+      `After paying, *send a screenshot of your payment here* — your order will be submitted automatically.\n\n` +
+      `_/cancel to cancel_`,
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [
-        [{ text: `📱 Open UPI App — ₹${data.amount}`, url: redirectUrl }],
-        [
-          { text: "✅ I've Paid", callback_data: 'p_paid' },
-          { text: '❌ Cancel',   callback_data: 'p_cancel' }
-        ]
+        [{ text: `📱 Open UPI App — ₹${data.amount}`, url: redirectUrl }]
       ]
     }
   });
@@ -1342,19 +1340,6 @@ module.exports = async function(req, res) {
         } else {
           await answerCallback(cbqId, '');
           await showPaymentScreen(chatId, msgId, tgId, session.data);
-        }
-      } else if (cbData === 'p_paid') {
-        const session = await getSession(tgId);
-        if (!session || session.step !== 'p_buy_pay') {
-          await answerCallback(cbqId, 'Session expired — use /games to start over.');
-        } else {
-          await answerCallback(cbqId, '');
-          await setSession(tgId, 'p_buy_screenshot', session.data);
-          await tgReply(chatId,
-            `📸 *Send a screenshot of your payment*\n\n` +
-            `Open your UPI app, take a screenshot of the successful payment screen, and send it here.\n\n` +
-            `_/cancel to start over_`
-          );
         }
       } else if (cbData === 'p_random') {
         const session = await getSession(tgId);
