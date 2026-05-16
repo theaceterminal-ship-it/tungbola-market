@@ -9,6 +9,37 @@ const crypto = require('crypto');
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function genToken() { return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase(); }
 
+function formatZoomId(id) {
+  const s = String(id).replace(/\D/g, '');
+  if (s.length <= 9)  return s.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+  if (s.length === 10) return s.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+  return s.replace(/(\d{3})(\d{4})(\d{4})/, '$1 $2 $3'); // 11 digits
+}
+
+async function getZoomAccessToken(operator) {
+  if (!operator.zoomAccessToken) throw new Error('Zoom not connected');
+  if (operator.zoomTokenExpiry && Date.now() < operator.zoomTokenExpiry - 300000) {
+    return operator.zoomAccessToken;
+  }
+  if (!operator.zoomRefreshToken) throw new Error('Zoom session expired — please reconnect');
+  const r = await fetch('https://zoom.us/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + Buffer.from(`${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: operator.zoomRefreshToken }).toString(),
+  });
+  if (!r.ok) throw new Error('Zoom token refresh failed — please reconnect');
+  const tokens = await r.json();
+  await db().from('operators').update({
+    zoom_access_token:  tokens.access_token,
+    zoom_refresh_token: tokens.refresh_token,
+    zoom_token_expiry:  Date.now() + (tokens.expires_in * 1000),
+  }).eq('id', operator.id);
+  return tokens.access_token;
+}
+
 async function getOperator(apiKey) {
   if (!apiKey) return null;
   const { data } = await db().from('operators').select('*').eq('api_key', String(apiKey)).eq('active', true).single();
@@ -97,6 +128,7 @@ module.exports = async function(req, res) {
         displayName: operator.displayName || null,
         supportPhone: operator.supportPhone || null,
         upiId: operator.upiId || null,
+        zoomConnected: operator.zoomConnected,
       },
       games: (gameRows || []).map(r => ({ ...gameFromRow(r), platformPaymentStatus: payMap[r.id] || null })),
       adminUpiId
@@ -113,6 +145,52 @@ module.exports = async function(req, res) {
     if (Object.keys(updates).length) {
       await db().from('operators').update(updates).eq('id', operator.id);
     }
+    return res.json({ ok: true });
+  }
+
+  /* ── Zoom: return OAuth URL ── */
+  if (action === 'zoom-auth-url') {
+    const clientId = process.env.ZOOM_CLIENT_ID;
+    const redirectUri = process.env.ZOOM_REDIRECT_URI;
+    if (!clientId || !redirectUri) return res.status(503).json({ error: 'Zoom integration not configured on this platform' });
+    const url = `https://zoom.us/oauth/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(operator.apiKey)}`;
+    return res.json({ ok: true, url });
+  }
+
+  /* ── Zoom: create a meeting ── */
+  if (action === 'zoom-create-meeting') {
+    const { topic, startTime, duration = 60 } = body;
+    if (!topic || !startTime) return res.status(400).json({ error: 'topic and startTime required' });
+    let accessToken;
+    try { accessToken = await getZoomAccessToken(operator); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+    const meetingRes = await fetch('https://api.zoom.us/v2/users/me/meetings', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        type: 2,
+        start_time: new Date(startTime).toISOString(),
+        duration,
+        timezone: 'Asia/Kolkata',
+        settings: { join_before_host: true, waiting_room: false },
+      }),
+    });
+    if (!meetingRes.ok) {
+      const err = await meetingRes.json().catch(() => ({}));
+      return res.status(400).json({ error: err.message || 'Failed to create Zoom meeting' });
+    }
+    const meeting = await meetingRes.json();
+    const meetingId = formatZoomId(meeting.id);
+    const joinDetails = `Meeting ID: ${meetingId}\nPasscode: ${meeting.password}`;
+    return res.json({ ok: true, joinUrl: meeting.join_url, meetingId, passcode: meeting.password, joinDetails });
+  }
+
+  /* ── Zoom: disconnect ── */
+  if (action === 'zoom-disconnect') {
+    await db().from('operators').update({
+      zoom_access_token: null, zoom_refresh_token: null, zoom_token_expiry: null,
+    }).eq('id', operator.id);
     return res.json({ ok: true });
   }
 

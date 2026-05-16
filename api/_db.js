@@ -82,6 +82,10 @@ function operatorFromRow(r) {
     displayName: r.display_name || null,
     supportPhone: r.support_phone || null,
     upiId: r.upi_id || null,
+    zoomConnected:    !!(r.zoom_access_token),
+    zoomAccessToken:  r.zoom_access_token  || null,
+    zoomRefreshToken: r.zoom_refresh_token || null,
+    zoomTokenExpiry:  r.zoom_token_expiry  || null,
   };
 }
 
