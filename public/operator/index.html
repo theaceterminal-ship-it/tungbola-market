@@ -315,6 +315,60 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   </div>
 </div>
 
+<!-- ── PROFILE MODAL ── -->
+<div class="modal-backdrop" id="profileModal" onclick="backdropClose(event,'profileModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Payment Settings</div>
+      <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-err" id="profileErr"></div>
+      <div class="field">
+        <div class="field-lbl">UPI ID *</div>
+        <input class="field-input" id="pfUpi" type="text" placeholder="e.g. yourname@paytm" autocapitalize="none" spellcheck="false">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Players pay you on this UPI. Required before listing any game.</div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">Display Name</div>
+        <input class="field-input" id="pfDisplay" type="text" placeholder="e.g. Ravi Tambola" maxlength="80">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Shown on the payment screen instead of your account name.</div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">Support Phone (optional)</div>
+        <input class="field-input" id="pfPhone" type="tel" placeholder="WhatsApp number for player queries" maxlength="20">
+      </div>
+      <button class="save-btn" id="saveProfileBtn" onclick="saveProfile()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TELEGRAM MODAL ── -->
+<div class="modal-backdrop" id="telegramModal" onclick="backdropClose(event,'telegramModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Telegram Setup</div>
+      <button class="modal-close" onclick="closeModal('telegramModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-err" id="telegramErr"></div>
+      <div class="field">
+        <div class="field-lbl">Your Telegram Chat ID</div>
+        <input class="field-input" id="tgChatId" type="text" placeholder="e.g. 123456789" inputmode="numeric">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">You receive order approval alerts here. To get your ID: open Telegram → DM <strong>@userinfobot</strong> → it replies with your ID.</div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">Player Channel ID</div>
+        <input class="field-input" id="tgChannelId" type="text" placeholder="e.g. -1001234567890" inputmode="numeric">
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">New games auto-announce here. Steps: (1) Add the bot as admin of your channel. (2) Forward any message from your channel to <strong>@userinfobot</strong> — it shows the channel ID (starts with -100).</div>
+      </div>
+      <button class="save-btn" id="saveTelegramBtn" onclick="saveTelegram()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -691,21 +745,126 @@ async function doAssignSheets() {
 function renderSettings() {
   const plan = operator?.plan === 'own-sheets' ? 'Plan A — Own Sheets' : 'Plan B — Shared Sheets';
   const totalRev = purchases.filter(p=>p.status==='approved').reduce((s,p)=>s+(p.amount||0),0);
+  const upiOk   = !!operator?.upiId;
+  const tgOk    = !!operator?.telegramChatId;
+  const chanOk  = !!operator?.playerChannelId;
+
   document.getElementById('settingsContent').innerHTML = `
+    <div class="section-title">Payment Setup</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-lbl">UPI ID</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Players pay you here</div>
+        </div>
+        <span class="settings-val" style="color:${upiOk?'var(--ok)':'var(--err)'}">${upiOk?esc(operator.upiId):'⚠️ Not set'}</span>
+      </div>
+      <div class="settings-row" style="border-bottom:none">
+        <div>
+          <div class="settings-lbl">Display Name</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Shown on player payment screen</div>
+        </div>
+        <span class="settings-val">${operator?.displayName?esc(operator.displayName):'—'}</span>
+      </div>
+      <div style="padding:0 16px 12px">
+        <button class="copy-btn" style="width:100%;padding:10px" onclick="openProfileModal()">✏️ Edit Payment Settings</button>
+      </div>
+    </div>
+
+    <div class="section-title">Telegram Setup</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-lbl">Your Chat ID</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">You get order alerts here</div>
+        </div>
+        <span class="settings-val" style="color:${tgOk?'var(--ok)':'var(--err)'}">${tgOk?esc(operator.telegramChatId):'⚠️ Not set'}</span>
+      </div>
+      <div class="settings-row" style="border-bottom:none">
+        <div>
+          <div class="settings-lbl">Player Channel ID</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Games auto-announce here</div>
+        </div>
+        <span class="settings-val" style="color:${chanOk?'var(--ok)':'var(--err)'}">${chanOk?esc(operator.playerChannelId):'⚠️ Not set'}</span>
+      </div>
+      <div style="padding:0 16px 12px">
+        <button class="copy-btn" style="width:100%;padding:10px" onclick="openTelegramModal()">✏️ Edit Telegram Setup</button>
+      </div>
+    </div>
+
     <div class="section-title">Account</div>
     <div class="settings-card">
       <div class="settings-row"><span class="settings-lbl">Name</span><span class="settings-val">${esc(operator?.name||'—')}</span></div>
       <div class="settings-row"><span class="settings-lbl">Plan</span><span class="settings-val">${plan}</span></div>
-      <div class="settings-row"><span class="settings-lbl">API Key</span><button class="copy-btn" onclick="copyApiKey()">📋 Copy</button></div>
+      <div class="settings-row" style="border-bottom:none"><span class="settings-lbl">API Key</span><button class="copy-btn" onclick="copyApiKey()">📋 Copy</button></div>
     </div>
+
     <div class="section-title">Stats</div>
     <div class="settings-card">
       <div class="settings-row"><span class="settings-lbl">Total Games</span><span class="settings-val">${games.length}</span></div>
       <div class="settings-row"><span class="settings-lbl">Total Orders</span><span class="settings-val">${purchases.length}</span></div>
-      <div class="settings-row"><span class="settings-lbl">Total Revenue</span><span class="settings-val">₹${totalRev.toLocaleString('en-IN')}</span></div>
+      <div class="settings-row" style="border-bottom:none"><span class="settings-lbl">Total Revenue</span><span class="settings-val">₹${totalRev.toLocaleString('en-IN')}</span></div>
     </div>
     <button class="logout-btn" onclick="logout()">Sign Out</button>
   `;
+}
+
+function openProfileModal() {
+  document.getElementById('pfUpi').value = operator?.upiId || '';
+  document.getElementById('pfDisplay').value = operator?.displayName || '';
+  document.getElementById('pfPhone').value = operator?.supportPhone || '';
+  document.getElementById('profileErr').textContent = '';
+  const btn = document.getElementById('saveProfileBtn');
+  btn.disabled = false; btn.textContent = '💾 Save';
+  openModal('profileModal');
+}
+
+async function saveProfile() {
+  const upiId = document.getElementById('pfUpi').value.trim();
+  const displayName = document.getElementById('pfDisplay').value.trim();
+  const supportPhone = document.getElementById('pfPhone').value.trim();
+  const errEl = document.getElementById('profileErr');
+  const btn = document.getElementById('saveProfileBtn');
+  errEl.textContent = '';
+  if (!upiId) { errEl.textContent = 'UPI ID is required'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await api('update-profile', { upiId, displayName: displayName || null, supportPhone: supportPhone || null });
+    operator.upiId = upiId;
+    operator.displayName = displayName || null;
+    operator.supportPhone = supportPhone || null;
+    closeModal('profileModal');
+    renderSettings();
+    toast('✅ Payment settings saved!');
+  } catch(e) { errEl.textContent = e.message || 'Save failed'; }
+  btn.disabled = false; btn.textContent = '💾 Save';
+}
+
+function openTelegramModal() {
+  document.getElementById('tgChatId').value = operator?.telegramChatId || '';
+  document.getElementById('tgChannelId').value = operator?.playerChannelId || '';
+  document.getElementById('telegramErr').textContent = '';
+  const btn = document.getElementById('saveTelegramBtn');
+  btn.disabled = false; btn.textContent = '💾 Save';
+  openModal('telegramModal');
+}
+
+async function saveTelegram() {
+  const telegramChatId = document.getElementById('tgChatId').value.trim();
+  const playerChannelId = document.getElementById('tgChannelId').value.trim();
+  const errEl = document.getElementById('telegramErr');
+  const btn = document.getElementById('saveTelegramBtn');
+  errEl.textContent = '';
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await api('update-telegram', { telegramChatId: telegramChatId || null, playerChannelId: playerChannelId || null });
+    operator.telegramChatId = telegramChatId || null;
+    operator.playerChannelId = playerChannelId || null;
+    closeModal('telegramModal');
+    renderSettings();
+    toast('✅ Telegram settings saved!');
+  } catch(e) { errEl.textContent = e.message || 'Save failed'; }
+  btn.disabled = false; btn.textContent = '💾 Save';
 }
 
 function copyApiKey() {

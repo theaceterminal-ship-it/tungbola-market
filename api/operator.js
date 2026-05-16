@@ -92,7 +92,8 @@ module.exports = async function(req, res) {
       ok: true,
       operator: {
         id: operator.id, name: operator.name, plan: operator.plan,
-        telegramChatId: operator.telegramChatId,
+        telegramChatId: operator.telegramChatId || null,
+        playerChannelId: operator.playerChannelId || null,
         displayName: operator.displayName || null,
         supportPhone: operator.supportPhone || null,
         upiId: operator.upiId || null,
@@ -115,10 +116,13 @@ module.exports = async function(req, res) {
     return res.json({ ok: true });
   }
 
-  /* ── Update operator's Telegram chat ID ── */
+  /* ── Update operator's Telegram settings ── */
   if (action === 'update-telegram') {
-    const { telegramChatId } = body;
-    await db().from('operators').update({ telegram_chat_id: telegramChatId ? String(telegramChatId).trim() : null }).eq('id', operator.id);
+    const { telegramChatId, playerChannelId } = body;
+    const updates = {};
+    if (telegramChatId !== undefined) updates.telegram_chat_id = telegramChatId ? String(telegramChatId).trim() : null;
+    if (playerChannelId !== undefined) updates.player_channel_id = playerChannelId ? String(playerChannelId).trim() : null;
+    if (Object.keys(updates).length) await db().from('operators').update(updates).eq('id', operator.id);
     return res.json({ ok: true });
   }
 
