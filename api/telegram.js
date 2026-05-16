@@ -374,9 +374,40 @@ async function handleMyOrders(chatId, telegramId, args) {
 // Player — Browse & Buy via Telegram
 // ─────────────────────────────────────────────────────────────
 
+function buildGameCaption(g, rem) {
+  const priceStr = Array.isArray(g.pricing_tiers) && g.pricing_tiers.length
+    ? `₹${g.price_per_sheet}/sheet` + g.pricing_tiers.map(t => ` | ${t.qty}×₹${t.price}`).join('')
+    : `₹${g.price_per_sheet}/sheet`;
+
+  const prizeLines = (g.prizes || [])
+    .map(p => `${PRIZE_EMOJI[p.name] || '🎯'} ${p.name}: ₹${Number(p.amount).toLocaleString('en-IN')}`)
+    .join('\n');
+
+  const core = [
+    `🎯 *${g.name}*`,
+    [g.game_date, g.join_time ? `⏰ ${g.join_time}` : null].filter(Boolean).map((v, i) => i === 0 ? `📅 ${v}` : v).join(' · '),
+    `📋 *${rem} sheets remaining*`,
+    `\n💰 *Pricing:* ${priceStr}`,
+    prizeLines ? `\n🏆 *Prizes:*\n${prizeLines}` : null,
+  ].filter(Boolean).join('\n');
+
+  let caption = core;
+  for (const extra of [
+    g.description ? `\n📝 ${g.description}` : null,
+    g.join_link   ? `\n🔗 ${g.join_link}`   : null,
+    g.join_details ? `📝 ${g.join_details}` : null,
+  ]) {
+    if (!extra) continue;
+    if ((caption + extra).length <= 1024) caption += extra;
+    else break;
+  }
+  if (caption.length > 1024) caption = caption.slice(0, 1021) + '...';
+  return caption;
+}
+
 async function handleGames(chatId) {
   const { data: gameRows } = await db().from('games')
-    .select('id, name, game_date, join_time, price_per_sheet, pricing_tiers, sheet_count, sold_count')
+    .select('id, name, game_date, join_time, price_per_sheet, pricing_tiers, sheet_count, sold_count, prizes, description, thumbnail, join_link, join_details')
     .eq('status', 'listed')
     .order('created_at', { ascending: false })
     .limit(8);
@@ -386,26 +417,21 @@ async function handleGames(chatId) {
     return;
   }
 
-  let msg = '🎮 *Available Games*\n\n';
-  const keyboard = [];
-
+  let sentCount = 0;
   for (const g of gameRows) {
     const rem = Math.max(0, (g.sheet_count || 0) - (g.sold_count || 0));
     if (rem <= 0) continue;
-    const price = Array.isArray(g.pricing_tiers) && g.pricing_tiers.length
-      ? `₹${g.price_per_sheet}+` : `₹${g.price_per_sheet}/sheet`;
-    msg += `🎯 *${g.name}*`;
-    if (g.game_date) msg += ` — ${g.game_date}`;
-    msg += `\n   ${price} · ${rem} sheets left\n\n`;
-    keyboard.push([{ text: `🎟 Buy — ${g.name}`, callback_data: `p_buy:${g.id}` }]);
+    const caption = buildGameCaption(g, rem);
+    const markup  = { inline_keyboard: [[{ text: '🎟 Buy Sheets', callback_data: `p_buy:${g.id}` }]] };
+    if (g.thumbnail) {
+      await tgSend('sendPhoto', { chat_id: chatId, photo: g.thumbnail, caption, parse_mode: 'Markdown', reply_markup: markup });
+    } else {
+      await tgSend('sendMessage', { chat_id: chatId, text: caption, parse_mode: 'Markdown', reply_markup: markup });
+    }
+    sentCount++;
   }
 
-  if (!keyboard.length) {
-    await tgReply(chatId, '😔 All games are currently sold out. Check back soon!');
-    return;
-  }
-
-  await tgReply(chatId, msg, { reply_markup: { inline_keyboard: keyboard } });
+  if (!sentCount) await tgReply(chatId, '😔 All games are currently sold out. Check back soon!');
 }
 
 async function handleBuyGame(chatId, telegramId, gameId) {
@@ -438,7 +464,6 @@ async function handleBuyGame(chatId, telegramId, gameId) {
   const rem = Math.max(0, (gRow.sheet_count || 0) - (gRow.sold_count || 0));
   if (rem <= 0) { await tgReply(chatId, '😔 *Sold out!* All sheets taken.\n\n/games to see other games.'); return; }
 
-  const maxQty = Math.min(rem, 10);
   const priceLines = Array.isArray(gRow.pricing_tiers) && gRow.pricing_tiers.length
     ? gRow.pricing_tiers.map(t => `${t.qty} sheets → ₹${t.price}`).join('\n') + `\n1 sheet → ₹${gRow.price_per_sheet}`
     : `₹${gRow.price_per_sheet} per sheet`;
@@ -446,7 +471,8 @@ async function handleBuyGame(chatId, telegramId, gameId) {
   await setSession(telegramId, 'p_buy_qty', {
     gameId: gRow.id, gameName: gRow.name,
     pricePerSheet: gRow.price_per_sheet, pricingTiers: gRow.pricing_tiers || [],
-    operatorUpiId, sheetCount: gRow.sheet_count, soldCount: gRow.sold_count
+    operatorUpiId, operatorName: gRow.operator_name || 'Operator',
+    sheetCount: gRow.sheet_count, soldCount: gRow.sold_count
   });
 
   await tgReply(chatId,
@@ -454,7 +480,7 @@ async function handleBuyGame(chatId, telegramId, gameId) {
     (gRow.game_date ? `📅 ${gRow.game_date}${gRow.join_time ? ` · ⏰ ${gRow.join_time}` : ''}\n` : '') +
     `\n💰 *Pricing:*\n${priceLines}\n\n` +
     `📋 ${rem} sheets remaining\n\n` +
-    `*How many sheets?* _(1–${maxQty})_\n\n_/cancel to start over_`,
+    `*How many sheets?*\n\n_/cancel to start over_`,
     { reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'p_cancel' }]] } }
   );
 }
@@ -688,9 +714,8 @@ async function processWizard(chatId, telegramId, text, photoFileId, tgUser = nul
   if (step === 'p_buy_qty') {
     const qty = parseInt((text || '').trim());
     const rem = Math.max(0, (data.sheetCount || 0) - (data.soldCount || 0));
-    const maxQty = Math.min(rem, 10);
-    if (!qty || qty < 1) { await tgReply(chatId, `❌ Enter a number between 1 and ${maxQty}.`); return true; }
-    if (qty > maxQty)    { await tgReply(chatId, `❌ Max ${maxQty} sheets per order.`); return true; }
+    if (!qty || qty < 1)   { await tgReply(chatId, `❌ Enter a number between 1 and ${rem}.`); return true; }
+    if (qty > rem)         { await tgReply(chatId, `❌ Only ${rem} sheets remaining.`); return true; }
 
     let amount = data.pricePerSheet * qty;
     if (Array.isArray(data.pricingTiers) && data.pricingTiers.length) {
@@ -731,14 +756,13 @@ async function processWizard(chatId, telegramId, text, photoFileId, tgUser = nul
     return true;
   }
 
-  // ── p_buy_utr: player submits payment transaction ID ─────────
-  if (step === 'p_buy_utr') {
-    const utr = (text || '').trim().replace(/\s/g, '');
-    if (utr.length < 6) {
-      await tgReply(chatId, '❌ That doesn\'t look right — enter the transaction/reference ID from your UPI app.\n\n_/cancel to start over_');
+  // ── p_buy_screenshot: player sends payment screenshot ────────
+  if (step === 'p_buy_screenshot') {
+    if (!photoFileId) {
+      await tgReply(chatId, '📸 Please send a *photo screenshot* of your payment confirmation.\n\n_/cancel to start over_');
       return true;
     }
-    await confirmBuyOrder(chatId, null, telegramId, { ...data, utr });
+    await confirmBuyOrder(chatId, null, telegramId, { ...data, screenshotFileId: photoFileId });
     return true;
   }
 
@@ -910,33 +934,45 @@ async function showBuyConfirmation(chatId, data) {
   );
 }
 
-// Screen 2 — payment (shown after player confirms order details)
-async function showPaymentScreen(chatId, msgId, telegramId, data) {
-  const upiLink =
+// Screen 2 — payment QR + UPI deep link (shown after player confirms order details)
+async function showPaymentScreen(chatId, _msgId, telegramId, data) {
+  const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+  const upiData =
     `upi://pay?pa=${encodeURIComponent(data.operatorUpiId)}` +
     `&pn=${encodeURIComponent(data.operatorName || 'Operator')}` +
     `&am=${data.amount}` +
-    `&tn=${encodeURIComponent(data.gameName + ' Sheets')}` +
+    `&tn=${encodeURIComponent((data.gameName || '') + ' Sheets')}` +
     `&cu=INR`;
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(upiData)}`;
+  const redirectUrl =
+    `https://${host}/api/pay-redirect` +
+    `?pa=${encodeURIComponent(data.operatorUpiId)}` +
+    `&pn=${encodeURIComponent(data.operatorName || 'Operator')}` +
+    `&am=${data.amount}` +
+    `&tn=${encodeURIComponent((data.gameName || '') + ' Sheets')}`;
 
   await setSession(telegramId, 'p_buy_pay', data);
 
-  await editMessage(chatId, msgId,
-    `💰 *Pay ₹${data.amount}*\n\n` +
-    `Tap the button below — your UPI app opens with the amount pre-filled.\n\n` +
-    `Once you've paid, tap *I've Paid* to submit your order to the organiser.`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: `💳 Pay ₹${data.amount} via UPI`, url: upiLink }],
-          [
-            { text: "✅ I've Paid — Submit Order", callback_data: 'p_paid' },
-            { text: '❌ Cancel',                   callback_data: 'p_cancel' }
-          ]
+  await tgSend('sendPhoto', {
+    chat_id: chatId,
+    photo: qrUrl,
+    caption:
+      `💰 *Pay ₹${data.amount}*\n\n` +
+      `*${data.gameName}* — ${data.quantity} sheet${data.quantity > 1 ? 's' : ''}\n\n` +
+      `Scan the QR above or tap *Open UPI App* below.\n\n` +
+      `After paying, tap *I've Paid* and send a screenshot of the payment.`,
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: `📱 Open UPI App — ₹${data.amount}`, url: redirectUrl }],
+        [
+          { text: "✅ I've Paid", callback_data: 'p_paid' },
+          { text: '❌ Cancel',   callback_data: 'p_cancel' }
         ]
-      }
+      ]
     }
-  );
+  });
 }
 
 async function sendTelegramOrderNotification(purchase, game) {
@@ -948,7 +984,6 @@ async function sendTelegramOrderNotification(purchase, game) {
   const pickNote = purchase.requestedSheetNums?.length
     ? `🎫 Requested: #${purchase.requestedSheetNums.join(', #')}`
     : '🎲 Random assignment';
-  const utrNote = purchase.utr ? `\n💳 UTR: \`${purchase.utr}\`` : '';
 
   await tgSend('sendMessage', {
     chat_id: opChatId,
@@ -957,7 +992,7 @@ async function sendTelegramOrderNotification(purchase, game) {
       `👤 ${purchase.playerName} · 📞 ${purchase.phone}\n` +
       `🎮 ${purchase.gameName}\n` +
       `📋 ${purchase.quantity} sheet${purchase.quantity > 1 ? 's' : ''} · ₹${purchase.amount}\n` +
-      `${pickNote}${utrNote}\n\n` +
+      `${pickNote}\n\n` +
       `🆔 Order: \`${purchase.purchaseId}\``,
     parse_mode: 'Markdown',
     reply_markup: {
@@ -967,6 +1002,15 @@ async function sendTelegramOrderNotification(purchase, game) {
       ]]
     }
   });
+
+  // Forward payment screenshot immediately after order notification
+  if (purchase.screenshotFileId) {
+    await tgSend('sendPhoto', {
+      chat_id: opChatId,
+      photo: purchase.screenshotFileId,
+      caption: `📸 Payment screenshot — ${purchase.playerName}`
+    });
+  }
 }
 
 async function confirmBuyOrder(chatId, msgId, telegramId, data) {
@@ -996,8 +1040,7 @@ async function confirmBuyOrder(chatId, msgId, telegramId, data) {
     game_id: data.gameId, game_name: data.gameName,
     quantity: data.quantity, amount: data.amount,
     requested_sheet_nums: data.pickedNums || null, status: 'pending',
-    download_token: null, sheet_nums: null, created_at: Date.now(),
-    utr: data.utr || null
+    download_token: null, sheet_nums: null, created_at: Date.now()
   });
   if (error) { await tgReply(chatId, `❌ Order failed: ${error.message}`); return; }
 
@@ -1008,7 +1051,6 @@ async function confirmBuyOrder(chatId, msgId, telegramId, data) {
     `🎮 ${data.gameName}\n` +
     `📋 ${data.quantity} sheet${data.quantity > 1 ? 's' : ''} · ₹${data.amount}\n` +
     `${data.pickedNums?.length ? `🎫 Requested: #${data.pickedNums.join(', #')}` : '🎲 Random assignment'}\n` +
-    (data.utr ? `💳 UTR: \`${data.utr}\`\n` : '') +
     `\n⏳ Awaiting approval. Your sheets will arrive here once approved.\n\n/myorders to track.`;
 
   if (msgId) {
@@ -1022,7 +1064,7 @@ async function confirmBuyOrder(chatId, msgId, telegramId, data) {
       { purchaseId, playerName: playerRow.name, phone, gameName: data.gameName,
         quantity: data.quantity, amount: data.amount,
         requestedSheetNums: data.pickedNums || null, createdAt: Date.now(),
-        utr: data.utr || null },
+        screenshotFileId: data.screenshotFileId || null },
       { id: data.gameId, operatorId: gRow.operator_id, operatorName: gRow.operator_name }
     );
   } catch(e) {}
@@ -1322,11 +1364,11 @@ module.exports = async function(req, res) {
           await answerCallback(cbqId, 'Session expired — use /games to start over.');
         } else {
           await answerCallback(cbqId, '');
-          await setSession(tgId, 'p_buy_utr', session.data);
+          await setSession(tgId, 'p_buy_screenshot', session.data);
           await tgReply(chatId,
-            `🧾 *Enter your transaction ID (UTR)*\n\n` +
-            `Open your UPI app — look for the *transaction/reference ID* \\(usually 12 digits\\)\\.\n\n` +
-            `Example: \`123456789012\`\n\n_/cancel to start over_`
+            `📸 *Send a screenshot of your payment*\n\n` +
+            `Open your UPI app, take a screenshot of the successful payment screen, and send it here.\n\n` +
+            `_/cancel to start over_`
           );
         }
       } else if (cbData === 'p_edit_picks') {
