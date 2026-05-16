@@ -394,8 +394,7 @@ function buildGameCaption(g, rem) {
   let caption = core;
   for (const extra of [
     g.description ? `\n📝 ${g.description}` : null,
-    g.join_link   ? `\n🔗 ${g.join_link}`   : null,
-    g.join_details ? `📝 ${g.join_details}` : null,
+    // join_link and join_details are intentionally omitted — sent privately after approval
   ]) {
     if (!extra) continue;
     if ((caption + extra).length <= 1024) caption += extra;
@@ -407,7 +406,7 @@ function buildGameCaption(g, rem) {
 
 async function handleGames(chatId) {
   const { data: gameRows } = await db().from('games')
-    .select('id, name, game_date, join_time, price_per_sheet, pricing_tiers, sheet_count, sold_count, prizes, description, thumbnail, join_link, join_details')
+    .select('id, name, game_date, join_time, price_per_sheet, pricing_tiers, sheet_count, sold_count, prizes, description, thumbnail')
     .eq('status', 'listed')
     .order('created_at', { ascending: false })
     .limit(8);
