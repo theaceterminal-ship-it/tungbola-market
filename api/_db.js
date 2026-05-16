@@ -21,7 +21,8 @@ function gameFromRow(r) {
   return {
     id: r.id, operatorId: r.operator_id || null, operatorName: r.operator_name || null,
     name: r.name, gameDate: r.game_date || null, gameDateRaw: r.game_date_raw || null,
-    joinTime: r.join_time || null, pricePerSheet: r.price_per_sheet,
+    joinTime: r.join_time || null, joinLink: r.join_link || null, joinDetails: r.join_details || null,
+    pricePerSheet: r.price_per_sheet,
     pricingTiers: r.pricing_tiers || [], description: r.description || '',
     prizes: r.prizes || [], thumbnail: r.thumbnail || null, status: r.status,
     sheetFrom: r.sheet_from, sheetTo: r.sheet_to, sheetCount: r.sheet_count,
@@ -35,7 +36,8 @@ function gameToRow(g) {
   return {
     id: g.id, operator_id: g.operatorId || null, operator_name: g.operatorName || null,
     name: g.name, game_date: g.gameDate || null, game_date_raw: g.gameDateRaw || null,
-    join_time: g.joinTime || null, price_per_sheet: g.pricePerSheet || 5,
+    join_time: g.joinTime || null, join_link: g.joinLink || null, join_details: g.joinDetails || null,
+    price_per_sheet: g.pricePerSheet || 5,
     pricing_tiers: g.pricingTiers || [], description: g.description || '',
     prizes: g.prizes || [], thumbnail: g.thumbnail || null,
     status: g.status || 'draft', sheet_from: g.sheetFrom || 0,

@@ -92,22 +92,29 @@ async function getPlayerPhone(telegramId) {
   return data?.phone || null;
 }
 
-async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken) {
+async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken, joinLink, joinDetails) {
   try {
     const { data } = await db().from('player_telegram').select('telegram_id').eq('phone', String(phone)).single();
     if (!data?.telegram_id) return;
     const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+
+    let joiningSection = '';
+    if (joinLink) joiningSection += `\n\n🔗 *Game Joining Link:*\n${joinLink}`;
+    if (joinDetails) joiningSection += `\n${joinDetails}`;
+
+    const buttons = [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${dlToken}` }]];
+    if (joinLink) buttons[0].push({ text: '🔗 Join Game', url: joinLink });
+
     await tgSend('sendMessage', {
       chat_id: data.telegram_id,
       text:
         `✅ *Order Approved!*\n\n` +
         `🎮 ${gameName}\n` +
         `📋 ${quantity} sheets · ₹${amount}\n\n` +
-        `Tap below to download your sheets.\n_Link expires in 6 hours._`,
+        `Tap below to download your sheets.\n_Link expires in 6 hours._` +
+        joiningSection,
       parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${dlToken}` }]]
-      }
+      reply_markup: { inline_keyboard: buttons }
     });
   } catch (e) {}
 }
@@ -523,7 +530,24 @@ async function processWizard(chatId, telegramId, text, photoFileId, tgUser = nul
   // ── 3: join time ──────────────────────────────────────────────
   if (step === 'w_jointime') {
     const val = (text || '').trim();
-    await setSession(telegramId, 'w_sheets', { ...data, joinTime: val.toLowerCase() === 'skip' ? null : val });
+    await setSession(telegramId, 'w_joinlink', { ...data, joinTime: val.toLowerCase() === 'skip' ? null : val });
+    await tgReply(chatId, `🔗 *Game joining link?*\nPaste the Zoom or WhatsApp invite URL.\n_e.g. https://us06web.zoom.us/j/…_`, { reply_markup: SKIP_KB });
+    return true;
+  }
+
+  // ── 3b: join link (URL) ───────────────────────────────────────
+  if (step === 'w_joinlink') {
+    const val = (text || '').trim();
+    const joinLink = (val.toLowerCase() === 'skip' || !val) ? null : val;
+    await setSession(telegramId, 'w_joindetails', { ...data, joinLink });
+    await tgReply(chatId, `📝 *Meeting ID, Passcode, notes?*\nType all extra joining info players need.\n_e.g._ Meeting ID: 824 4739 3208 / Passcode: 601991`, { reply_markup: SKIP_KB });
+    return true;
+  }
+
+  // ── 3c: join details (meeting ID, passcode, notes) ────────────
+  if (step === 'w_joindetails') {
+    const val = (text || '').trim();
+    await setSession(telegramId, 'w_sheets', { ...data, joinDetails: val.toLowerCase() === 'skip' ? null : val });
     await tgReply(chatId, `📋 *Sheet range?*\n_e.g. 1\\-500 or 301\\-600_`);
     return true;
   }
@@ -766,6 +790,8 @@ async function showSummary(chatId, data) {
     `✅ *Confirm Game*\n`,
     `🎯 *${data.name}*`,
     data.gameDate ? `📅 ${data.gameDate}${data.joinTime ? ` · ⏰ ${data.joinTime}` : ''}` : null,
+    data.joinLink ? `🔗 ${data.joinLink}` : null,
+    data.joinDetails ? `📝 ${data.joinDetails}` : null,
     `📋 Sheets ${data.sheetFrom}–${data.sheetTo} (${data.sheetCount})  💰 ${priceStr}`,
     data.description ? `📝 ${data.description}` : null,
     `\n*Prizes:*\n${prizeLines}`,
@@ -793,6 +819,8 @@ async function finishGame(chatId, telegramId, data) {
     game_date: data.gameDate || null,
     game_date_raw: data.gameDate || null,
     join_time: data.joinTime || null,
+    join_link: data.joinLink || null,
+    join_details: data.joinDetails || null,
     price_per_sheet: data.pricePerSheet,
     pricing_tiers: data.pricingTiers || [],
     description: data.description || '',
@@ -1173,7 +1201,8 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   // Telegram notification (if player linked)
   await notifyPlayerApproved(
     String(purchase.phone).replace(/\D/g, ''),
-    purchase.gameName, purchase.quantity, purchase.amount, dlToken
+    purchase.gameName, purchase.quantity, purchase.amount, dlToken,
+    game.joinLink, game.joinDetails
   );
 
   await answerCallback(callbackQueryId, '✅ Approved!');

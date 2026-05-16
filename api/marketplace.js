@@ -144,7 +144,7 @@ module.exports = async function(req, res) {
   if (action === 'create-game') {
     if (await rateLimit(req, 'creategame', 30, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
+    const { password, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime, joinLink, joinDetails } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!name) return res.status(400).json({ error: 'Game name required' });
@@ -154,6 +154,8 @@ module.exports = async function(req, res) {
       gameDate: gameDate ? String(gameDate).trim().slice(0, 40) : null,
       gameDateRaw: gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null,
       joinTime: joinTime ? String(joinTime).trim().slice(0, 20) : null,
+      joinLink: joinLink ? String(joinLink).trim().slice(0, 500) : null,
+      joinDetails: joinDetails ? String(joinDetails).trim().slice(0, 500) : null,
       pricePerSheet: Math.max(1, Number(pricePerSheet) || 5),
       pricingTiers: Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [],
       description: String(description || '').trim().slice(0, 200),
@@ -224,7 +226,7 @@ module.exports = async function(req, res) {
   if (action === 'edit-game') {
     if (await rateLimit(req, 'editgame', 60, 3600))
       return res.status(429).json({ error: 'Too many requests' });
-    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime } = body;
+    const { password, gameId, name, gameDate, gameDateRaw, pricePerSheet, description, prizes, thumbnail, pricingTiers, joinTime, joinLink, joinDetails } = body;
     if (!checkPassword(password, process.env.ADMIN_PASSWORD))
       return res.status(401).json({ error: 'Wrong password' });
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
@@ -237,6 +239,8 @@ module.exports = async function(req, res) {
     if (gameDate !== undefined)      updates.game_date       = gameDate ? String(gameDate).trim().slice(0, 40) : null;
     if (gameDateRaw !== undefined)   updates.game_date_raw   = gameDateRaw ? String(gameDateRaw).trim().slice(0, 30) : null;
     if (joinTime !== undefined)      updates.join_time       = joinTime ? String(joinTime).trim().slice(0, 20) : null;
+    if (joinLink !== undefined)      updates.join_link       = joinLink ? String(joinLink).trim().slice(0, 500) : null;
+    if (joinDetails !== undefined)   updates.join_details    = joinDetails ? String(joinDetails).trim().slice(0, 500) : null;
     if (pricePerSheet !== undefined) updates.price_per_sheet = Math.max(1, Number(pricePerSheet) || 5);
     if (pricingTiers !== undefined)  updates.pricing_tiers   = Array.isArray(pricingTiers) ? pricingTiers.slice(0, 10).map(t => ({ qty: Math.max(1, parseInt(t.qty)||1), price: Math.max(1, parseInt(t.price)||1) })) : [];
     if (description !== undefined)   updates.description     = String(description || '').trim().slice(0, 200);
@@ -338,7 +342,7 @@ module.exports = async function(req, res) {
       const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', normPhone(purchase.phone)).single();
       if (pushRow?.subscription) await sendPush(pushRow.subscription);
     } catch(e) { console.error('Push failed:', e.message); }
-    try { await notifyPlayerApproved(normPhone(purchase.phone), game.name, purchase.quantity, purchase.amount, dlToken); } catch(e) {}
+    try { await notifyPlayerApproved(normPhone(purchase.phone), game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails); } catch(e) {}
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }

@@ -909,6 +909,14 @@ function buildGameForm(g) {
         <input class="field-input" id="gfJoinTime" type="time" value="${ie?esc(g.joinTime||''):''}">
       </div>
     </div>
+    <div class="field">
+      <div class="field-lbl">🔗 Game Joining Link (Zoom / WhatsApp URL)</div>
+      <input class="field-input" id="gfJoinLink" type="url" placeholder="https://us06web.zoom.us/j/…" value="${ie?esc(g.joinLink||''):''}">
+    </div>
+    <div class="field">
+      <div class="field-lbl">📝 Meeting ID, Passcode &amp; Notes (optional)</div>
+      <textarea class="field-input field-textarea" id="gfJoinDetails" maxlength="500" placeholder="Meeting ID: 824 4739 3208&#10;Passcode: 601991&#10;&#10;Note: No refund after purchase.">${ie?esc(g.joinDetails||''):''}</textarea>
+    </div>
     <div class="field-row">
       <div class="field">
         <div class="field-lbl">Price per Sheet (₹)</div>
@@ -1019,6 +1027,8 @@ async function saveGame() {
     gameDate: dtVal ? new Date(dtVal).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : null,
     gameDateRaw: dtVal || null,
     joinTime: document.getElementById('gfJoinTime').value || null,
+    joinLink: document.getElementById('gfJoinLink').value.trim() || null,
+    joinDetails: document.getElementById('gfJoinDetails').value.trim() || null,
     pricePerSheet: parseInt(document.getElementById('gfPrice').value) || 5,
     thumbnail: document.getElementById('gfThumb').value.trim() || null,
     description: document.getElementById('gfDesc').value.trim(),
