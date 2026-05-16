@@ -965,33 +965,37 @@ async function sendTelegramOrderNotification(purchase, game) {
   if (!opChatId) return;
 
   const pickNote = purchase.requestedSheetNums?.length
-    ? `🎫 Requested: #${purchase.requestedSheetNums.join(', #')}`
-    : '🎲 Random assignment';
+    ? `🎫 #${purchase.requestedSheetNums.join(', #')}`
+    : '🎲 Random';
 
-  await tgSend('sendMessage', {
-    chat_id: opChatId,
-    text:
-      `🛒 *New Order!*\n\n` +
-      `👤 ${purchase.playerName} · 📞 ${purchase.phone}\n` +
-      `🎮 ${purchase.gameName}\n` +
-      `📋 ${purchase.quantity} sheet${purchase.quantity > 1 ? 's' : ''} · ₹${purchase.amount}\n` +
-      `${pickNote}\n\n` +
-      `🆔 Order: \`${purchase.purchaseId}\``,
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [[
-        { text: '✅ Approve', callback_data: `approve:${purchase.purchaseId}` },
-        { text: '❌ Reject',  callback_data: `reject:${purchase.purchaseId}` }
-      ]]
-    }
-  });
+  const caption =
+    `🛒 *New Order*\n\n` +
+    `👤 ${purchase.playerName} · 📞 ${purchase.phone}\n` +
+    `🎮 ${purchase.gameName}\n` +
+    `📋 ${purchase.quantity} sheet${purchase.quantity > 1 ? 's' : ''} · ₹${purchase.amount}\n` +
+    `${pickNote}\n\n` +
+    `🆔 \`${purchase.purchaseId}\``;
 
-  // Forward payment screenshot immediately after order notification
+  const buttons = { inline_keyboard: [[
+    { text: '✅ Approve', callback_data: `approve:${purchase.purchaseId}` },
+    { text: '❌ Reject',  callback_data: `reject:${purchase.purchaseId}` }
+  ]] };
+
   if (purchase.screenshotFileId) {
+    // One photo card: screenshot + order details + action buttons
     await tgSend('sendPhoto', {
       chat_id: opChatId,
       photo: purchase.screenshotFileId,
-      caption: `📸 Payment screenshot — ${purchase.playerName}`
+      caption,
+      parse_mode: 'Markdown',
+      reply_markup: buttons
+    });
+  } else {
+    await tgSend('sendMessage', {
+      chat_id: opChatId,
+      text: caption,
+      parse_mode: 'Markdown',
+      reply_markup: buttons
     });
   }
 }
