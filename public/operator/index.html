@@ -374,6 +374,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 <script>
 const API = '/api/operator';
 let apiKey = '', operator = null, games = [], purchases = [];
+let adminUpiId = '';
 let activeTab = 'home';
 let salesFilter = 'pending', salesSearch = '', salesGameFilter = '';
 let refreshTimer = null, toastT;
@@ -405,6 +406,7 @@ async function login() {
     const data = await api('get-info');
     operator = data.operator;
     games = data.games || [];
+    adminUpiId = data.adminUpiId || '';
     localStorage.setItem('op_key', key);
     await loadPurchases();
     startApp();
@@ -446,6 +448,7 @@ function startApp() {
 async function loadGames() {
   const data = await api('get-info');
   games = data.games || [];
+  adminUpiId = data.adminUpiId || adminUpiId;
 }
 
 async function loadPurchases() {
@@ -588,6 +591,33 @@ function renderGames() {
         <button class="gc-btn primary" onclick="openAssignModal('${g.id}')">📋 Sheets</button>
         <button class="gc-btn danger" onclick="confirmDelete('${g.id}')">🗑️</button>
       </div>
+      ${g.status === 'draft' && g.platformPaymentStatus !== 'verified' && adminUpiId ? (() => {
+        const fee = Math.round((g.sheetCount || 0) * 1.99 * 100) / 100;
+        const tn  = encodeURIComponent('Listing Fee ' + g.name);
+        const pa  = encodeURIComponent(adminUpiId);
+        const qrData = encodeURIComponent(`upi://pay?pa=${adminUpiId}&pn=TungbolaMarket&am=${fee}&tn=Listing Fee ${g.name}&cu=INR`);
+        const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${qrData}`;
+        const upiLink = `/api/pay-redirect?pa=${pa}&pn=TungbolaMarket&am=${fee}&tn=${tn}`;
+        const isPending = g.platformPaymentStatus === 'pending';
+        return `<div style="margin:0 12px 14px;padding:14px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px">
+          <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:10px">
+            💰 Listing Fee — ₹${fee}
+            ${isPending ? '<span style="font-size:11px;color:#d97706;font-weight:600;margin-left:6px">⏳ Verification pending</span>' : ''}
+          </div>
+          ${!isPending ? `
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <img src="${qrUrl}" style="width:90px;height:90px;border-radius:8px;border:1px solid #e9d5ff" alt="Pay QR">
+            <div style="flex:1">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Scan QR or tap below to pay ₹${fee} to <strong>${esc(adminUpiId)}</strong></div>
+              <a href="${upiLink}" target="_blank" style="display:block;text-align:center;padding:8px 12px;background:#7c3aed;color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:8px">📱 Open UPI App</a>
+              <div style="display:flex;gap:6px">
+                <input id="utr-${g.id}" placeholder="UTR / Transaction ID" style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;outline:none">
+                <button onclick="submitListingFee('${g.id}')" style="padding:7px 12px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Submit UTR</button>
+              </div>
+            </div>
+          </div>` : `<div style="font-size:12px;color:#92400e;background:#fef3c7;padding:8px 12px;border-radius:8px">Payment submitted — waiting for admin to verify and publish your game.</div>`}
+        </div>`;
+      })() : ''}
     </div>`;
   });
   document.getElementById('gamesContent').innerHTML = h;
@@ -1157,6 +1187,20 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+async function submitListingFee(gameId) {
+  const input = document.getElementById('utr-' + gameId);
+  const utr = (input?.value || '').trim().replace(/\s/g, '');
+  if (utr.length < 6) { toast('❌ Enter your UTR / transaction ID (min 6 chars)'); return; }
+  try {
+    await api('submit-platform-payment', { gameId, utr });
+    toast('✅ Payment submitted — waiting for admin verification');
+    await loadGames();
+    renderGames(); renderHome();
+  } catch(e) {
+    toast('❌ ' + (e.message || 'Failed to submit'));
+  }
+}
+
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('on');
@@ -1170,6 +1214,7 @@ function toast(msg) {
     apiKey = saved;
     api('get-info').then(async data => {
       operator = data.operator; games = data.games || [];
+      adminUpiId = data.adminUpiId || '';
       await loadPurchases();
       startApp();
     }).catch(() => {
