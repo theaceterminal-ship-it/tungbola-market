@@ -463,25 +463,12 @@ async function handleBuyGame(chatId, telegramId, gameId) {
   const rem = Math.max(0, (gRow.sheet_count || 0) - (gRow.sold_count || 0));
   if (rem <= 0) { await tgReply(chatId, '😔 *Sold out!* All sheets taken.\n\n/games to see other games.'); return; }
 
-  const priceLines = Array.isArray(gRow.pricing_tiers) && gRow.pricing_tiers.length
-    ? gRow.pricing_tiers.map(t => `${t.qty} sheets → ₹${t.price}`).join('\n') + `\n1 sheet → ₹${gRow.price_per_sheet}`
-    : `₹${gRow.price_per_sheet} per sheet`;
-
-  await setSession(telegramId, 'p_buy_qty', {
+  await showPickScreen(chatId, telegramId, {
     gameId: gRow.id, gameName: gRow.name,
     pricePerSheet: gRow.price_per_sheet, pricingTiers: gRow.pricing_tiers || [],
     operatorUpiId, operatorName: gRow.operator_name || 'Operator',
     sheetCount: gRow.sheet_count, soldCount: gRow.sold_count
   });
-
-  await tgReply(chatId,
-    `🎯 *${gRow.name}*\n` +
-    (gRow.game_date ? `📅 ${gRow.game_date}${gRow.join_time ? ` · ⏰ ${gRow.join_time}` : ''}\n` : '') +
-    `\n💰 *Pricing:*\n${priceLines}\n\n` +
-    `📋 ${rem} sheets remaining\n\n` +
-    `*How many sheets?*\n\n_/cancel to start over_`,
-    { reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'p_cancel' }]] } }
-  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -709,49 +696,58 @@ async function processWizard(chatId, telegramId, text, photoFileId, tgUser = nul
     return true;
   }
 
-  // ── p_buy_qty: player picks quantity ─────────────────────────
-  if (step === 'p_buy_qty') {
+  // ── p_buy_pick: player types lucky sheet numbers ─────────────
+  if (step === 'p_buy_pick') {
+    const nums = (text || '').match(/\d+/g)?.map(Number).filter(n => n > 0) || [];
+    const rem  = Math.max(0, (data.sheetCount || 0) - (data.soldCount || 0));
+
+    if (!nums.length) {
+      await tgReply(chatId, '❌ Type sheet numbers separated by spaces _(e.g. 7 23 45)_, or tap *Random sheets*.\n\n_/cancel to cancel_');
+      return true;
+    }
+    if (nums.length > rem) {
+      await tgReply(chatId, `❌ Only ${rem} sheets available — pick at most ${rem}.`);
+      return true;
+    }
+
+    const { data: gRow } = await db().from('games')
+      .select('sheet_from, sheet_to, sold_sheet_nums').eq('id', data.gameId).single();
+    const soldSet = new Set((gRow?.sold_sheet_nums || []).map(Number));
+    const bad = nums.filter(n => n < gRow.sheet_from || n > gRow.sheet_to || soldSet.has(n));
+    if (bad.length) {
+      await tgReply(chatId, `❌ Sheet${bad.length > 1 ? 's' : ''} *#${bad.join(', #')}* not available. Pick from the list above.\n\n_/cancel to cancel_`);
+      return true;
+    }
+
+    const quantity = nums.length;
+    let amount = data.pricePerSheet * quantity;
+    if (Array.isArray(data.pricingTiers) && data.pricingTiers.length) {
+      const tier = data.pricingTiers.find(t => t.qty === quantity);
+      if (tier) amount = tier.price;
+    }
+
+    const newData = { ...data, quantity, amount, pickedNums: nums };
+    await setSession(telegramId, 'p_buy_confirm', newData);
+    await showBuyConfirmation(chatId, newData);
+    return true;
+  }
+
+  // ── p_buy_random_qty: how many random sheets ─────────────────
+  if (step === 'p_buy_random_qty') {
     const qty = parseInt((text || '').trim());
     const rem = Math.max(0, (data.sheetCount || 0) - (data.soldCount || 0));
-    if (!qty || qty < 1)   { await tgReply(chatId, `❌ Enter a number between 1 and ${rem}.`); return true; }
-    if (qty > rem)         { await tgReply(chatId, `❌ Only ${rem} sheets remaining.`); return true; }
-
+    if (!qty || qty < 1 || qty > rem) {
+      await tgReply(chatId, `❌ Enter a number between 1 and ${rem}.\n\n_/cancel to cancel_`);
+      return true;
+    }
     let amount = data.pricePerSheet * qty;
     if (Array.isArray(data.pricingTiers) && data.pricingTiers.length) {
       const tier = data.pricingTiers.find(t => t.qty === qty);
       if (tier) amount = tier.price;
     }
-
-    await showPickScreen(chatId, telegramId, { ...data, quantity: qty, amount });
-    return true;
-  }
-
-  // ── p_buy_pick: player picks lucky numbers or skips ──────────
-  if (step === 'p_buy_pick') {
-    let pickedNums = null;
-    const val = (text || '').trim().toLowerCase();
-
-    if (val !== 'skip') {
-      const nums = (text || '').match(/\d+/g)?.map(Number).filter(n => n > 0) || [];
-      if (!nums.length) { await tgReply(chatId, '❌ Type sheet number(s) or tap *Random*.'); return true; }
-      if (nums.length > data.quantity) {
-        await tgReply(chatId, `❌ You ordered *${data.quantity}* sheet${data.quantity > 1 ? 's' : ''} — pick at most ${data.quantity} number${data.quantity > 1 ? 's' : ''}.`);
-        return true;
-      }
-      // Validate availability
-      const { data: gRow } = await db().from('games')
-        .select('sheet_from, sheet_to, sold_sheet_nums').eq('id', data.gameId).single();
-      const soldSet = new Set((gRow?.sold_sheet_nums || []).map(Number));
-      const bad = nums.filter(n => n < gRow.sheet_from || n > gRow.sheet_to || soldSet.has(n));
-      if (bad.length) {
-        await tgReply(chatId, `❌ Sheet${bad.length > 1 ? 's' : ''} *#${bad.join(', #')}* ${bad.length > 1 ? 'are' : 'is'} not available. Check the list and try again.`);
-        return true;
-      }
-      pickedNums = nums;
-    }
-
-    await setSession(telegramId, 'p_buy_confirm', { ...data, pickedNums });
-    await showBuyConfirmation(chatId, { ...data, pickedNums });
+    const newData = { ...data, quantity: qty, amount, pickedNums: null };
+    await setSession(telegramId, 'p_buy_confirm', newData);
+    await showBuyConfirmation(chatId, newData);
     return true;
   }
 
@@ -897,39 +893,29 @@ async function showPickScreen(chatId, telegramId, data) {
   const numBlock = rows.join('\n');
   const extraNote = available.length > 120 ? `\n_...and ${available.length - 120} more in range ${from}–${to}_` : '';
 
-  const qty = data.quantity;
   await setSession(telegramId, 'p_buy_pick', data);
   await tgReply(chatId,
-    `📋 *Available sheets (${available.length} remaining):*\n\`\`\`\n${numBlock}\`\`\`${extraNote}\n\n` +
-    `Type your lucky number${qty > 1 ? `s (up to ${qty}, e.g. \`7 23\`)` : ` (e.g. \`7\`)`} from the list.\n` +
-    `Or tap below for random assignment.\n\n_/cancel to start over_`,
-    { reply_markup: { inline_keyboard: [[{ text: '🎲 Random — surprise me!', callback_data: 'w_skip' }]] } }
+    `📋 *${data.gameName}*\n*${available.length} sheets available:*\n\`\`\`\n${numBlock}\`\`\`${extraNote}\n\n` +
+    `Type your lucky sheet numbers _(e.g. \`7 23 45\`)_ — as many as you want.\n` +
+    `Each number = 1 sheet. Or tap below for random.\n\n` +
+    `_/cancel to cancel_`,
+    { reply_markup: { inline_keyboard: [[{ text: '🎲 Random sheets', callback_data: 'p_random' }]] } }
   );
 }
 
-// Screen 1 — order review (edit before paying)
+// Screen 1 — order review
 async function showBuyConfirmation(chatId, data) {
   const pickStr = data.pickedNums?.length
-    ? `🎫 Your picks: *#${data.pickedNums.join(', #')}*`
-    : `🎲 *Random assignment*`;
+    ? `🎫 Sheets: *#${data.pickedNums.join(', #')}*`
+    : `🎲 *${data.quantity} random sheet${data.quantity > 1 ? 's' : ''}*`;
 
   await tgReply(chatId,
-    `✅ *Review Your Order*\n\n` +
+    `📋 *Review Order*\n\n` +
     `🎯 ${data.gameName}\n` +
-    `📋 ${data.quantity} sheet${data.quantity > 1 ? 's' : ''} · *₹${data.amount}*\n` +
-    `${pickStr}\n\n` +
-    `Everything look right?\n\n_/cancel to start over_`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '✅ Looks good — Pay now', callback_data: 'p_confirm' }],
-          [
-            { text: '✏️ Change picks', callback_data: 'p_edit_picks' },
-            { text: '❌ Cancel',        callback_data: 'p_cancel'     }
-          ]
-        ]
-      }
-    }
+    `${pickStr}\n` +
+    `💰 *₹${data.amount}*\n\n` +
+    `_/cancel to cancel_`,
+    { reply_markup: { inline_keyboard: [[{ text: '💳 Pay Now', callback_data: 'p_confirm' }]] } }
   );
 }
 
@@ -1370,13 +1356,15 @@ module.exports = async function(req, res) {
             `_/cancel to start over_`
           );
         }
-      } else if (cbData === 'p_edit_picks') {
+      } else if (cbData === 'p_random') {
         const session = await getSession(tgId);
-        if (!session || session.step !== 'p_buy_confirm') {
+        if (!session || session.step !== 'p_buy_pick') {
           await answerCallback(cbqId, 'Session expired — use /games to start over.');
         } else {
           await answerCallback(cbqId, '');
-          await showPickScreen(chatId, tgId, session.data);
+          const rem = Math.max(0, (session.data.sheetCount || 0) - (session.data.soldCount || 0));
+          await setSession(tgId, 'p_buy_random_qty', session.data);
+          await tgReply(chatId, `🎲 *How many random sheets?* _(1–${rem})_\n\n_/cancel to cancel_`);
         }
       } else if (cbData.startsWith('p_buy:')) {
         await answerCallback(cbqId, '');
