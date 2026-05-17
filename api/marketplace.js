@@ -420,6 +420,44 @@ module.exports = async function(req, res) {
     return res.json({ ok: true, operator: operatorFromRow(operator) });
   }
 
+  /* ── Admin: generate license key ── */
+  if (action === 'generate-license-key') {
+    const { password, plan } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    const p = (plan || 'lifetime').toLowerCase();
+    if (!['lifetime', 'annual', 'trial'].includes(p))
+      return res.status(400).json({ error: 'plan must be lifetime, annual, or trial' });
+    const seg = () => crypto.randomBytes(2).toString('hex').toUpperCase();
+    const key = `TBM-${seg()}${seg().slice(0, 2)}-${seg()}-${seg()}`;
+    let expiresAt = null;
+    if (p === 'annual') expiresAt = Date.now() + 365 * 86400000;
+    if (p === 'trial')  expiresAt = Date.now() + 30  * 86400000;
+    const { error } = await db().from('licenses').insert({ key, plan: p, status: 'unused', expires_at: expiresAt, created_at: Date.now() });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true, key, plan: p, expiresAt });
+  }
+
+  /* ── Admin: list license keys ── */
+  if (action === 'list-license-keys') {
+    const { password } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    const { data } = await db().from('licenses').select('*').order('created_at', { ascending: false }).limit(100);
+    return res.json({ ok: true, keys: data || [] });
+  }
+
+  /* ── Admin: revoke license key ── */
+  if (action === 'revoke-license-key') {
+    const { password, key } = body;
+    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
+      return res.status(401).json({ error: 'Wrong password' });
+    if (!key) return res.status(400).json({ error: 'key required' });
+    const { data } = await db().from('licenses').update({ status: 'revoked' }).eq('key', String(key).trim().toUpperCase()).select('key');
+    if (!data?.length) return res.status(404).json({ error: 'Key not found' });
+    return res.json({ ok: true });
+  }
+
   /* ── Admin: list operators ── */
   if (action === 'list-operators') {
     const { password } = body;

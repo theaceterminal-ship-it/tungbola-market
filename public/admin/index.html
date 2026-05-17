@@ -396,8 +396,8 @@ tr:last-child td{border-bottom:none}
       Operators <span class="tab-badge" id="opsBadge" style="display:none"></span>
     </button>
     <button class="tab-btn" onclick="showTab('payments')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      Billing <span class="tab-badge" id="paysBadge" style="display:none"></span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      License Keys
     </button>
   </nav>
 
@@ -650,21 +650,25 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════ BILLING ══ -->
+  <!-- ══════════════════════════════════════════════ LICENSE KEYS ══ -->
   <div class="tab-content" id="tc-payments">
     <div style="padding:20px;max-width:860px;width:100%">
       <div class="set-card">
-        <div class="set-card-title" style="margin-bottom:4px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          Listing Payments
+        <div class="set-card-title" style="margin-bottom:4px">Generate License Key</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Generate a key and send it to the operator after they pay you outside the app.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="genKeyPlan" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;color:var(--text)">
+            <option value="lifetime">Lifetime</option>
+            <option value="annual">Annual (1 year)</option>
+            <option value="trial">Trial (30 days)</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="generateKey()">+ Generate Key</button>
         </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Operators pay ₹1.99/sheet to list a game. Verify UTR in your UPI app before approving.</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="payFilterAll"  onclick="setPayFilter('all')"     style="font-weight:700">All</button>
-          <button class="btn btn-ghost btn-sm" id="payFilterPend" onclick="setPayFilter('pending')" >Pending</button>
-          <button class="btn btn-ghost btn-sm" id="payFilterVerif" onclick="setPayFilter('verified')">Verified</button>
-        </div>
-        <div id="paymentsList"><div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div></div>
+        <div id="genKeyResult" style="margin-top:12px;font-size:13px;font-family:monospace;background:#f1f5f9;padding:10px 14px;border-radius:8px;display:none;word-break:break-all"></div>
+      </div>
+      <div class="set-card" style="margin-top:16px">
+        <div class="set-card-title" style="margin-bottom:12px">All License Keys</div>
+        <div id="licenseKeysList"><div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div></div>
       </div>
     </div>
   </div>
@@ -700,7 +704,7 @@ function ico(name) { return _I[name] || ''; }
 /* ══ STATE ══════════════════════════════════════════════════════ */
 let pwd = '', activeTab = 'sheets';
 let allSheets = [], allGames = [], allPurchases = [], adminSettings = {};
-let allPayments = [], payFilter = 'all';
+let allLicenseKeys = [];
 let selectedSheetIds = new Set();
 let currentGameId = null;
 let editingGameId = null;
@@ -770,7 +774,7 @@ function showTab(name) {
   document.getElementById('tc-' + name).classList.add('active');
 }
 
-function loadAll() { loadSheets(); loadGames(); loadPurchases(); loadSettings(); loadOperators(); loadPlatformPayments(); }
+function loadAll() { loadSheets(); loadGames(); loadPurchases(); loadSettings(); loadOperators(); loadLicenseKeys(); }
 
 /* ══ SHEETS ══════════════════════════════════════════════════════ */
 async function loadSheets() {
@@ -1727,77 +1731,59 @@ async function deleteOperator(id, name) {
   else { const d = await r.json(); toast(d.error || 'Error'); }
 }
 
-/* ══ BILLING / PLATFORM PAYMENTS ════════════════════════════════ */
-async function loadPlatformPayments() {
+/* ══ LICENSE KEYS ════════════════════════════════════════════════ */
+async function loadLicenseKeys() {
   try {
-    const r = await fetch(`/api/marketplace?password=${encodeURIComponent(pwd)}&type=platform-payments`);
+    const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'list-license-keys', password:pwd }) });
     const data = await r.json();
-    allPayments = data.payments || [];
-    const pending = allPayments.filter(p => p.status === 'pending').length;
-    const badge = document.getElementById('paysBadge');
-    badge.style.display = pending ? '' : 'none';
-    badge.textContent = pending;
-    renderPlatformPayments();
+    allLicenseKeys = data.keys || [];
+    renderLicenseKeys();
   } catch(e) {}
 }
 
-function setPayFilter(f) {
-  payFilter = f;
-  ['all','pend','verif'].forEach(k => document.getElementById(`payFilter${k.charAt(0).toUpperCase()+k.slice(1)}`)?.classList.remove('active'));
-  const map = { all:'All', pending:'Pend', verified:'Verif' };
-  document.getElementById(`payFilter${(map[f]||'All')}`)?.classList.add('active');
-  renderPlatformPayments();
-}
-
-function renderPlatformPayments() {
-  const el = document.getElementById('paymentsList');
-  const visible = payFilter === 'all' ? allPayments : allPayments.filter(p => p.status === payFilter);
-  if (!visible.length) {
-    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">No ${payFilter === 'all' ? '' : payFilter + ' '}payments</div>`;
+function renderLicenseKeys() {
+  const el = document.getElementById('licenseKeysList');
+  if (!allLicenseKeys.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">No keys yet — generate one above.</div>`;
     return;
   }
-  el.innerHTML = visible.map(p => {
-    const dt   = new Date(p.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'Asia/Kolkata' });
-    const statusColor = p.status === 'verified' ? '#16a34a' : p.status === 'rejected' ? '#dc2626' : '#d97706';
-    const statusBg    = p.status === 'verified' ? '#f0fdf4' : p.status === 'rejected' ? '#fef2f2' : '#fffbeb';
-    const actions = p.status === 'pending' ? `
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="btn btn-primary btn-sm" onclick="verifyPayment('${p.id}')" style="flex:1">✅ Verify & List</button>
-        <button class="btn btn-ghost btn-sm" onclick="rejectPayment('${p.id}')" style="color:#dc2626">✗ Reject</button>
-      </div>` : '';
-    return `<div style="border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:#fff">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.game_name)}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:1px">${esc(p.operator_name)} · ${dt}</div>
-        </div>
-        <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:${statusBg};color:${statusColor};white-space:nowrap;flex-shrink:0">${p.status}</span>
+  el.innerHTML = allLicenseKeys.map(k => {
+    const statusColor = k.status === 'unused' ? '#16a34a' : k.status === 'active' ? '#2563eb' : '#dc2626';
+    const statusBg    = k.status === 'unused' ? '#f0fdf4' : k.status === 'active' ? '#eff6ff' : '#fef2f2';
+    const exp = k.expires_at ? new Date(k.expires_at).toLocaleDateString('en-IN') : 'Never';
+    const canRevoke = k.status !== 'revoked';
+    return `<div style="border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fff;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <code style="font-size:13px;font-weight:700;color:var(--text);flex:1;min-width:0;word-break:break-all">${esc(k.key)}</code>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${statusBg};color:${statusColor};font-weight:700">${k.status}</span>
+        <span style="font-size:11px;color:var(--muted)">${k.plan} · exp ${exp}</span>
+        ${canRevoke ? `<button class="btn btn-ghost btn-sm" onclick="revokeKey('${k.key}')" style="color:#dc2626;font-size:11px;padding:4px 8px">Revoke</button>` : ''}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px">
-        <div><span style="color:var(--muted)">Sheets: </span><strong>${p.sheet_count}</strong></div>
-        <div><span style="color:var(--muted)">Amount: </span><strong>₹${parseFloat(p.amount).toFixed(2)}</strong></div>
-        <div style="flex:1;min-width:0"><span style="color:var(--muted)">UTR: </span><code style="font-size:12px;background:#f1f5f9;padding:2px 6px;border-radius:4px;word-break:break-all">${esc(p.utr)}</code></div>
-      </div>
-      ${actions}
     </div>`;
   }).join('');
 }
 
-async function verifyPayment(id) {
-  if (!confirm('Verify this payment and list the game now?')) return;
+async function generateKey() {
+  const plan = document.getElementById('genKeyPlan').value;
   const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'verify-platform-payment', password:pwd, paymentId:id }) });
+    body: JSON.stringify({ action:'generate-license-key', password:pwd, plan }) });
   const d = await r.json();
-  if (r.ok) { toast('✅ Payment verified — game is now live!'); loadPlatformPayments(); loadGames(); }
-  else toast(d.error || 'Error');
+  if (!r.ok) { toast(d.error || 'Error'); return; }
+  const resultEl = document.getElementById('genKeyResult');
+  resultEl.textContent = d.key;
+  resultEl.style.display = '';
+  navigator.clipboard?.writeText(d.key).catch(() => {});
+  toast('✅ Key generated — copied to clipboard');
+  loadLicenseKeys();
 }
 
-async function rejectPayment(id) {
-  if (!confirm('Reject this payment? The operator will be notified.')) return;
+async function revokeKey(key) {
+  if (!confirm(`Revoke key ${key}?\nThe operator using it will lose access.`)) return;
   const r = await fetch('/api/marketplace', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'reject-platform-payment', password:pwd, paymentId:id }) });
+    body: JSON.stringify({ action:'revoke-license-key', password:pwd, key }) });
   const d = await r.json();
-  if (r.ok) { toast('Payment rejected.'); loadPlatformPayments(); }
+  if (r.ok) { toast('Key revoked.'); loadLicenseKeys(); }
   else toast(d.error || 'Error');
 }
 </script>
