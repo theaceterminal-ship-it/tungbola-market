@@ -108,11 +108,6 @@ module.exports = async function(req, res) {
       const { data } = await db().from('config').select('value').eq('key', 'settings').single();
       return res.json({ settings: data?.value || {} });
     }
-    if (type === 'platform-payments') {
-      const { data } = await db().from('platform_payments')
-        .select('*').order('created_at', { ascending: false }).limit(200);
-      return res.json({ payments: data || [] });
-    }
     const { data } = await db().from('games').select('*').order('created_at', { ascending: false }).limit(200);
     return res.json({ games: (data || []).map(gameFromRow) });
   }
@@ -376,6 +371,35 @@ module.exports = async function(req, res) {
     await db().from('purchases').delete().eq('game_id', gameId);
     await db().from('games').delete().eq('id', gameId);
     return res.json({ ok: true });
+  }
+
+  /* ── Self-service: operator signup with license key ── */
+  if (action === 'operator-signup') {
+    if (await rateLimit(req, 'op-signup', 10, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { licenseKey, name, email, phone: opPhone } = body;
+    if (!licenseKey || !name) return res.status(400).json({ error: 'licenseKey and name required' });
+
+    const cleanKey = String(licenseKey).trim().toUpperCase();
+    const { data: licRow } = await db().from('licenses').select('*').eq('key', cleanKey).single();
+    if (!licRow)                                              return res.status(400).json({ error: 'Invalid license key.' });
+    if (licRow.status === 'revoked')                          return res.status(400).json({ error: 'This license key has been revoked.' });
+    if (licRow.status === 'active')                           return res.status(400).json({ error: 'This license key is already in use.' });
+    if (licRow.expires_at && Date.now() > licRow.expires_at)  return res.status(400).json({ error: 'This license key has expired.' });
+
+    const operator = {
+      id: 'op_' + genId(), name: String(name).trim().slice(0, 80),
+      email: String(email || '').trim().slice(0, 100),
+      phone: String(opPhone || '').trim().slice(0, 20),
+      plan: 'own-sheets',
+      api_key: crypto.randomBytes(20).toString('hex'),
+      active: true, created_at: Date.now()
+    };
+    const { error } = await db().from('operators').insert(operator);
+    if (error) return res.status(500).json({ error: error.message });
+
+    await db().from('licenses').update({ status: 'active', operator_id: operator.id }).eq('key', cleanKey);
+    return res.json({ ok: true, operator: operatorFromRow(operator) });
   }
 
   /* ── Admin: create operator ── */
@@ -690,90 +714,6 @@ module.exports = async function(req, res) {
     try { await notifyPlayerApproved(normPhone(session.phone), tokenRows[0].game_name, pRow.quantity, pRow.amount, dlToken); } catch(e) {}
 
     return res.json({ ok: true, downloadToken: dlToken });
-  }
-
-  /* ── Admin: verify platform payment → auto-list game ── */
-  if (action === 'verify-platform-payment') {
-    const { password, paymentId } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!paymentId) return res.status(400).json({ error: 'paymentId required' });
-
-    const { data: payRow } = await db().from('platform_payments').select('*').eq('id', paymentId).single();
-    if (!payRow) return res.status(404).json({ error: 'Payment not found' });
-    if (payRow.status !== 'pending') return res.status(409).json({ error: `Payment already ${payRow.status}` });
-
-    const now = Date.now();
-    await Promise.all([
-      db().from('platform_payments').update({ status: 'verified', verified_at: now }).eq('id', paymentId),
-      db().from('games').update({ status: 'listed' }).eq('id', payRow.game_id)
-    ]);
-
-    // Notify operator + broadcast to player channel
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (token) {
-      const { data: opRow } = await db().from('operators')
-        .select('telegram_chat_id, telegram_id, player_channel_id').eq('id', payRow.operator_id).single();
-      const chatId = opRow?.telegram_chat_id || opRow?.telegram_id;
-      if (chatId) {
-        const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
-        const txt  = `✅ *Payment Verified!*\n\n🎮 *${payRow.game_name}* is now live on TungbolaMarket!\n\n📋 ${payRow.sheet_count} sheets · ₹${payRow.amount}\n\nPlayers can start booking now! 🎉`;
-        const pl   = JSON.stringify({
-          chat_id: chatId, text: txt, parse_mode: 'Markdown',
-          reply_markup: { inline_keyboard: [[{ text: '🎮 View Game', url: `https://${host}/g/${payRow.game_id}` }]] }
-        });
-        const r = require('https').request({
-          hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(pl) }
-        }, x => x.resume());
-        r.on('error', () => {}); r.write(pl); r.end();
-      }
-      // Broadcast game announcement to player channel
-      if (opRow?.player_channel_id) {
-        try {
-          const { data: gRow } = await db().from('games').select('*').eq('id', payRow.game_id).single();
-          if (gRow) await broadcastGame(opRow.player_channel_id, gameFromRow(gRow));
-        } catch(e) { console.error('Broadcast on web verify failed:', e.message); }
-      }
-    }
-
-    return res.json({ ok: true });
-  }
-
-  /* ── Admin: reject platform payment ── */
-  if (action === 'reject-platform-payment') {
-    const { password, paymentId } = body;
-    if (!checkPassword(password, process.env.ADMIN_PASSWORD))
-      return res.status(401).json({ error: 'Wrong password' });
-    if (!paymentId) return res.status(400).json({ error: 'paymentId required' });
-
-    const { data: payRow } = await db().from('platform_payments').select('status,operator_id,game_name,operator_name').eq('id', paymentId).single();
-    if (!payRow) return res.status(404).json({ error: 'Payment not found' });
-    if (payRow.status !== 'pending') return res.status(409).json({ error: `Payment already ${payRow.status}` });
-
-    await db().from('platform_payments').update({ status: 'rejected' }).eq('id', paymentId);
-
-    // Notify operator
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (token) {
-      const { data: opRow } = await db().from('operators')
-        .select('telegram_chat_id, telegram_id').eq('id', payRow.operator_id).single();
-      const chatId = opRow?.telegram_chat_id || opRow?.telegram_id;
-      if (chatId) {
-        const pl = JSON.stringify({
-          chat_id: chatId,
-          text: `❌ *Payment Rejected*\n\nYour listing payment for *${payRow.game_name}* was rejected.\n\nPlease re-submit with the correct UTR number.`,
-          parse_mode: 'Markdown'
-        });
-        const r = require('https').request({
-          hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(pl) }
-        }, x => x.resume());
-        r.on('error', () => {}); r.write(pl); r.end();
-      }
-    }
-
-    return res.json({ ok: true });
   }
 
   /* ── Public: get live game called numbers ── */

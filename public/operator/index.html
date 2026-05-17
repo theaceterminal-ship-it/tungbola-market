@@ -243,10 +243,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   <div class="gate-card">
     <div class="gate-logo">🎯</div>
     <div class="gate-title">Operator Panel</div>
-    <div class="gate-sub">Enter your API key to manage your Tungbola games</div>
-    <div class="gate-lbl">API Key</div>
-    <input class="gate-input" id="gateKey" type="text" placeholder="Paste your API key here" autocomplete="off" autocapitalize="none" spellcheck="false">
-    <button class="gate-btn" id="gateBtn" onclick="login()">Access Dashboard →</button>
+    <div style="display:flex;gap:0;margin-bottom:20px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+      <button id="tabLogin" onclick="showGateTab('login')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#6d28d9;color:#fff;transition:all .2s">Login</button>
+      <button id="tabSignup" onclick="showGateTab('signup')" style="flex:1;padding:9px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#fff;color:#6b7280;transition:all .2s">New Account</button>
+    </div>
+    <div id="formLogin">
+      <div class="gate-lbl">API Key</div>
+      <input class="gate-input" id="gateKey" type="text" placeholder="Paste your API key here" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button class="gate-btn" id="gateBtn" onclick="login()">Access Dashboard →</button>
+    </div>
+    <div id="formSignup" style="display:none">
+      <div class="gate-lbl">License Key</div>
+      <input class="gate-input" id="signupKey" type="text" placeholder="TBM-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div class="gate-lbl" style="margin-top:10px">Your Name / Business Name</div>
+      <input class="gate-input" id="signupName" type="text" placeholder="e.g. Ravi's Tambola">
+      <div class="gate-lbl" style="margin-top:10px">Email (optional)</div>
+      <input class="gate-input" id="signupEmail" type="email" placeholder="you@example.com">
+      <button class="gate-btn" id="signupBtn" onclick="signup()">Create Account →</button>
+    </div>
     <div class="gate-err" id="gateErr"></div>
   </div>
 </div>
@@ -369,23 +383,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   </div>
 </div>
 
-<div class="modal-backdrop" id="payFeeModal" onclick="backdropClose(event,'payFeeModal')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-header">
-      <div class="modal-title">💰 Pay Listing Fee</div>
-      <button class="modal-close" onclick="closeModal('payFeeModal')">✕</button>
-    </div>
-    <div class="modal-body" id="payFeeBody"></div>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 const API = '/api/operator';
 let apiKey = '', operator = null, games = [], purchases = [];
-let adminUpiId = '';
+
 let activeTab = 'home';
 let salesFilter = 'pending', salesSearch = '', salesGameFilter = '';
 let refreshTimer = null, toastT;
@@ -405,6 +409,47 @@ async function api(action, extra = {}) {
 }
 
 /* ── AUTH ── */
+function showGateTab(tab) {
+  document.getElementById('formLogin').style.display  = tab === 'login'  ? '' : 'none';
+  document.getElementById('formSignup').style.display = tab === 'signup' ? '' : 'none';
+  document.getElementById('tabLogin').style.background  = tab === 'login'  ? '#6d28d9' : '#fff';
+  document.getElementById('tabLogin').style.color       = tab === 'login'  ? '#fff' : '#6b7280';
+  document.getElementById('tabSignup').style.background = tab === 'signup' ? '#6d28d9' : '#fff';
+  document.getElementById('tabSignup').style.color      = tab === 'signup' ? '#fff' : '#6b7280';
+  document.getElementById('gateErr').textContent = '';
+}
+
+async function signup() {
+  const licenseKey = document.getElementById('signupKey').value.trim().toUpperCase();
+  const name       = document.getElementById('signupName').value.trim();
+  const email      = document.getElementById('signupEmail').value.trim();
+  const errEl = document.getElementById('gateErr');
+  const btn   = document.getElementById('signupBtn');
+  errEl.textContent = '';
+  if (!licenseKey) { errEl.textContent = 'Enter your license key'; return; }
+  if (!name)        { errEl.textContent = 'Enter your name'; return; }
+  btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    const res = await fetch('/api/marketplace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'operator-signup', licenseKey, name, email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    apiKey = data.operator.apiKey;
+    operator = data.operator;
+    games = [];
+    localStorage.setItem('op_key', apiKey);
+    await loadPurchases();
+    startApp();
+    toast(`✅ Welcome! Save your API key: ${apiKey}`);
+  } catch(e) {
+    errEl.textContent = e.message || 'Signup failed';
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+}
+
 async function login() {
   const key = document.getElementById('gateKey').value.trim();
   const errEl = document.getElementById('gateErr');
@@ -417,7 +462,6 @@ async function login() {
     const data = await api('get-info');
     operator = data.operator;
     games = data.games || [];
-    adminUpiId = data.adminUpiId || '';
     localStorage.setItem('op_key', key);
     await loadPurchases();
     startApp();
@@ -459,7 +503,6 @@ function startApp() {
 async function loadGames() {
   const data = await api('get-info');
   games = data.games || [];
-  adminUpiId = data.adminUpiId || adminUpiId;
 }
 
 async function loadPurchases() {
@@ -602,33 +645,6 @@ function renderGames() {
         <button class="gc-btn primary" onclick="openAssignModal('${g.id}')">📋 Sheets</button>
         <button class="gc-btn danger" onclick="confirmDelete('${g.id}')">🗑️</button>
       </div>
-      ${g.status === 'draft' && g.platformPaymentStatus !== 'verified' && adminUpiId ? (() => {
-        const fee = Math.round((g.sheetCount || 0) * 1.99 * 100) / 100;
-        const tn  = encodeURIComponent('Listing Fee ' + g.name);
-        const pa  = encodeURIComponent(adminUpiId);
-        const qrData = encodeURIComponent(`upi://pay?pa=${adminUpiId}&pn=TungbolaMarket&am=${fee}&tn=Listing Fee ${g.name}&cu=INR`);
-        const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${qrData}`;
-        const upiLink = `/api/pay-redirect?pa=${pa}&pn=TungbolaMarket&am=${fee}&tn=${tn}`;
-        const isPending = g.platformPaymentStatus === 'pending';
-        return `<div style="margin:0 12px 14px;padding:14px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px">
-          <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:10px">
-            💰 Listing Fee — ₹${fee}
-            ${isPending ? '<span style="font-size:11px;color:#d97706;font-weight:600;margin-left:6px">⏳ Verification pending</span>' : ''}
-          </div>
-          ${!isPending ? `
-          <div style="display:flex;gap:12px;align-items:flex-start">
-            <img src="${qrUrl}" style="width:90px;height:90px;border-radius:8px;border:1px solid #e9d5ff" alt="Pay QR">
-            <div style="flex:1">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Scan QR or tap below to pay ₹${fee} to <strong>${esc(adminUpiId)}</strong></div>
-              <a href="${upiLink}" target="_blank" style="display:block;text-align:center;padding:8px 12px;background:#7c3aed;color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:8px">📱 Open UPI App</a>
-              <div style="display:flex;gap:6px">
-                <input id="utr-${g.id}" placeholder="UTR / Transaction ID" style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;outline:none">
-                <button onclick="submitListingFee('${g.id}')" style="padding:7px 12px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Submit UTR</button>
-              </div>
-            </div>
-          </div>` : `<div style="font-size:12px;color:#92400e;background:#fef3c7;padding:8px 12px;border-radius:8px">Payment submitted — waiting for admin to verify and publish your game.</div>`}
-        </div>`;
-      })() : ''}
     </div>`;
   });
   document.getElementById('gamesContent').innerHTML = h;
@@ -1137,62 +1153,12 @@ async function submitAssignModal(gameId) {
 
 /* ── STATUS / DELETE / APPROVE ── */
 async function setStatus(gameId, status) {
-  if (status === 'listed') {
-    const g = games.find(x => x.id === gameId);
-    if (g && g.platformPaymentStatus !== 'verified') {
-      openPayFeeModal(g); return;
-    }
-  }
   try {
     await api('set-status', { gameId, status });
     toast(`Status updated → ${status}`);
     await loadGames();
     renderGames(); renderHome();
   } catch(e) { toast(e.message || 'Failed'); }
-}
-
-function openPayFeeModal(g) {
-  const fee = Math.round((g.sheetCount || 0) * 1.99 * 100) / 100;
-  const isPending = g.platformPaymentStatus === 'pending';
-  let body = '';
-
-  if (!adminUpiId) {
-    body = `<p style="color:#b91c1c;font-size:13px">Admin UPI not configured yet. Contact support.</p>`;
-  } else if (isPending) {
-    body = `
-      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:12px;font-size:13px;color:#92400e">
-        ⏳ Your payment of <strong>₹${fee}</strong> is under review. Game goes live once admin verifies.
-      </div>`;
-  } else {
-    const tn      = encodeURIComponent('Listing Fee ' + g.name);
-    const pa      = encodeURIComponent(adminUpiId);
-    const qrData  = encodeURIComponent(`upi://pay?pa=${adminUpiId}&pn=TungbolaMarket&am=${fee}&tn=Listing Fee ${g.name}&cu=INR`);
-    const qrUrl   = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${qrData}`;
-    const upiUrl  = `/api/pay-redirect?pa=${pa}&pn=TungbolaMarket&am=${fee}&tn=${tn}`;
-    body = `
-      <div style="text-align:center;margin-bottom:14px">
-        <div style="font-size:28px;font-weight:900;color:#7c3aed">₹${fee}</div>
-        <div style="font-size:12px;color:#6b7280">${g.sheetCount} sheets × ₹1.99 listing fee</div>
-      </div>
-      <div style="display:flex;justify-content:center;margin-bottom:14px">
-        <img src="${qrUrl}" style="width:160px;height:160px;border-radius:12px;border:2px solid #e9d5ff" alt="Pay QR">
-      </div>
-      <div style="font-size:12px;color:#6b7280;text-align:center;margin-bottom:14px">
-        Scan QR or tap below · Pay to <strong>${esc(adminUpiId)}</strong>
-      </div>
-      <a href="${upiUrl}" target="_blank" style="display:block;text-align:center;padding:12px;background:#7c3aed;color:#fff;border-radius:10px;font-size:15px;font-weight:800;text-decoration:none;margin-bottom:14px">
-        📱 Open UPI App — ₹${fee}
-      </a>
-      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">After paying, enter your UTR / Transaction ID:</div>
-      <div style="display:flex;gap:8px">
-        <input id="payFeeUtr" placeholder="e.g. 123456789012" style="flex:1;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;outline:none">
-        <button onclick="submitListingFee('${g.id}')" style="padding:10px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Submit</button>
-      </div>
-      <div class="form-err" id="payFeeErr" style="margin-top:8px"></div>`;
-  }
-
-  document.getElementById('payFeeBody').innerHTML = body;
-  openModal('payFeeModal');
 }
 
 async function confirmDelete(gameId) {
@@ -1248,31 +1214,6 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-async function submitListingFee(gameId) {
-  // Read from modal input first, fall back to inline card input
-  const modalInput  = document.getElementById('payFeeUtr');
-  const inlineInput = document.getElementById('utr-' + gameId);
-  const utr = ((modalInput || inlineInput)?.value || '').trim().replace(/\s/g, '');
-  const errEl = document.getElementById('payFeeErr');
-  if (utr.length < 6) {
-    if (errEl) errEl.textContent = '❌ Enter your UTR / transaction ID (min 6 chars)';
-    else toast('❌ Enter your UTR / transaction ID (min 6 chars)');
-    return;
-  }
-  if (errEl) errEl.textContent = '';
-  try {
-    await api('submit-platform-payment', { gameId, utr });
-    closeModal('payFeeModal');
-    toast('✅ Payment submitted — waiting for admin verification');
-    await loadGames();
-    renderGames(); renderHome();
-  } catch(e) {
-    const msg = '❌ ' + (e.message || 'Failed to submit');
-    if (errEl) errEl.textContent = msg;
-    else toast(msg);
-  }
-}
-
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('on');
@@ -1286,7 +1227,6 @@ function toast(msg) {
     apiKey = saved;
     api('get-info').then(async data => {
       operator = data.operator; games = data.games || [];
-      adminUpiId = data.adminUpiId || '';
       await loadPurchases();
       startApp();
     }).catch(() => {
