@@ -75,70 +75,6 @@ async function editMessage(chatId, messageId, text, extra = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Admin — license key management (admin chat only)
-// ─────────────────────────────────────────────────────────────
-
-function genLicenseKey() {
-  const seg = () => crypto.randomBytes(2).toString('hex').toUpperCase();
-  return `TBM-${seg()}${seg().slice(0, 2)}-${seg()}-${seg()}`;
-}
-
-function isAdmin(chatId) {
-  const adminChatId = String(process.env.TELEGRAM_ADMIN_CHAT_ID || '');
-  return adminChatId && String(chatId) === adminChatId;
-}
-
-async function handleAdminHelp(chatId) {
-  await tgReply(chatId,
-    `*Admin — License Keys*\n\n` +
-    `/genkey lifetime — Lifetime license\n` +
-    `/genkey annual — Annual license (1 year)\n` +
-    `/genkey trial — Trial license (30 days)\n` +
-    `/listkeys — Show all keys\n` +
-    `/revokekey KEY — Revoke a key`
-  );
-}
-
-async function handleGenKey(chatId, args) {
-  if (!isAdmin(chatId)) { await tgReply(chatId, '⛔ Admin only.'); return; }
-  const plan = (args || 'lifetime').trim().toLowerCase();
-  if (!['lifetime', 'annual', 'trial'].includes(plan)) {
-    await tgReply(chatId, '❌ Plan must be: `lifetime`, `annual`, or `trial`'); return;
-  }
-  const key = genLicenseKey();
-  let expiresAt = null;
-  if (plan === 'annual') expiresAt = Date.now() + 365 * 86400000;
-  if (plan === 'trial')  expiresAt = Date.now() + 30  * 86400000;
-  const { error } = await db().from('licenses').insert({ key, plan, status: 'unused', expires_at: expiresAt, created_at: Date.now() });
-  if (error) { await tgReply(chatId, `❌ DB error: ${error.message}`); return; }
-  const expStr = expiresAt ? `\nExpires: ${new Date(expiresAt).toLocaleDateString('en-IN')}` : '\nNever expires';
-  await tgReply(chatId,
-    `✅ *License Key Generated*\n\n\`${key}\`\n\nPlan: *${plan}*${expStr}\n\nSend this to the operator after payment.`
-  );
-}
-
-async function handleListKeys(chatId) {
-  if (!isAdmin(chatId)) { await tgReply(chatId, '⛔ Admin only.'); return; }
-  const { data: keys } = await db().from('licenses').select('*').order('created_at', { ascending: false }).limit(20);
-  if (!keys?.length) { await tgReply(chatId, 'No license keys yet. Use `/genkey` to create one.'); return; }
-  const lines = keys.map(k => {
-    const icon = k.status === 'unused' ? '🟢' : k.status === 'active' ? '🔵' : '🔴';
-    const exp  = k.expires_at ? ` · exp ${new Date(k.expires_at).toLocaleDateString('en-IN')}` : '';
-    return `${icon} \`${k.key}\` · ${k.plan}${exp}`;
-  }).join('\n');
-  await tgReply(chatId, `*License Keys (last 20)*\n\n${lines}\n\n🟢 unused · 🔵 active · 🔴 revoked`);
-}
-
-async function handleRevokeKey(chatId, args) {
-  if (!isAdmin(chatId)) { await tgReply(chatId, '⛔ Admin only.'); return; }
-  const key = (args || '').trim().toUpperCase();
-  if (!key) { await tgReply(chatId, 'Usage: `/revokekey TBM-XXXX-XXXX-XXXX`'); return; }
-  const { data } = await db().from('licenses').update({ status: 'revoked' }).eq('key', key).select('key');
-  if (!data?.length) { await tgReply(chatId, '❌ Key not found.'); return; }
-  await tgReply(chatId, `🔴 Revoked: \`${key}\``);
-}
-
-// ─────────────────────────────────────────────────────────────
 // Operator helpers
 // ─────────────────────────────────────────────────────────────
 
@@ -514,10 +450,17 @@ async function handleBuyGame(chatId, telegramId, gameId) {
     .select('*').eq('id', gameId).eq('status', 'listed').single();
   if (!gRow) { await tgReply(chatId, '❌ Game not found or no longer available.'); return; }
 
-  let operatorUpiId = null;
+  let operatorUpiId = null, operatorDisplayName = null;
   if (gRow.operator_id) {
-    const { data: opRow } = await db().from('operators').select('upi_id').eq('id', gRow.operator_id).single();
+    const { data: opRow } = await db().from('operators').select('upi_id, display_name').eq('id', gRow.operator_id).single();
     operatorUpiId = opRow?.upi_id || null;
+    operatorDisplayName = opRow?.display_name || null;
+  }
+  if (!operatorUpiId) {
+    // Admin-managed games have no operator — fall back to the platform-wide UPI ID
+    // (same fallback the website purchase page uses via /api/config → app_config.upiId).
+    const { data: cfgRow } = await db().from('config').select('value').eq('key', 'app_config').single();
+    operatorUpiId = cfgRow?.value?.upiId || null;
   }
   if (!operatorUpiId) {
     await tgReply(chatId, '❌ This game is not accepting payments yet. Try the website or contact the organiser.');
@@ -530,7 +473,7 @@ async function handleBuyGame(chatId, telegramId, gameId) {
   await showPickScreen(chatId, telegramId, {
     gameId: gRow.id, gameName: gRow.name,
     pricePerSheet: gRow.price_per_sheet, pricingTiers: gRow.pricing_tiers || [],
-    operatorUpiId, operatorName: gRow.operator_name || 'Operator',
+    operatorUpiId, operatorName: operatorDisplayName || gRow.operator_name || 'Tungbola',
     sheetCount: gRow.sheet_count, soldCount: gRow.sold_count
   });
 }
@@ -983,9 +926,15 @@ async function showPaymentScreen(chatId, _msgId, telegramId, data) {
 }
 
 async function sendTelegramOrderNotification(purchase, game) {
-  const { data: opRow } = await db().from('operators')
-    .select('telegram_chat_id, telegram_id').eq('id', game.operatorId).single();
-  const opChatId = opRow?.telegram_chat_id || opRow?.telegram_id;
+  let opChatId = null;
+  if (game.operatorId) {
+    const { data: opRow } = await db().from('operators')
+      .select('telegram_chat_id, telegram_id').eq('id', game.operatorId).single();
+    opChatId = opRow?.telegram_chat_id || opRow?.telegram_id || null;
+  }
+  // Admin-managed games have no operator — notify the admin chat instead, same as
+  // the website's order-notification path in api/marketplace.js.
+  if (!opChatId) opChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || null;
   if (!opChatId) return;
 
   const pickNote = purchase.requestedSheetNums?.length
@@ -1392,26 +1341,18 @@ module.exports = async function(req, res) {
         const args = (cmdMatch[2] || '').trim();
 
         if (cmd === 'start') {
-          if (isAdmin(chatId)) {
-            await handleAdminHelp(chatId);
+          const op = await getOpByTgId(tgId);
+          if (op) {
+            await handleOperatorHelp(chatId);
+          } else if (args && args.startsWith('buy_')) {
+            await handleBuyGame(chatId, tgId, args.slice(4));
           } else {
-            const op = await getOpByTgId(tgId);
-            if (op) {
-              await handleOperatorHelp(chatId);
-            } else if (args && args.startsWith('buy_')) {
-              await handleBuyGame(chatId, tgId, args.slice(4));
-            } else {
-              await handlePlayerStart(chatId, tgId);
-            }
+            await handlePlayerStart(chatId, tgId);
           }
         } else if (cmd === 'help') {
-          if (isAdmin(chatId)) {
-            await handleAdminHelp(chatId);
-          } else {
-            const op = await getOpByTgId(tgId);
-            if (op) await handleOperatorHelp(chatId);
-            else    await tgReply(chatId, `/games — browse & buy sheets\n/myorders — your orders`);
-          }
+          const op = await getOpByTgId(tgId);
+          if (op) await handleOperatorHelp(chatId);
+          else    await tgReply(chatId, `/games — browse & buy sheets\n/myorders — your orders`);
         } else if (cmd === 'myorders') {
           await handleMyOrders(chatId, tgId, args);
         } else if (cmd === 'link') {
@@ -1428,12 +1369,6 @@ module.exports = async function(req, res) {
           await handleGames(chatId);
         } else if (cmd === 'buy') {
           await handleBuyGame(chatId, tgId, args.split(' ')[0]);
-        } else if (cmd === 'genkey') {
-          await handleGenKey(chatId, args);
-        } else if (cmd === 'listkeys') {
-          await handleListKeys(chatId);
-        } else if (cmd === 'revokekey') {
-          await handleRevokeKey(chatId, args);
         }
         return res.status(200).json({ ok: true });
       }

@@ -77,6 +77,10 @@ module.exports = async function(req, res) {
     const { password, type } = req.query;
 
     if (!password) {
+      // Public, unauthenticated game listing — hit by the website and every Telegram
+      // /games call. Safe to cache briefly at the edge; overrides the no-store default
+      // secureHeaders() set above. Admin/authenticated branches below stay no-store.
+      res.setHeader('Cache-Control', 'public, s-maxage=5, stale-while-revalidate=30');
       const { data: gameRows } = await db().from('games').select('*').eq('status', 'listed').order('created_at', { ascending: false }).limit(200);
       // Batch-load operator UPI/support info for games that have an operator
       const opIds = [...new Set((gameRows || []).filter(g => g.operator_id).map(g => g.operator_id))];
