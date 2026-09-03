@@ -770,7 +770,8 @@ module.exports = async function(req, res) {
       ok: true,
       calledNumbers: data?.called_numbers || [],
       lastNumber: data?.last_number || null,
-      lastCalledAt: data?.last_called_at || null
+      lastCalledAt: data?.last_called_at || null,
+      claimedPrizes: data?.claimed_prizes || []
     });
   }
 

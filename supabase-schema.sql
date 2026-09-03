@@ -232,3 +232,9 @@ CREATE INDEX IF NOT EXISTS idx_platform_payments_game     ON platform_payments(g
 
 -- Player UTR for Telegram purchase tracking (cross-ref against bank statement)
 ALTER TABLE purchases ADD COLUMN IF NOT EXISTS utr TEXT;
+
+-- Live game: track the one channel message we edit in place (called-numbers
+-- board) instead of spamming a new message per number, plus which prizes have
+-- been claimed this session (resets on reset-live, same as called_numbers).
+ALTER TABLE live_games ADD COLUMN IF NOT EXISTS channel_message_id TEXT;
+ALTER TABLE live_games ADD COLUMN IF NOT EXISTS claimed_prizes      JSONB NOT NULL DEFAULT '[]';

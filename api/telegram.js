@@ -1093,6 +1093,52 @@ async function broadcastGame(channelId, game) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Live game — channel sync (called-numbers board + prize claims)
+// ─────────────────────────────────────────────────────────────
+
+// One message is edited in place as numbers are called, instead of sending a
+// new message per call (a full 90-number game would otherwise flood the
+// channel with 90 separate messages). Returns the message id to persist
+// (unchanged if we successfully edited the existing one, new if we had to
+// send fresh — e.g. the old message is gone or too old for Telegram to edit).
+async function broadcastLiveNumbers(channelId, existingMessageId, gameName, calledNumbers, lastNumber) {
+  if (!channelId) return existingMessageId || null;
+  const sorted = [...calledNumbers].sort((a, b) => a - b);
+  const text =
+    `🔴 *LIVE — ${gameName}*\n\n` +
+    (lastNumber ? `📢 *Just called: ${lastNumber}*\n\n` : '') +
+    `*${calledNumbers.length}/90 called:*\n` +
+    (sorted.length ? sorted.join(', ') : '_none yet_');
+
+  if (existingMessageId) {
+    const r = await tgSendRead('editMessageText', {
+      chat_id: channelId, message_id: existingMessageId, text, parse_mode: 'Markdown'
+    });
+    if (r?.ok) return existingMessageId;
+    // Couldn't edit (message deleted, too old, etc.) — fall through and send fresh.
+  }
+  const sent = await tgSendRead('sendMessage', { chat_id: channelId, text, parse_mode: 'Markdown' });
+  return sent?.ok && sent.result?.message_id ? String(sent.result.message_id) : (existingMessageId || null);
+}
+
+// Distinct one-off announcement per prize claimed — kept as its own message
+// (not edited away) so the channel keeps a running history of winners.
+async function broadcastPrizeClaim(channelId, gameName, prizeName, amount, winnerName, remainingPrizes) {
+  if (!channelId) return;
+  const emoji = PRIZE_EMOJI[prizeName] || '🏆';
+  const remainingText = remainingPrizes.length
+    ? remainingPrizes.map(p => `${PRIZE_EMOJI[p.name] || '🎯'} ${p.name} — ₹${Number(p.amount).toLocaleString('en-IN')}`).join('\n')
+    : '_All prizes claimed — game over!_';
+  const text =
+    `${emoji} *${prizeName} CLAIMED!*\n` +
+    (winnerName ? `👤 ${winnerName}\n` : '') +
+    `💰 ₹${Number(amount).toLocaleString('en-IN')}\n\n` +
+    `🎮 ${gameName}\n\n` +
+    `*Remaining prizes:*\n${remainingText}`;
+  await tgSend('sendMessage', { chat_id: channelId, text, parse_mode: 'Markdown' });
+}
+
+// ─────────────────────────────────────────────────────────────
 // Approve / Reject
 // ─────────────────────────────────────────────────────────────
 
@@ -1415,7 +1461,9 @@ module.exports = async function(req, res) {
   return res.status(200).json({ ok: true });
 };
 
-module.exports.broadcastGame        = broadcastGame;
-module.exports.tgSend               = tgSend;
-module.exports.notifyPlayerApproved = notifyPlayerApproved;
-module.exports.notifyPlayerRejected = notifyPlayerRejected;
+module.exports.broadcastGame         = broadcastGame;
+module.exports.tgSend                = tgSend;
+module.exports.notifyPlayerApproved  = notifyPlayerApproved;
+module.exports.notifyPlayerRejected  = notifyPlayerRejected;
+module.exports.broadcastLiveNumbers  = broadcastLiveNumbers;
+module.exports.broadcastPrizeClaim   = broadcastPrizeClaim;
