@@ -341,7 +341,7 @@ module.exports = async function(req, res) {
       const { data: pushRow } = await db().from('push_subscriptions').select('subscription').eq('phone', normPhone(purchase.phone)).single();
       if (pushRow?.subscription) await sendPush(pushRow.subscription);
     } catch(e) { console.error('Push failed:', e.message); }
-    try { await notifyPlayerApproved(normPhone(purchase.phone), game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails); } catch(e) {}
+    try { await notifyPlayerApproved(normPhone(purchase.phone), game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails, sheetList); } catch(e) {}
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
@@ -753,7 +753,7 @@ module.exports = async function(req, res) {
     await db().from('purchases').update({ download_token: dlToken, downloaded: false, downloaded_at: null, status: 'approved' }).eq('purchase_id', purchaseId);
 
     // Re-notify player via Telegram
-    try { await notifyPlayerApproved(normPhone(session.phone), tokenRows[0].game_name, pRow.quantity, pRow.amount, dlToken); } catch(e) {}
+    try { await notifyPlayerApproved(normPhone(session.phone), tokenRows[0].game_name, pRow.quantity, pRow.amount, dlToken, null, null, tokenRows[0].sheets); } catch(e) {}
 
     return res.json({ ok: true, downloadToken: dlToken });
   }

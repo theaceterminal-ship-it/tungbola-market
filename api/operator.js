@@ -399,7 +399,7 @@ module.exports = async function(req, res) {
       if (pushRow?.subscription) await sendPush(pushRow.subscription);
     } catch(e) { console.error('Push failed:', e.message); }
     try {
-      await notifyPlayerApproved(np, game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails);
+      await notifyPlayerApproved(np, game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails, sheetList);
     } catch(e) { console.error('Telegram notify failed:', e.message); }
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });

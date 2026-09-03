@@ -4,6 +4,11 @@ const { sendPush } = require('./_push');
 const crypto = require('crypto');
 const https  = require('https');
 
+// Cap on how many sheet PDFs we push directly into a Telegram chat on approval.
+// Beyond this, the "Download Sheets" link is still sent — pushing dozens of
+// individual documents into one chat would just be spam.
+const SHEET_DOC_LIMIT = 10;
+
 // ─────────────────────────────────────────────────────────────
 // Telegram API helpers
 // ─────────────────────────────────────────────────────────────
@@ -92,30 +97,47 @@ async function getPlayerPhone(telegramId) {
   return data?.phone || null;
 }
 
-async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken, joinLink, joinDetails) {
+async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken, joinLink, joinDetails, sheets) {
   try {
     const { data } = await db().from('player_telegram').select('telegram_id').eq('phone', String(phone)).single();
     if (!data?.telegram_id) return;
+    const chatId = data.telegram_id;
     const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
 
     let joiningSection = '';
     if (joinLink) joiningSection += `\n\n🔗 *Game Joining Link:*\n${joinLink}`;
     if (joinDetails) joiningSection += `\n${joinDetails}`;
 
+    const canSendDocs = Array.isArray(sheets) && sheets.length > 0 && sheets.length <= SHEET_DOC_LIMIT;
+
     const buttons = [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${dlToken}` }]];
     if (joinLink) buttons[0].push({ text: '🔗 Join Game', url: joinLink });
 
     await tgSend('sendMessage', {
-      chat_id: data.telegram_id,
+      chat_id: chatId,
       text:
         `✅ *Order Approved!*\n\n` +
         `🎮 ${gameName}\n` +
         `📋 ${quantity} sheets · ₹${amount}\n\n` +
-        `Tap below to download your sheets.\n_Link expires in 6 hours._` +
+        (canSendDocs
+          ? `Sending your sheet${quantity === 1 ? '' : 's'} below 👇 _(the button re-downloads them if you need to later)_`
+          : `Tap below to download your sheets.\n_Link expires in 6 hours._`) +
         joiningSection,
       parse_mode: 'Markdown',
       reply_markup: { inline_keyboard: buttons }
     });
+
+    // Push the actual PDFs straight into the chat so players never have to
+    // leave Telegram — the button above stays as a fallback/re-download option.
+    if (canSendDocs) {
+      for (const s of sheets) {
+        await tgSend('sendDocument', {
+          chat_id: chatId,
+          document: s.url,
+          caption: `🎫 Sheet #${s.n} — ${gameName}`,
+        });
+      }
+    }
   } catch (e) {}
 }
 
@@ -1154,11 +1176,12 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
     if (pushRow?.subscription) await sendPush(pushRow.subscription);
   } catch (e) {}
 
-  // Telegram notification (if player linked)
+  // Telegram notification (if player linked) — includes the sheets themselves
+  // so players can download without leaving the chat.
   await notifyPlayerApproved(
     String(purchase.phone).replace(/\D/g, ''),
     purchase.gameName, purchase.quantity, purchase.amount, dlToken,
-    game.joinLink, game.joinDetails
+    game.joinLink, game.joinDetails, sheetList
   );
 
   await answerCallback(callbackQueryId, '✅ Approved!');
@@ -1308,12 +1331,21 @@ module.exports = async function(req, res) {
               await db().from('download_tokens').insert({ token: newToken, sheets: tokenRows[0].sheets, game_name: tokenRows[0].game_name, purchase_id: purchaseId });
               await db().from('purchases').update({ download_token: newToken, downloaded: false, downloaded_at: null, status: 'approved' }).eq('purchase_id', purchaseId);
               const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+              const sheets = tokenRows[0].sheets;
+              const canSendDocs = Array.isArray(sheets) && sheets.length > 0 && sheets.length <= SHEET_DOC_LIMIT;
               await tgSend('sendMessage', {
                 chat_id: chatId,
-                text: `✅ *New download link ready!*\n\n🎮 ${pRow.game_name}\n\n_Link expires in 6 hours._`,
+                text: canSendDocs
+                  ? `✅ *Resending your sheets!*\n\n🎮 ${pRow.game_name}`
+                  : `✅ *New download link ready!*\n\n🎮 ${pRow.game_name}\n\n_Link expires in 6 hours._`,
                 parse_mode: 'Markdown',
                 reply_markup: { inline_keyboard: [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${newToken}` }]] }
               });
+              if (canSendDocs) {
+                for (const s of sheets) {
+                  await tgSend('sendDocument', { chat_id: chatId, document: s.url, caption: `🎫 Sheet #${s.n} — ${pRow.game_name}` });
+                }
+              }
             }
           }
         }
