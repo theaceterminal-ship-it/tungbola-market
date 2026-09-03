@@ -46,6 +46,26 @@ async function getOperator(apiKey) {
   return data ? operatorFromRow(data) : null;
 }
 
+// Resolves the live_games row key for a live-game action. If gameId matches a
+// real marketplace game (Plan A — created via GamesHome/the wizard), that row
+// is authoritative: ownership is enforced and its name comes from the games
+// table. If it doesn't match anything (Plan B — games are generated locally
+// against a separate Supabase project and never touch this `games` table),
+// it's treated as an "ad-hoc" live session: the key is namespaced with the
+// operator's own id so two operators' locally-generated ids (e.g. Plan B's
+// `GAME-<timestamp>`) can never collide or let one operator touch another's
+// session, and the caller must supply gameName directly since there's no row
+// here to read it from.
+async function resolveLiveKey(operator, gameId, gameName) {
+  const { data: gRow } = await db().from('games').select('operator_id, name').eq('id', gameId).single();
+  if (gRow) {
+    if (gRow.operator_id !== operator.id) return { status: 403, error: 'Not your game' };
+    return { key: gameId, name: gRow.name };
+  }
+  if (!gameName) return { status: 400, error: 'gameName required for a game not in your marketplace listings' };
+  return { key: `local:${operator.id}:${gameId}`, name: String(gameName).trim().slice(0, 80) };
+}
+
 module.exports = async function(req, res) {
   secureHeaders(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -430,16 +450,16 @@ module.exports = async function(req, res) {
 
   /* ── Call a number (live game) ── */
   if (action === 'call-number') {
-    const { gameId, number } = body;
+    const { gameId, gameName, number } = body;
     if (!gameId) return res.status(400).json({ error: 'gameId required' });
     const num = parseInt(number);
     if (!num || num < 1 || num > 90) return res.status(400).json({ error: 'Number must be 1–90' });
 
-    const { data: gRow } = await db().from('games').select('operator_id, name').eq('id', gameId).single();
-    if (!gRow) return res.status(404).json({ error: 'Game not found' });
-    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    const resolved = await resolveLiveKey(operator, gameId, gameName);
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+    const liveKey = resolved.key, displayName = resolved.name;
 
-    const { data: liveRow } = await db().from('live_games').select('*').eq('game_id', gameId).single();
+    const { data: liveRow } = await db().from('live_games').select('*').eq('game_id', liveKey).single();
     const calledNumbers = liveRow?.called_numbers || [];
     if (!calledNumbers.includes(num)) calledNumbers.push(num);
 
@@ -449,13 +469,13 @@ module.exports = async function(req, res) {
     if (operator.playerChannelId) {
       try {
         channelMessageId = await broadcastLiveNumbers(
-          operator.playerChannelId, channelMessageId, gRow.name, calledNumbers, num
+          operator.playerChannelId, channelMessageId, displayName, calledNumbers, num
         );
       } catch (e) { console.error('Live number broadcast failed:', e.message); }
     }
 
     const newState = {
-      game_id: gameId, called_numbers: calledNumbers, last_number: num,
+      game_id: liveKey, called_numbers: calledNumbers, last_number: num,
       last_called_at: Date.now(), expires_at: new Date(Date.now() + 7200000).toISOString(),
       channel_message_id: channelMessageId,
       claimed_prizes: liveRow?.claimed_prizes || []
@@ -464,32 +484,45 @@ module.exports = async function(req, res) {
     return res.json({ ok: true, calledNumbers, lastNumber: num });
   }
 
-  /* ── Claim a prize (live game) — broadcasts remaining prizes to the channel ── */
+  /* ── Claim a prize (live game) — broadcasts remaining prizes to the channel ──
+     For a real marketplace game, the prize definition and full prize list come
+     from the games row (authoritative, can't be spoofed by the client). For a
+     Plan B ad-hoc game there's no such row, so the client must supply the
+     prize's amount and the full current prize list directly. */
   if (action === 'claim-prize') {
-    const { gameId, prizeName, winnerName } = body;
+    const { gameId, gameName, prizeName, winnerName, amount, allPrizes: clientPrizes } = body;
     if (!gameId || !prizeName) return res.status(400).json({ error: 'gameId and prizeName required' });
 
-    const { data: gRow } = await db().from('games').select('operator_id, name, prizes').eq('id', gameId).single();
-    if (!gRow) return res.status(404).json({ error: 'Game not found' });
-    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    const resolved = await resolveLiveKey(operator, gameId, gameName);
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+    const liveKey = resolved.key, displayName = resolved.name;
 
-    const allPrizes = Array.isArray(gRow.prizes) ? gRow.prizes : [];
-    const prizeDef = allPrizes.find(p => p.name === prizeName);
-    if (!prizeDef) return res.status(400).json({ error: `"${prizeName}" is not a prize on this game` });
+    const { data: gRow } = await db().from('games').select('prizes').eq('id', gameId).single();
+    let prizeAmount, allPrizes;
+    if (gRow) {
+      allPrizes = Array.isArray(gRow.prizes) ? gRow.prizes : [];
+      const prizeDef = allPrizes.find(p => p.name === prizeName);
+      if (!prizeDef) return res.status(400).json({ error: `"${prizeName}" is not a prize on this game` });
+      prizeAmount = prizeDef.amount;
+    } else {
+      if (!amount) return res.status(400).json({ error: 'amount required for a game not in your marketplace listings' });
+      prizeAmount = Number(amount);
+      allPrizes = Array.isArray(clientPrizes) ? clientPrizes : [{ name: prizeName, amount: prizeAmount }];
+    }
 
-    const { data: liveRow } = await db().from('live_games').select('*').eq('game_id', gameId).single();
+    const { data: liveRow } = await db().from('live_games').select('*').eq('game_id', liveKey).single();
     const claimedPrizes = liveRow?.claimed_prizes || [];
     if (claimedPrizes.some(p => p.name === prizeName))
       return res.status(409).json({ error: `${prizeName} was already claimed` });
 
     const newClaimed = [...claimedPrizes, {
-      name: prizeName, amount: prizeDef.amount, winner: winnerName || null, claimedAt: Date.now()
+      name: prizeName, amount: prizeAmount, winner: winnerName || null, claimedAt: Date.now()
     }];
     const claimedNames = new Set(newClaimed.map(p => p.name));
     const remaining = allPrizes.filter(p => !claimedNames.has(p.name));
 
     await db().from('live_games').upsert({
-      game_id: gameId,
+      game_id: liveKey,
       called_numbers: liveRow?.called_numbers || [],
       last_number: liveRow?.last_number || null,
       last_called_at: liveRow?.last_called_at || null,
@@ -500,7 +533,7 @@ module.exports = async function(req, res) {
 
     if (operator.playerChannelId) {
       try {
-        await broadcastPrizeClaim(operator.playerChannelId, gRow.name, prizeName, prizeDef.amount, winnerName, remaining);
+        await broadcastPrizeClaim(operator.playerChannelId, displayName, prizeName, prizeAmount, winnerName, remaining);
       } catch (e) { console.error('Prize claim broadcast failed:', e.message); }
     }
 
@@ -509,33 +542,36 @@ module.exports = async function(req, res) {
 
   /* ── Undo a prize claim (mis-click / dispute) ── */
   if (action === 'unclaim-prize') {
-    const { gameId, prizeName } = body;
+    const { gameId, gameName, prizeName } = body;
     if (!gameId || !prizeName) return res.status(400).json({ error: 'gameId and prizeName required' });
 
-    const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
-    if (!gRow) return res.status(404).json({ error: 'Game not found' });
-    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    const resolved = await resolveLiveKey(operator, gameId, gameName);
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+    const liveKey = resolved.key;
 
-    const { data: liveRow } = await db().from('live_games').select('claimed_prizes').eq('game_id', gameId).single();
+    const { data: liveRow } = await db().from('live_games').select('claimed_prizes').eq('game_id', liveKey).single();
     const claimedPrizes = (liveRow?.claimed_prizes || []).filter(p => p.name !== prizeName);
-    await db().from('live_games').update({ claimed_prizes: claimedPrizes }).eq('game_id', gameId);
+    await db().from('live_games').update({ claimed_prizes: claimedPrizes }).eq('game_id', liveKey);
     return res.json({ ok: true, claimedPrizes });
   }
 
   /* ── Reset live game ── */
   if (action === 'reset-live') {
-    const { gameId } = body;
-    const { data: gRow } = await db().from('games').select('operator_id, name').eq('id', gameId).single();
-    if (!gRow) return res.status(404).json({ error: 'Game not found' });
-    if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    const { gameId, gameName } = body;
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
+
+    const resolved = await resolveLiveKey(operator, gameId, gameName);
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+    const liveKey = resolved.key, displayName = resolved.name;
+
     // Deleting the row wipes called numbers, the synced channel message id, and
     // claimed prizes together — a genuinely fresh start.
-    await db().from('live_games').delete().eq('game_id', gameId);
+    await db().from('live_games').delete().eq('game_id', liveKey);
     if (operator.playerChannelId) {
       try {
         await tgSend('sendMessage', {
           chat_id: operator.playerChannelId,
-          text: `🔄 *${gRow.name}* — board reset. New live session starting…`,
+          text: `🔄 *${displayName}* — board reset. New live session starting…`,
           parse_mode: 'Markdown'
         });
       } catch (e) { console.error('Reset broadcast failed:', e.message); }
