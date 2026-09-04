@@ -665,6 +665,20 @@ module.exports = async function(req, res) {
     const { error } = await db().from('generated_sheets').insert(rows);
     if (error) return res.status(500).json({ error: error.message });
 
+    // Keep the marketplace listing's sheetFrom/sheetTo/sheetCount in sync so
+    // it's actually purchasable — recomputed from every generated_sheets row
+    // tagged to this game so far, since generation can happen in batches.
+    if (dbGameId) {
+      const { data: allForGame } = await db().from('generated_sheets')
+        .select('n').eq('operator_id', operator.id).eq('game_id', dbGameId);
+      const nums = (allForGame || []).map(r => r.n);
+      if (nums.length) {
+        await db().from('games').update({
+          sheet_from: Math.min(...nums), sheet_to: Math.max(...nums), sheet_count: nums.length
+        }).eq('id', dbGameId);
+      }
+    }
+
     return res.json({ ok: true, sheetFrom: startN, sheetTo: startN + count - 1, count });
   }
 
