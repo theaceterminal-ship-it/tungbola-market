@@ -238,3 +238,22 @@ ALTER TABLE purchases ADD COLUMN IF NOT EXISTS utr TEXT;
 -- been claimed this session (resets on reset-live, same as called_numbers).
 ALTER TABLE live_games ADD COLUMN IF NOT EXISTS channel_message_id TEXT;
 ALTER TABLE live_games ADD COLUMN IF NOT EXISTS claimed_prizes      JSONB NOT NULL DEFAULT '[]';
+
+-- Generated ticket sheets (Plan B "generate" operators, server-side RNG).
+-- Unlike operator_sheets (Plan A — one uploaded PDF file per sheet), each row
+-- here IS the ticket data: 6 tickets, each a 3x9 number grid, generated and
+-- stored server-side so a claim can be verified against real data instead of
+-- trusting whatever the client sends. n = sheet number (1, 2, 3... per
+-- operator); a ticket's printed number = (n-1)*6 + position(1-6), same
+-- convention the operator-facing PDF export uses.
+CREATE TABLE IF NOT EXISTS generated_sheets (
+  operator_id TEXT    NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+  n           INTEGER NOT NULL,
+  game_id     TEXT    REFERENCES games(id) ON DELETE SET NULL,
+  tickets     JSONB   NOT NULL,
+  status      TEXT    NOT NULL DEFAULT 'available' CHECK (status IN ('available','assigned','sold')),
+  created_at  BIGINT  NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+  PRIMARY KEY (operator_id, n)
+);
+CREATE INDEX IF NOT EXISTS idx_gen_sheets_operator ON generated_sheets(operator_id);
+CREATE INDEX IF NOT EXISTS idx_gen_sheets_game     ON generated_sheets(game_id);

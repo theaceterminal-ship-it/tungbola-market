@@ -4,6 +4,7 @@ const { secureHeaders, rateLimit } = require('./_security');
 const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow, sheetFromRow } = require('./_db');
 const { sendPush } = require('./_push');
 const { notifyPlayerApproved, notifyPlayerRejected, broadcastGame, broadcastLiveNumbers, broadcastPrizeClaim, tgSend } = require('./telegram');
+const { generateTickets, verifyDividend } = require('./_tambola');
 const crypto = require('crypto');
 
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -623,6 +624,89 @@ module.exports = async function(req, res) {
     const { data: sheetRow } = await db().from('operator_sheets').select('*').eq('operator_id', operator.id).eq('n', num).single();
     if (!sheetRow) return res.status(404).json({ error: 'Sheet not found' });
     return res.json({ ok: true, sheet: sheetFromRow(sheetRow) });
+  }
+
+  /* ── Generate ticket sheets server-side (Plan B "generate") ──
+     RNG happens here, not in the browser, so ticket numbers can't be
+     fabricated client-side and claim verification (below) is trustworthy. */
+  if (action === 'generate-sheets') {
+    if (await rateLimit(req, `op-gensheets:${operator.id}`, 20, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { gameId } = body;
+    const count = Math.max(1, Math.min(500, parseInt(body.count) || 1));
+
+    if (gameId) {
+      const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
+      if (!gRow) return res.status(404).json({ error: 'Game not found' });
+      if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+    }
+
+    const { data: maxRows } = await db().from('generated_sheets')
+      .select('n').eq('operator_id', operator.id).order('n', { ascending: false }).limit(1);
+    const startN = (maxRows?.[0]?.n || 0) + 1;
+
+    const rows = Array.from({ length: count }, (_, i) => ({
+      operator_id: operator.id, n: startN + i, game_id: gameId || null,
+      tickets: generateTickets(), status: 'available'
+    }));
+    const { error } = await db().from('generated_sheets').insert(rows);
+    if (error) return res.status(500).json({ error: error.message });
+
+    return res.json({ ok: true, sheetFrom: startN, sheetTo: startN + count - 1, count });
+  }
+
+  /* ── Fetch generated sheets (for PDF export / Sheet Factory listing) ── */
+  if (action === 'get-sheets') {
+    const { gameId, from, to } = body;
+    let query = db().from('generated_sheets').select('*').eq('operator_id', operator.id);
+    if (gameId) query = query.eq('game_id', gameId);
+    if (from) query = query.gte('n', parseInt(from));
+    if (to) query = query.lte('n', parseInt(to));
+    const { data } = await query.order('n', { ascending: true }).limit(500);
+    return res.json({
+      ok: true,
+      sheets: (data || []).map(r => ({ n: r.n, gameId: r.game_id, tickets: r.tickets, status: r.status, createdAt: r.created_at }))
+    });
+  }
+
+  /* ── Verify a prize claim against real, server-held ticket + called-number data ──
+     ticketRef accepts the printed global ticket number ((n-1)*6+pos, same
+     convention as the operator PDF export) or the explicit "n-pos" form. */
+  if (action === 'verify-claim') {
+    const { gameId, gameName, ticketRef, claimType } = body;
+    if (!gameId || !ticketRef || !claimType)
+      return res.status(400).json({ error: 'gameId, ticketRef and claimType required' });
+
+    const resolved = await resolveLiveKey(operator, gameId, gameName);
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+
+    const input = String(ticketRef).trim();
+    let sheetN = null, pos = null;
+    const explicit = input.match(/^(\d+)-(\d+)$/);
+    if (explicit) {
+      sheetN = parseInt(explicit[1], 10); pos = parseInt(explicit[2], 10);
+    } else {
+      const digits = input.replace(/\D/g, '');
+      const g = parseInt(digits, 10);
+      if (g > 0) { sheetN = Math.ceil(g / 6); pos = g - (sheetN - 1) * 6; }
+    }
+    if (!sheetN || !pos || pos < 1 || pos > 6)
+      return res.status(400).json({ error: 'Ticket not found' });
+
+    const { data: sheetRow } = await db().from('generated_sheets')
+      .select('tickets').eq('operator_id', operator.id).eq('n', sheetN).single();
+    const ticket = sheetRow?.tickets?.find(t => t.pos === pos);
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+    const { data: liveRow } = await db().from('live_games').select('called_numbers').eq('game_id', resolved.key).single();
+    const calledNumbers = liveRow?.called_numbers || [];
+    if (!calledNumbers.length) return res.json({ ok: true, valid: false, reason: 'No numbers called yet.' });
+
+    const valid = verifyDividend(ticket, calledNumbers, claimType);
+    return res.json({
+      ok: true, valid, ticketId: `${sheetN}-${pos}`, calledCount: calledNumbers.length,
+      reason: valid ? 'Valid! All required numbers have been called.' : 'Not valid — required numbers not all called yet.'
+    });
   }
 
   return res.status(400).json({ error: 'Unknown action' });
