@@ -635,10 +635,18 @@ module.exports = async function(req, res) {
     const { gameId } = body;
     const count = Math.max(1, Math.min(500, parseInt(body.count) || 1));
 
+    // generated_sheets.game_id is a real foreign key to games(id), so it can
+    // only be set when gameId is an actual marketplace game — reject someone
+    // else's game outright, but a gameId that simply isn't a marketplace game
+    // (e.g. Plan B's own locally-scheduled game, not yet created here) just
+    // means these sheets are generated untagged rather than a hard error.
+    let dbGameId = null;
     if (gameId) {
       const { data: gRow } = await db().from('games').select('operator_id').eq('id', gameId).single();
-      if (!gRow) return res.status(404).json({ error: 'Game not found' });
-      if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+      if (gRow) {
+        if (gRow.operator_id !== operator.id) return res.status(403).json({ error: 'Not your game' });
+        dbGameId = gameId;
+      }
     }
 
     const { data: maxRows } = await db().from('generated_sheets')
@@ -646,7 +654,7 @@ module.exports = async function(req, res) {
     const startN = (maxRows?.[0]?.n || 0) + 1;
 
     const rows = Array.from({ length: count }, (_, i) => ({
-      operator_id: operator.id, n: startN + i, game_id: gameId || null,
+      operator_id: operator.id, n: startN + i, game_id: dbGameId,
       tickets: generateTickets(), status: 'available'
     }));
     const { error } = await db().from('generated_sheets').insert(rows);
