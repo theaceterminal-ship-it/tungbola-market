@@ -460,28 +460,28 @@ module.exports = async function(req, res) {
     if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
     const liveKey = resolved.key, displayName = resolved.name;
 
-    const { data: liveRow } = await db().from('live_games').select('*').eq('game_id', liveKey).single();
-    const calledNumbers = liveRow?.called_numbers || [];
-    if (!calledNumbers.includes(num)) calledNumbers.push(num);
+    // Atomic check-and-append (call_live_number in supabase-schema.sql) —
+    // read-then-write here would race when calls arrive close together
+    // (fast calling, or the bot and web UI at once) and silently drop numbers.
+    const { data: calledNumbers, error: rpcError } = await db().rpc('call_live_number', {
+      p_game_id: liveKey, p_number: num
+    });
+    if (rpcError) return res.status(500).json({ error: rpcError.message });
 
     // Sync to the operator's player Telegram channel, if set — edits one
     // message in place rather than sending a new one per number called.
-    let channelMessageId = liveRow?.channel_message_id || null;
     if (operator.playerChannelId) {
       try {
-        channelMessageId = await broadcastLiveNumbers(
-          operator.playerChannelId, channelMessageId, displayName, calledNumbers, num
+        const { data: liveRow } = await db().from('live_games').select('channel_message_id').eq('game_id', liveKey).single();
+        const newMessageId = await broadcastLiveNumbers(
+          operator.playerChannelId, liveRow?.channel_message_id || null, displayName, calledNumbers, num
         );
+        if (newMessageId !== liveRow?.channel_message_id) {
+          await db().from('live_games').update({ channel_message_id: newMessageId }).eq('game_id', liveKey);
+        }
       } catch (e) { console.error('Live number broadcast failed:', e.message); }
     }
 
-    const newState = {
-      game_id: liveKey, called_numbers: calledNumbers, last_number: num,
-      last_called_at: Date.now(), expires_at: new Date(Date.now() + 7200000).toISOString(),
-      channel_message_id: channelMessageId,
-      claimed_prizes: liveRow?.claimed_prizes || []
-    };
-    await db().from('live_games').upsert(newState);
     return res.json({ ok: true, calledNumbers, lastNumber: num });
   }
 
@@ -522,15 +522,20 @@ module.exports = async function(req, res) {
     const claimedNames = new Set(newClaimed.map(p => p.name));
     const remaining = allPrizes.filter(p => !claimedNames.has(p.name));
 
-    await db().from('live_games').upsert({
-      game_id: liveKey,
-      called_numbers: liveRow?.called_numbers || [],
-      last_number: liveRow?.last_number || null,
-      last_called_at: liveRow?.last_called_at || null,
-      channel_message_id: liveRow?.channel_message_id || null,
-      expires_at: new Date(Date.now() + 7200000).toISOString(),
-      claimed_prizes: newClaimed
-    });
+    // Update-only when the row already exists — never touch called_numbers
+    // here (a concurrent call-number could have just added one; re-writing a
+    // stale copy of it would silently un-call that number).
+    if (liveRow) {
+      await db().from('live_games').update({
+        claimed_prizes: newClaimed, expires_at: new Date(Date.now() + 7200000).toISOString()
+      }).eq('game_id', liveKey);
+    } else {
+      await db().from('live_games').insert({
+        game_id: liveKey, called_numbers: [], last_number: null, last_called_at: null,
+        channel_message_id: null, expires_at: new Date(Date.now() + 7200000).toISOString(),
+        claimed_prizes: newClaimed
+      });
+    }
 
     if (operator.playerChannelId) {
       try {

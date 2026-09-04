@@ -257,3 +257,30 @@ CREATE TABLE IF NOT EXISTS generated_sheets (
 );
 CREATE INDEX IF NOT EXISTS idx_gen_sheets_operator ON generated_sheets(operator_id);
 CREATE INDEX IF NOT EXISTS idx_gen_sheets_game     ON generated_sheets(game_id);
+
+-- Atomic "call a number" — call-number previously did read called_numbers,
+-- push locally, then write the whole array back. Two calls arriving close
+-- together (e.g. calling numbers quickly, or two devices/the bot and the web
+-- UI at once) would both read the same array, and whichever wrote last
+-- silently discarded the other's number. This does the check-and-append in
+-- one atomic upsert (same pattern as increment_rate_limit above) so
+-- concurrent calls can't clobber each other.
+CREATE OR REPLACE FUNCTION call_live_number(p_game_id TEXT, p_number INTEGER)
+RETURNS JSONB AS $$
+DECLARE v_result JSONB;
+BEGIN
+  INSERT INTO live_games (game_id, called_numbers, last_number, last_called_at, expires_at)
+  VALUES (p_game_id, jsonb_build_array(p_number), p_number, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, NOW() + INTERVAL '2 hours')
+  ON CONFLICT (game_id) DO UPDATE SET
+    called_numbers = CASE
+      WHEN live_games.called_numbers @> to_jsonb(p_number)
+      THEN live_games.called_numbers
+      ELSE live_games.called_numbers || jsonb_build_array(p_number)
+    END,
+    last_number    = p_number,
+    last_called_at = (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+    expires_at     = NOW() + INTERVAL '2 hours'
+  RETURNING called_numbers INTO v_result;
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql;
