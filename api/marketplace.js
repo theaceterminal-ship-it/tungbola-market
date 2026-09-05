@@ -650,6 +650,8 @@ module.exports = async function(req, res) {
       const { data: opRow } = await db().from('operators').select('plan').eq('id', gRow.operator_id).single();
       sheetQuery = opRow?.plan === 'own-sheets'
         ? db().from('operator_sheets').select('n').eq('operator_id', gRow.operator_id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
+        : opRow?.plan === 'generate'
+        ? db().from('generated_sheets').select('n').eq('operator_id', gRow.operator_id).eq('game_id', gRow.id)
         : db().from('sheets').select('n').gte('n', game.sheetFrom).lte('n', game.sheetTo);
     } else {
       sheetQuery = db().from('sheets').select('n').gte('n', game.sheetFrom).lte('n', game.sheetTo);
