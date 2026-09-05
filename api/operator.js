@@ -5,6 +5,7 @@ const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFrom
 const { sendPush } = require('./_push');
 const { notifyPlayerApproved, notifyPlayerRejected, broadcastGame, broadcastLiveNumbers, broadcastPrizeClaim, tgSend } = require('./telegram');
 const { generateTickets, verifyDividend } = require('./_tambola');
+const { resolveGenerateSheetsForPurchase } = require('./_sheetDelivery');
 const crypto = require('crypto');
 
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -376,28 +377,28 @@ module.exports = async function(req, res) {
     const game = gameFromRow(gRow);
     const purchase = purchaseFromRow(pRow);
 
-    const sheetQuery = operator.plan === 'own-sheets'
-      ? db().from('operator_sheets').select('*').eq('operator_id', operator.id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
-      : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
-    const { data: allSheets } = await sheetQuery;
+    let assigned, sheetList;
+    if (operator.plan === 'own-sheets') {
+      const { data: allSheets } = await db().from('operator_sheets').select('*').eq('operator_id', operator.id).gte('n', game.sheetFrom).lte('n', game.sheetTo);
+      const soldSet = new Set(game.soldSheetNums);
+      const available = (allSheets || []).filter(s => !soldSet.has(s.n));
+      if (available.length < purchase.quantity)
+        return res.status(409).json({ error: `Only ${available.length} sheets left` });
 
-    if (operator.plan === 'generate' && !allSheets?.length)
-      return res.status(409).json({ error: 'Generate plan is not yet configured for this game. Contact the platform admin.' });
-
-    const soldSet = new Set(game.soldSheetNums);
-    const available = (allSheets || []).filter(s => !soldSet.has(s.n));
-    if (available.length < purchase.quantity)
-      return res.status(409).json({ error: `Only ${available.length} sheets left` });
-
-    let assigned;
-    if (purchase.requestedSheetNums?.length) {
-      const reqSet = new Set(purchase.requestedSheetNums);
-      assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
+      if (purchase.requestedSheetNums?.length) {
+        const reqSet = new Set(purchase.requestedSheetNums);
+        assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
+      } else {
+        assigned = available.slice(0, purchase.quantity);
+      }
+      sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
     } else {
-      assigned = available.slice(0, purchase.quantity);
+      // Plan B: tickets are generated on demand (Sheet Factory), not pre-uploaded
+      // files — source them from generated_sheets and render a PDF per sheet.
+      const result = await resolveGenerateSheetsForPurchase(operator.id, game, purchase);
+      if (result.error) return res.status(409).json({ error: result.error });
+      ({ assigned, sheetList } = result);
     }
-
-    const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
     const dlToken = genToken();
     const now = Date.now();
     const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];

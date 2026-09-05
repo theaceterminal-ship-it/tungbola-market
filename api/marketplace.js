@@ -3,6 +3,7 @@ const { secureHeaders, rateLimit, checkPassword } = require('./_security');
 const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow } = require('./_db');
 const { sendPush } = require('./_push');
 const { broadcastGame, notifyPlayerApproved, notifyPlayerRejected } = require('./telegram');
+const { resolveGenerateSheetsForPurchase } = require('./_sheetDelivery');
 const crypto = require('crypto');
 
 // ── Telegram notification ────────────────────────────────────
@@ -290,36 +291,39 @@ module.exports = async function(req, res) {
     if (!gRow) return res.status(404).json({ error: 'Game not found' });
     const game = gameFromRow(gRow);
 
-    // Use operator_sheets for Plan A operators, shared sheets for everything else
-    let allSheetsQuery, opPlan;
+    // operator_sheets for Plan A (own-sheets) operators, generated_sheets for
+    // Plan B (generate) operators, legacy shared "sheets" table for the
+    // admin-managed, no-operator case.
+    let opPlan = null;
     if (gRow.operator_id) {
       const { data: opRow } = await db().from('operators').select('plan').eq('id', gRow.operator_id).single();
       opPlan = opRow?.plan;
-      allSheetsQuery = opRow?.plan === 'own-sheets'
+    }
+
+    let assigned, sheetList;
+    if (opPlan === 'generate') {
+      const result = await resolveGenerateSheetsForPurchase(gRow.operator_id, game, purchase);
+      if (result.error) return res.status(409).json({ error: result.error });
+      ({ assigned, sheetList } = result);
+    } else {
+      const allSheetsQuery = opPlan === 'own-sheets'
         ? db().from('operator_sheets').select('*').eq('operator_id', gRow.operator_id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
         : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
-    } else {
-      allSheetsQuery = db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+      const { data: allSheets } = await allSheetsQuery;
+
+      const soldSet = new Set(game.soldSheetNums);
+      const available = (allSheets || []).filter(s => !soldSet.has(s.n));
+      if (available.length < purchase.quantity)
+        return res.status(409).json({ error: `Only ${available.length} sheets left` });
+
+      if (purchase.requestedSheetNums?.length) {
+        const reqSet = new Set(purchase.requestedSheetNums);
+        assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
+      } else {
+        assigned = available.slice(0, purchase.quantity);
+      }
+      sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
     }
-    const { data: allSheets } = await allSheetsQuery;
-    if (opPlan === 'generate' && !allSheets?.length)
-      return res.status(409).json({ error: 'Generate plan is not yet configured for this game. Contact the platform admin.' });
-
-    const soldSet = new Set(game.soldSheetNums);
-    const available = (allSheets || []).filter(s => !soldSet.has(s.n));
-
-    if (available.length < purchase.quantity)
-      return res.status(409).json({ error: `Only ${available.length} sheets left` });
-
-    let assigned;
-    if (purchase.requestedSheetNums?.length) {
-      const reqSet = new Set(purchase.requestedSheetNums);
-      assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
-    } else {
-      assigned = available.slice(0, purchase.quantity);
-    }
-
-    const sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
     const dlToken = genToken();
     const now = Date.now();
     const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];

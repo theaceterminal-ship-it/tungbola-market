@@ -1,6 +1,7 @@
 const { secureHeaders } = require('./_security');
 const { db, gameFromRow, purchaseFromRow } = require('./_db');
 const { sendPush } = require('./_push');
+const { resolveGenerateSheetsForPurchase } = require('./_sheetDelivery');
 const crypto = require('crypto');
 const https  = require('https');
 
@@ -1169,34 +1170,41 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
   }
   const game = gameFromRow(gRow);
 
-  let sheetQuery;
+  let opPlan = null;
   if (gRow.operator_id) {
     const { data: opRow } = await db().from('operators').select('plan').eq('id', gRow.operator_id).single();
-    sheetQuery = opRow?.plan === 'own-sheets'
+    opPlan = opRow?.plan;
+  }
+
+  let assigned, sheetList;
+  if (opPlan === 'generate') {
+    const result = await resolveGenerateSheetsForPurchase(gRow.operator_id, game, purchase);
+    if (result.error) {
+      await answerCallback(callbackQueryId, result.error);
+      return;
+    }
+    ({ assigned, sheetList } = result);
+  } else {
+    const sheetQuery = opPlan === 'own-sheets'
       ? db().from('operator_sheets').select('*').eq('operator_id', gRow.operator_id).gte('n', game.sheetFrom).lte('n', game.sheetTo)
       : db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
-  } else {
-    sheetQuery = db().from('sheets').select('*').gte('n', game.sheetFrom).lte('n', game.sheetTo);
+    const { data: allSheets } = await sheetQuery;
+    const soldSet   = new Set(game.soldSheetNums);
+    const available = (allSheets || []).filter(s => !soldSet.has(s.n));
+
+    if (available.length < purchase.quantity) {
+      await answerCallback(callbackQueryId, `Not enough sheets! Only ${available.length} left.`);
+      return;
+    }
+
+    if (purchase.requestedSheetNums?.length) {
+      const reqSet = new Set(purchase.requestedSheetNums);
+      assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
+    } else {
+      assigned = available.slice(0, purchase.quantity);
+    }
+    sheetList = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
   }
-
-  const { data: allSheets } = await sheetQuery;
-  const soldSet   = new Set(game.soldSheetNums);
-  const available = (allSheets || []).filter(s => !soldSet.has(s.n));
-
-  if (available.length < purchase.quantity) {
-    await answerCallback(callbackQueryId, `Not enough sheets! Only ${available.length} left.`);
-    return;
-  }
-
-  let assigned;
-  if (purchase.requestedSheetNums?.length) {
-    const reqSet = new Set(purchase.requestedSheetNums);
-    assigned = [...available.filter(s => reqSet.has(s.n)), ...available.filter(s => !reqSet.has(s.n))].slice(0, purchase.quantity);
-  } else {
-    assigned = available.slice(0, purchase.quantity);
-  }
-
-  const sheetList   = assigned.map(s => ({ n: s.n, filename: s.f, url: s.u }));
   const dlToken     = Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase();
   const now         = Date.now();
   const newSoldNums = [...game.soldSheetNums, ...assigned.map(s => s.n)];
