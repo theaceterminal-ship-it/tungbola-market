@@ -11,20 +11,22 @@
 const { jsPDF } = require('jspdf');
 
 const DEFAULT_LAYOUT = {
-  template: 'compact',
+  template: 'classic',
   eventName: 'Tukpa Game',
   showWatermark: false,
   watermarkText: '',
 };
 
-const CLASSIC_COLORS = [
-  [21, 101, 192], [21, 101, 192], [21, 101, 192],
-  [112,  48, 160], [192,   0,   0], [215,  90,   0],
-];
-
-const COMPACT_COLORS = [
-  [219,  48, 130], [ 34, 139,  34], [ 34, 139,  34],
-  [112,  48, 160], [192,   0,   0], [200, 100,   0],
+// Kept in lockstep with src/lib/pdfRenderer.ts in the tukpamaster repo —
+// one shared 6-color-per-sheet palette (pink/cyan/green/purple/red/orange)
+// matching the platform's original reference ticket design.
+const TICKET_COLORS = [
+  [219,  48, 130], // pink
+  [  8, 145, 178], // cyan
+  [ 34, 139,  34], // green
+  [112,  48, 160], // purple
+  [192,   0,   0], // red
+  [215,  90,   0], // orange
 ];
 
 function drawGrid(doc, gridX, gridY, contentW, colW, rowH, gridH, r, g, b) {
@@ -63,7 +65,7 @@ function renderClassicSheet(doc, sheet, config) {
   let yPos = 22;
   for (let i = 0; i < sheet.tickets.length; i++) {
     const ticket = sheet.tickets[i];
-    const [r, g, b] = CLASSIC_COLORS[i % 6];
+    const [r, g, b] = TICKET_COLORS[i % 6];
     const ticketNum = String(firstTicketNum + i).padStart(3, '0');
 
     doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(90, 90, 90);
@@ -93,7 +95,10 @@ function renderCompactSheet(doc, sheet, config) {
   const gridW = 9 * cellW, gridH = 3 * cellH;
   const gL = sbW + (pageW - sbW - gridW) / 2;
   const gCx = gL + gridW / 2;
-  const blockH = 48, startY = 6;
+  // blockH=48 with startY=6 used to leave only ~1mm before the fixed footer
+  // position below — the 6th ticket's grid and "Sheet No. N" footer text
+  // visibly collided on a full 6-ticket sheet. 47/5 leaves real clearance.
+  const blockH = 47, startY = 5;
   const sheetNum = sheet.n;
   const firstTicketNum = (sheetNum - 1) * 6 + 1;
 
@@ -108,7 +113,7 @@ function renderCompactSheet(doc, sheet, config) {
   let yPos = startY;
   for (let i = 0; i < sheet.tickets.length; i++) {
     const ticket = sheet.tickets[i];
-    const [r, g, b] = COMPACT_COLORS[i % 6];
+    const [r, g, b] = TICKET_COLORS[i % 6];
     const ticketNum = String(firstTicketNum + i).padStart(3, '0');
 
     doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
