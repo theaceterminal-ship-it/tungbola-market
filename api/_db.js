@@ -14,6 +14,14 @@ function db() {
   return _client;
 }
 
+// Phone numbers arrive in several shapes: typed by hand on the web, or from
+// Telegram's verified contact, which always carries the country code. Reduce
+// to the last 10 digits so the same person is one key everywhere.
+function normPhone(s) {
+  const d = String(s || '').replace(/\D/g, '');
+  return d.length > 10 ? d.slice(-10) : d;
+}
+
 // ── DB row ↔ API object transforms ──────────────────────────
 
 function gameFromRow(r) {
@@ -57,7 +65,8 @@ function purchaseFromRow(r) {
     downloadToken: r.download_token || null, sheetNums: r.sheet_nums || null,
     createdAt: r.created_at, approvedAt: r.approved_at || null,
     downloaded: r.downloaded || false, downloadedAt: r.downloaded_at || null,
-    utr: r.utr || null
+    utr: r.utr || null,
+    screenshotUrl: r.screenshot_url || null, reservationId: r.reservation_id || null
   };
 }
 
@@ -68,7 +77,8 @@ function purchaseToRow(p) {
     requested_sheet_nums: p.requestedSheetNums || null, status: p.status || 'pending',
     download_token: p.downloadToken || null, sheet_nums: p.sheetNums || null,
     created_at: p.createdAt || Date.now(), approved_at: p.approvedAt || null,
-    downloaded: p.downloaded || false, downloaded_at: p.downloadedAt || null
+    downloaded: p.downloaded || false, downloaded_at: p.downloadedAt || null,
+    screenshot_url: p.screenshotUrl || null, reservation_id: p.reservationId || null
   };
 }
 
@@ -94,4 +104,4 @@ function sheetFromRow(r) {
   return { id: r.id, n: r.n, f: r.f, u: r.u, s: r.s || 0, ts: r.ts };
 }
 
-module.exports = { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow, sheetFromRow };
+module.exports = { db, normPhone, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow, sheetFromRow };

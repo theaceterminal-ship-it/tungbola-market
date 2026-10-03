@@ -1,4 +1,5 @@
 const { db, gameFromRow } = require('./_db');
+const { purgeExpired } = require('./_reservations');
 const { broadcastGame, tgSend } = require('./telegram');
 
 const HOST = process.env.APP_HOST || 'tungbola-market.vercel.app';
@@ -145,6 +146,13 @@ module.exports = async function(req, res) {
     const cutoff = new Date(Date.now() - 86400000).toISOString();
     await db().from('bot_sessions').delete().lt('updated_at', cutoff);
   } catch(e) { console.error('Session cleanup error:', e.message); }
+
+  // ── 4. Expired sheet holds and sign-in tokens ─────────────────
+  // Reads already purge lazily; this just stops the tables growing.
+  await purgeExpired();
+  try {
+    await db().from('telegram_link_tokens').delete().lt('expires_at', new Date().toISOString());
+  } catch(e) { console.error('Link token cleanup error:', e.message); }
 
   return res.json({ ok: true, published, milestones, reminded });
 };

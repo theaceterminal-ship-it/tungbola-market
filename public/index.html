@@ -492,6 +492,73 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .tg-btn:disabled{opacity:.6}
 .tg-linked{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#047857}
 
+/* ── TELEGRAM SIGN-IN ── */
+.auth-tg-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:17px;border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(135deg,#2AA3E0,#1778B5);color:#fff;
+  border-radius:16px;font-size:16px;font-weight:800;
+  box-shadow:0 4px 16px -2px rgba(23,120,181,.45)
+}
+.auth-tg-btn:active{transform:scale(.978)}
+.auth-tg-btn:disabled{opacity:.6}
+.auth-tg-note{font-size:12.5px;font-weight:600;color:var(--muted);text-align:center;line-height:1.55;margin-top:11px}
+.auth-perks{display:flex;flex-direction:column;gap:9px;margin:18px 0 4px}
+.auth-perk{display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:600;color:#413C58;line-height:1.45}
+.auth-perk-ico{
+  width:22px;height:22px;flex-shrink:0;border-radius:7px;background:#EEF2FF;
+  display:flex;align-items:center;justify-content:center;font-size:12px
+}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:22px 0 16px;color:#B5B0C4;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:rgba(17,16,30,.09)}
+.auth-pwd-toggle{display:block;width:100%;background:none;border:none;cursor:pointer;font-family:inherit;text-align:center;font-size:13px;font-weight:700;color:#6750A4;text-decoration:underline}
+.auth-pwd-form{display:none;margin-top:16px}
+.auth-pwd-form.open{display:block}
+
+.tg-wait{display:none;text-align:center;padding:4px 0}
+.tg-wait.show{display:block}
+.tg-spinner{
+  width:34px;height:34px;margin:0 auto 14px;border-radius:50%;
+  border:3px solid #DCE9F5;border-top-color:#1778B5;animation:spin .8s linear infinite
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tg-wait-title{font-size:15px;font-weight:800;color:#1C1B2E;margin-bottom:5px}
+.tg-wait-sub{font-size:13px;font-weight:600;color:var(--muted);line-height:1.55}
+.tg-wait-again{display:inline-block;margin-top:14px;font-size:13px;font-weight:700;color:#1778B5;cursor:pointer;text-decoration:underline}
+
+/* ── HOLD TIMER ── */
+.hold-bar{
+  display:none;align-items:center;justify-content:center;gap:7px;
+  background:#ECFDF5;border:1px solid rgba(5,150,105,.2);
+  border-radius:12px;padding:10px 13px;margin-bottom:4px;
+  font-size:12.5px;font-weight:700;color:#047857
+}
+.hold-bar.show{display:flex}
+.hold-bar.warn{background:#FFF8E1;border-color:rgba(217,119,6,.25);color:#B45309}
+.hold-bar.expired{background:#FEF2F2;border-color:rgba(220,38,38,.22);color:#B91C1C}
+.hold-time{font-variant-numeric:tabular-nums;font-weight:900}
+.hold-again{margin-left:6px;text-decoration:underline;cursor:pointer;font-weight:900}
+
+/* ── RECEIPT UPLOAD ── */
+.shot-card{
+  display:flex;align-items:center;gap:11px;width:100%;
+  background:#F7F6FB;border:1.5px dashed rgba(17,16,30,.16);
+  border-radius:14px;padding:13px;cursor:pointer;margin-bottom:11px;
+  font-family:inherit;text-align:left
+}
+.shot-card:active{background:#EDEAF5}
+.shot-card.has{border-style:solid;border-color:rgba(5,150,105,.3);background:#ECFDF5}
+.shot-ico{
+  width:36px;height:36px;flex-shrink:0;border-radius:11px;background:#EEF2FF;
+  display:flex;align-items:center;justify-content:center;font-size:17px
+}
+.shot-thumb{width:36px;height:36px;flex-shrink:0;border-radius:10px;object-fit:cover}
+.shot-txt{flex:1;min-width:0}
+.shot-title{font-size:13px;font-weight:800;color:#1C1B2E}
+.shot-sub{font-size:11.5px;font-weight:600;color:#8B85A0;margin-top:2px;line-height:1.4}
+.shot-card.has .shot-sub{color:#047857}
+.shot-clear{background:none;border:none;cursor:pointer;font-family:inherit;font-size:18px;color:#8B85A0;padding:4px 6px;flex-shrink:0}
+
 /* ── TRACK MODAL ── */
 
 /* ── DOWNLOADS ── */
@@ -548,20 +615,43 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div class="auth-hero">
       <div class="auth-logo">🎯</div>
       <div class="auth-title">Welcome to Tungbola</div>
-      <div class="auth-sub">Sign in to buy sheets with just one tap</div>
+      <div class="auth-sub">No password. Sign in with Telegram and your sheets arrive in your chat.</div>
     </div>
     <div class="auth-body">
-      <div class="field-wrap">
-        <div class="field-lbl">Phone Number</div>
-        <input class="mkt-field" id="loginPhone" type="tel" placeholder="Your phone number" maxlength="20" inputmode="numeric">
+      <div id="tgAuthStart">
+        <button class="auth-tg-btn" id="tgAuthBtn" onclick="startTelegramAuth()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 4.3 2.9 11.5c-.8.3-.8 1.4 0 1.7l4.3 1.5 1.7 5.2c.2.7 1.1.9 1.6.3l2.3-2.6 4.4 3.2c.6.5 1.5.1 1.7-.6l3.3-15c.2-.9-.7-1.6-1.6-1.2zM9.4 14.3l8.2-5.4-6.5 6.6-.2 2.8-1.5-4z"/></svg>
+          Continue with Telegram
+        </button>
+        <div class="auth-tg-note">Telegram confirms your number for you — nothing to type, nothing to remember.</div>
+        <div class="auth-perks">
+          <div class="auth-perk"><span class="auth-perk-ico">📄</span><span>Sheet PDFs delivered straight to your chat</span></div>
+          <div class="auth-perk"><span class="auth-perk-ico">🔗</span><span>Game joining link sent the moment you're approved</span></div>
+          <div class="auth-perk"><span class="auth-perk-ico">🔒</span><span>Your number is never shown to other players</span></div>
+        </div>
+        <div class="auth-divider">or</div>
+        <button class="auth-pwd-toggle" onclick="togglePasswordLogin()">Sign in with a password instead</button>
+        <div class="auth-pwd-form" id="pwdLoginForm">
+          <div class="field-wrap">
+            <div class="field-lbl">Phone Number</div>
+            <input class="mkt-field" id="loginPhone" type="tel" placeholder="Your phone number" maxlength="20" inputmode="numeric">
+          </div>
+          <div class="field-wrap">
+            <div class="field-lbl">Password</div>
+            <input class="mkt-field" id="loginPassword" type="password" placeholder="Your password" maxlength="72" onkeydown="if(event.key==='Enter')submitLogin()">
+          </div>
+          <div class="err-msg" id="loginErr" style="display:none"></div>
+          <button class="pay-btn" id="loginBtn" onclick="submitLogin()" style="background:linear-gradient(135deg,#6750A4,#4527A0);box-shadow:0 4px 14px rgba(103,80,164,.35)">Sign In →</button>
+          <div class="auth-alt-link">No account? <a href="#" onclick="showRegister();return false">Create one with a password</a></div>
+        </div>
       </div>
-      <div class="field-wrap">
-        <div class="field-lbl">Password</div>
-        <input class="mkt-field" id="loginPassword" type="password" placeholder="Your password" maxlength="72" onkeydown="if(event.key==='Enter')submitLogin()">
+
+      <div class="tg-wait" id="tgAuthWait">
+        <div class="tg-spinner"></div>
+        <div class="tg-wait-title">Waiting for Telegram…</div>
+        <div class="tg-wait-sub">Tap <b>Confirm my number</b> in the chat that just opened. This page signs you in by itself.</div>
+        <span class="tg-wait-again" onclick="startTelegramAuth(true)">Didn't open? Tap here</span>
       </div>
-      <div class="err-msg" id="loginErr" style="display:none"></div>
-      <button class="pay-btn" id="loginBtn" onclick="submitLogin()" style="background:linear-gradient(135deg,#6750A4,#4527A0);box-shadow:0 4px 14px rgba(103,80,164,.35)">Sign In →</button>
-      <div class="auth-alt-link">New here? <a href="#" onclick="showRegister();return false">Create an account</a></div>
     </div>
   </div>
 
@@ -573,6 +663,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
       <div class="auth-sub">Register once, buy sheets in one tap</div>
     </div>
     <div class="auth-body">
+      <div class="auth-tg-note" style="margin:0 0 18px">Faster: <a href="#" onclick="showLogin();setTimeout(startTelegramAuth,350);return false" style="color:#1778B5;font-weight:800">continue with Telegram</a> — no password, and your sheets arrive in your chat.</div>
       <div class="field-wrap">
         <div class="field-lbl">Your Name</div>
         <input class="mkt-field" id="regName" type="text" placeholder="e.g. Priya Sharma" maxlength="50" autocomplete="name">
@@ -722,6 +813,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div class="modal-handle"></div>
     <div class="pay-amount" id="payAmount">₹0</div>
     <div class="modal-sub" id="modalSub"></div>
+    <div class="hold-bar" id="holdBar">🔒 Your numbers are held for <span class="hold-time" id="holdTime">10:00</span></div>
 
     <!-- Step 1: open a UPI app -->
     <div class="pay-step" id="payStep1"><span class="pay-step-num">1</span>Pay with UPI</div>
@@ -747,6 +839,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
     <!-- Step 2: confirm -->
     <div class="pay-step" id="payStep2"><span class="pay-step-num">2</span>Confirm &amp; collect</div>
+    <button class="shot-card" id="shotCard" onclick="pickScreenshot()">
+      <span class="shot-ico" id="shotIco">📸</span>
+      <img class="shot-thumb" id="shotThumb" alt="" style="display:none">
+      <span class="shot-txt">
+        <span class="shot-title" id="shotTitle">Add payment screenshot</span>
+        <span class="shot-sub" id="shotSub">Optional — but it usually gets you approved in seconds instead of minutes.</span>
+      </span>
+      <span class="shot-clear" id="shotClear" onclick="event.stopPropagation();clearScreenshot()" style="display:none">✕</span>
+    </button>
+    <input type="file" id="shotInput" accept="image/*" style="display:none" onchange="onScreenshotPicked(event)">
     <div class="pay-confirm-note" id="payConfirmNote">Come back here after paying and confirm below.</div>
     <button class="modal-pay-btn waiting" id="modalPaidBtn" onclick="submitPurchase()">I’ve already paid — get my sheets</button>
     <div class="modal-trust">
@@ -827,8 +929,109 @@ function updateHeaderAuth() {
   }
 }
 
+/* ── Sign in with Telegram ──
+   The bot asks Telegram for the account's verified contact, so the phone
+   number is never typed here and there is no password to forget. This page
+   polls until the bot reports back, then drops straight into the marketplace. */
+let tgAuthToken = null, tgAuthPoll = null, tgAuthTries = 0;
+const TG_AUTH_MAX_TRIES = 150;   // 2s apart ≈ 5 minutes
+
+async function startTelegramAuth(reopen) {
+  const btn = document.getElementById('tgAuthBtn');
+
+  if (reopen && tgAuthToken) { openTelegramAuthLink(); return; }
+
+  btn.disabled = true;
+  btn.lastChild.textContent = ' Opening Telegram…';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'auth-telegram-start' })
+    });
+    const data = await r.json();
+    if (!r.ok || !data.deepLink) {
+      toast(data.error || 'Telegram sign-in unavailable — use a password below.');
+      document.getElementById('pwdLoginForm').classList.add('open');
+      btn.disabled = false; btn.lastChild.textContent = ' Continue with Telegram';
+      return;
+    }
+    tgAuthToken = data.token;
+    tgAuthDeepLink = data.deepLink;
+    openTelegramAuthLink();
+    document.getElementById('tgAuthStart').style.display = 'none';
+    document.getElementById('tgAuthWait').classList.add('show');
+    startTelegramAuthPolling();
+  } catch(e) {
+    toast('Network error. Try again.');
+    btn.disabled = false; btn.lastChild.textContent = ' Continue with Telegram';
+  }
+}
+
+let tgAuthDeepLink = null;
+function openTelegramAuthLink() {
+  if (!tgAuthDeepLink) return;
+  window.open(tgAuthDeepLink, '_blank') || (window.location.href = tgAuthDeepLink);
+}
+
+function startTelegramAuthPolling() {
+  stopTelegramAuthPolling();
+  tgAuthTries = 0;
+  tgAuthPoll = setInterval(pollTelegramAuth, 2000);
+}
+function stopTelegramAuthPolling() {
+  if (tgAuthPoll) { clearInterval(tgAuthPoll); tgAuthPoll = null; }
+}
+
+async function pollTelegramAuth() {
+  if (!tgAuthToken) return stopTelegramAuthPolling();
+  if (++tgAuthTries > TG_AUTH_MAX_TRIES) {
+    stopTelegramAuthPolling();
+    resetTelegramAuth();
+    toast('Sign-in timed out. Tap Continue with Telegram again.');
+    return;
+  }
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'auth-telegram-poll', token: tgAuthToken })
+    });
+    const data = await r.json();
+    if (r.status === 404 || r.status === 410) {
+      stopTelegramAuthPolling(); resetTelegramAuth();
+      toast(data.error || 'Sign-in expired. Try again.');
+      return;
+    }
+    if (!r.ok) return;
+    if (data.status === 'verified' && data.sessionToken) {
+      stopTelegramAuthPolling();
+      tgAuthToken = null; tgAuthDeepLink = null;
+      playerSession = { name: data.player.name, phone: data.player.phone, token: data.sessionToken };
+      localStorage.setItem('tb_session', data.sessionToken);
+      tgLinked = true; tgAvailable = true;   // signing in this way is already linked
+      updateHeaderAuth();
+      startOrdersPolling();
+      loadHomeData();
+    }
+  } catch(e) {}
+}
+
+function resetTelegramAuth() {
+  tgAuthToken = null; tgAuthDeepLink = null;
+  const btn = document.getElementById('tgAuthBtn');
+  btn.disabled = false; btn.lastChild.textContent = ' Continue with Telegram';
+  document.getElementById('tgAuthStart').style.display = '';
+  document.getElementById('tgAuthWait').classList.remove('show');
+}
+
+function togglePasswordLogin() {
+  document.getElementById('pwdLoginForm').classList.toggle('open');
+}
+
 /* ── Auth screens ── */
 function showLogin() {
+  stopTelegramAuthPolling();
+  resetTelegramAuth();
+  document.getElementById('pwdLoginForm').classList.remove('open');
   document.getElementById('loginPhone').value = '';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginErr').style.display = 'none';
@@ -1447,6 +1650,7 @@ function selectGame(id) {
 
   selectedNums = new Set();
   availableSheets = [];
+  reservationId = null; holdExpiresAt = 0;
 
   document.getElementById('sheetsGameName').textContent = currentGame.name;
   document.getElementById('sheetsAvailCount').textContent = '';
@@ -1464,7 +1668,7 @@ async function loadSheets(gameId) {
   try {
     const r = await fetch('/api/marketplace', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'available-sheets', gameId })
+      body: JSON.stringify({ action: 'available-sheets', gameId, reservationId })
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Failed');
@@ -1552,6 +1756,163 @@ function goToDetails() {
   show('screenDetails');
 }
 
+/* ── Sheet holds ──
+   Picked numbers used to be locked only when an operator approved the order,
+   so two buyers could pay for the same sheet and one of them ended up in a
+   refund conversation. The hold is taken when checkout opens and runs for ten
+   minutes — long enough to pay, short enough that abandoned carts free up. */
+let reservationId = null, holdExpiresAt = 0, holdTimer = null;
+
+async function holdSelectedSheets() {
+  const nums = Array.from(selectedNums);
+  if (!nums.length) { toast('Select at least one sheet'); return false; }
+  try {
+    const body = {
+      action: 'reserve-sheets', gameId: currentGame.id,
+      sheetNums: nums, previousReservationId: reservationId
+    };
+    if (playerSession) body.sessionToken = playerSession.token;
+    else body.phone = document.getElementById('buyPhone').value.trim();
+
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      reservationId = null;
+      const errEl = document.getElementById('buyErr');
+      errEl.textContent = data.error || 'Could not hold those sheets. Try again.';
+      errEl.style.display = 'block';
+      // Drop whatever went and send them back to pick replacements.
+      if (Array.isArray(data.conflicts) && data.conflicts.length) {
+        data.conflicts.forEach(n => selectedNums.delete(n));
+        setTimeout(() => { show('screenSheets', true); loadSheets(currentGame.id); }, 1400);
+      }
+      return false;
+    }
+    reservationId = data.reservationId;
+    holdExpiresAt = new Date(data.expiresAt).getTime();
+    return true;
+  } catch(e) {
+    document.getElementById('buyErr').textContent = 'Network error. Try again.';
+    document.getElementById('buyErr').style.display = 'block';
+    return false;
+  }
+}
+
+function setPayStepEnabled(on) {
+  ['upiPayBtn', 'shotCard'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !on; });
+  document.querySelectorAll('.upi-app').forEach(b => { b.disabled = !on; });
+  document.getElementById('upiApps').style.opacity = on ? '' : '.45';
+  document.getElementById('upiPayBtn').style.opacity = on ? '' : '.45';
+}
+
+/* Re-takes the hold on the same numbers — only succeeds if nobody else
+   claimed them in the meantime, and says so plainly if they did. */
+async function rehold() {
+  const bar = document.getElementById('holdBar');
+  bar.innerHTML = '⏳ Checking those numbers…';
+  const ok = await holdSelectedSheets();
+  if (!ok) { closeQRModal(); return; }
+  setPayStepEnabled(true);
+  const btn = document.getElementById('modalPaidBtn');
+  btn.disabled = false;
+  btn.className = 'modal-pay-btn waiting';
+  btn.textContent = 'I’ve already paid — get my sheets';
+  startHoldCountdown();
+}
+
+function startHoldCountdown() {
+  stopHoldCountdown();
+  setPayStepEnabled(true);
+  const bar = document.getElementById('holdBar');
+  if (!holdExpiresAt) { bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  tickHold();
+  holdTimer = setInterval(tickHold, 1000);
+}
+function stopHoldCountdown() { if (holdTimer) { clearInterval(holdTimer); holdTimer = null; } }
+
+function tickHold() {
+  const bar = document.getElementById('holdBar');
+  const left = holdExpiresAt - Date.now();
+  if (left <= 0) {
+    stopHoldCountdown();
+    bar.className = 'hold-bar show expired';
+    bar.innerHTML = '⌛ Hold expired <span class="hold-again" onclick="rehold()">Hold them again</span>';
+    // Paying now would buy sheets the buyer no longer has a claim on, so
+    // step 1 closes too until the hold is back.
+    setPayStepEnabled(false);
+    const btn = document.getElementById('modalPaidBtn');
+    btn.disabled = true;
+    btn.textContent = 'Hold expired';
+    return;
+  }
+  const m = Math.floor(left / 60000), sec = Math.floor((left % 60000) / 1000);
+  bar.className = 'hold-bar show' + (left < 120000 ? ' warn' : '');
+  bar.innerHTML = `${left < 120000 ? '⏳' : '🔒'} Your numbers are held for <span class="hold-time">${m}:${String(sec).padStart(2, '0')}</span>`;
+}
+
+/* ── Payment screenshot ──
+   Optional, but it turns approval into a glance at a photo instead of the
+   operator cross-checking their UPI app, which is the slowest step in the
+   whole flow. Resized client-side so the upload stays small on mobile data. */
+let screenshotData = null;
+
+function pickScreenshot() { document.getElementById('shotInput').click(); }
+
+function clearScreenshot() {
+  screenshotData = null;
+  document.getElementById('shotInput').value = '';
+  document.getElementById('shotCard').classList.remove('has');
+  document.getElementById('shotIco').style.display = '';
+  document.getElementById('shotThumb').style.display = 'none';
+  document.getElementById('shotClear').style.display = 'none';
+  document.getElementById('shotTitle').textContent = 'Add payment screenshot';
+  document.getElementById('shotSub').textContent = 'Optional — but it usually gets you approved in seconds instead of minutes.';
+}
+
+async function onScreenshotPicked(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { toast('Please choose an image'); clearScreenshot(); return; }
+  try {
+    screenshotData = await shrinkImage(file, 1280, 0.72);
+    document.getElementById('shotCard').classList.add('has');
+    document.getElementById('shotIco').style.display = 'none';
+    const thumb = document.getElementById('shotThumb');
+    thumb.src = screenshotData; thumb.style.display = '';
+    document.getElementById('shotClear').style.display = '';
+    document.getElementById('shotTitle').textContent = 'Screenshot attached';
+    document.getElementById('shotSub').textContent = 'The organiser sees this with your order — tap ✕ to remove.';
+  } catch(err) {
+    toast('Could not read that image');
+    clearScreenshot();
+  }
+}
+
+function shrinkImage(file, maxEdge, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+    img.src = url;
+  });
+}
+
 /* ── UPI Payment Modal ── */
 let payUpiId = '', payAmount = 0, payNote = '', payPayeeName = '';
 let upiAppOpened = false, payHintTimer = null;
@@ -1576,7 +1937,7 @@ function buildUpiLink(app) {
     + `&tn=${encodeURIComponent(payNote)}`;
 }
 
-function openQRModal() {
+async function openQRModal() {
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
 
@@ -1586,6 +1947,14 @@ function openQRModal() {
     if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
     if (!phone) { errEl.textContent = 'Please enter your phone number'; errEl.style.display = 'block'; return; }
   }
+
+  // Hold the picked numbers before the buyer leaves for their UPI app.
+  const payBtn = document.getElementById('payBtn');
+  const payLabel = payBtn.textContent;
+  payBtn.disabled = true; payBtn.textContent = 'Holding your numbers…';
+  const held = await holdSelectedSheets();
+  payBtn.disabled = false; payBtn.textContent = payLabel;
+  if (!held) return;
 
   const count = selectedNums.size;
   payAmount = calcClientAmount(currentGame, count);
@@ -1611,6 +1980,9 @@ function openQRModal() {
   paidBtn.className = 'modal-pay-btn waiting';
   paidBtn.disabled = false;
   paidBtn.textContent = 'I’ve already paid — get my sheets';
+
+  clearScreenshot();
+  startHoldCountdown();
 
   const hasUpi = !!payUpiId;
   ['upiPayBtn', 'upiApps', 'upiIdRow', 'qrToggle'].forEach(id => {
@@ -1695,6 +2067,7 @@ document.addEventListener('visibilitychange', () => {
 
 function closeQRModal() {
   clearTimeout(payHintTimer);
+  stopHoldCountdown();
   document.getElementById('qrModal').classList.remove('open');
 }
 function handleQRBackdrop(e) { if (e.target === document.getElementById('qrModal')) closeQRModal(); }
@@ -1705,7 +2078,11 @@ async function submitPurchase() {
   btn.textContent = 'Submitting…';
   try {
     const nums = Array.from(selectedNums);
-    const body = { action: 'purchase', gameId: currentGame.id, quantity: nums.length, requestedSheetNums: nums };
+    const body = {
+      action: 'purchase', gameId: currentGame.id, quantity: nums.length,
+      requestedSheetNums: nums, reservationId
+    };
+    if (screenshotData) body.screenshot = screenshotData;
     if (playerSession) {
       body.sessionToken = playerSession.token;
     } else {
@@ -1723,9 +2100,15 @@ async function submitPurchase() {
       closeQRModal();
       document.getElementById('buyErr').textContent = data.error || 'Failed. Try again.';
       document.getElementById('buyErr').style.display = 'block';
+      if (Array.isArray(data.conflicts) && data.conflicts.length) {
+        data.conflicts.forEach(n => selectedNums.delete(n));
+        reservationId = null;
+        setTimeout(() => { show('screenSheets', true); loadSheets(currentGame.id); }, 1600);
+      }
       return;
     }
     purchaseId = data.purchaseId;
+    reservationId = null;
     closeQRModal();
     showConfirmation();
     startPolling();
