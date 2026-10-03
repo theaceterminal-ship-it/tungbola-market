@@ -91,125 +91,197 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .empty-txt{font-size:16px;font-weight:700;color:var(--on-s)}
 .empty-sub{font-size:13px;margin-top:6px;line-height:1.5}
 
-/* ── POSTER GAME CARD ── */
+/* ── GAME CARD (white + glass) ── */
 .game-card{
-  border-radius:20px;overflow:hidden;cursor:pointer;
-  margin-bottom:20px;
-  box-shadow:0 8px 32px rgba(0,0,0,.22),0 2px 8px rgba(0,0,0,.1);
-  background:var(--gold-lt);
-  transform:translateY(0);transition:transform .18s,box-shadow .18s;
-  -webkit-user-select:none;user-select:none;position:relative
+  position:relative;
+  background:#fff;
+  border:1px solid rgba(17,16,30,.07);
+  border-radius:24px;overflow:hidden;cursor:pointer;
+  margin-bottom:18px;
+  box-shadow:0 1px 2px rgba(17,16,30,.05),0 10px 28px -8px rgba(17,16,30,.16);
+  transition:transform .18s cubic-bezier(.4,0,.2,1),box-shadow .18s;
+  -webkit-user-select:none;user-select:none
 }
-.game-card:active{transform:scale(.975)}
+.game-card:active{transform:scale(.985);box-shadow:0 1px 2px rgba(17,16,30,.05),0 4px 14px -6px rgba(17,16,30,.18)}
 
-.poster-hero{
-  background:var(--gold-lt);
-  min-height:200px;padding:14px 14px 10px;
-  position:relative;text-align:center;overflow:hidden
+/* Cover — blurred poster art behind frosted glass */
+.gc-cover{position:relative;height:152px;overflow:hidden;background:linear-gradient(135deg,#4527A0,#6750A4 55%,#7B1FA2)}
+.gc-cover-art{
+  position:absolute;inset:-14%;
+  background-size:cover;background-position:center;
+  filter:blur(16px) saturate(1.25);
+  transform:scale(1.14)
 }
-.poster-hero-bg{
+.gc-cover-sharp{
   position:absolute;inset:0;
   background-size:cover;background-position:center;
-  opacity:.22
+  opacity:.5
 }
-.poster-hero-content{position:relative;z-index:1}
-.poster-stars{color:#F59E0B;font-size:16px;letter-spacing:6px;margin-bottom:6px}
-.poster-title{
-  font-size:clamp(24px,9vw,42px);font-weight:900;
-  color:#C62828;text-transform:uppercase;
-  line-height:.95;letter-spacing:-1px;
-  text-shadow:3px 3px 0 #7B0000,2px 2px 0 #7B0000,1px 1px 0 #7B0000;
-  -webkit-text-stroke:.5px #991B1B;padding:0 4px;word-break:break-word
+.gc-cover-veil{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(14,10,32,.26) 0%,rgba(14,10,32,.1) 38%,rgba(14,10,32,.72) 100%)
 }
-.poster-banner{
-  background:linear-gradient(90deg,#92400E,#D97706,#F59E0B,#D97706,#92400E);
-  margin:8px -14px 0;padding:5px 14px
-}
-.poster-banner-text{
-  font-size:16px;font-weight:900;color:#fff;
-  letter-spacing:5px;text-align:center;
-  text-shadow:1px 1px 3px rgba(0,0,0,.45)
-}
-.poster-tagline{font-size:10px;font-weight:800;color:#7B0000;letter-spacing:3px;margin-top:5px;text-align:center}
+.gc-cover-body{position:absolute;inset:0;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;z-index:2}
+.gc-cover-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 
-.poster-ball{
-  position:absolute;width:34px;height:34px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:900;color:#fff;z-index:2;
-  box-shadow:inset -3px -3px 6px rgba(0,0,0,.3),inset 2px 2px 4px rgba(255,255,255,.35),0 3px 8px rgba(0,0,0,.3)
+.glass-pill{
+  background:rgba(255,255,255,.17);
+  -webkit-backdrop-filter:blur(14px) saturate(1.6);backdrop-filter:blur(14px) saturate(1.6);
+  border:1px solid rgba(255,255,255,.26);
+  border-radius:999px;color:#fff
 }
-.pb1{background:radial-gradient(circle at 35% 35%,#f87171,#DC2626);top:10px;left:10px}
-.pb2{background:radial-gradient(circle at 35% 35%,#a78bfa,#5B21B6);top:10px;right:10px}
-.pb3{background:radial-gradient(circle at 35% 35%,#34d399,#047857);top:46px;right:8px}
-.pb4{background:radial-gradient(circle at 35% 35%,#60a5fa,#1D4ED8);top:46px;left:8px}
-.pb-num{font-size:10px;font-weight:900}
+.gc-countdown{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;font-size:11px;font-weight:700;white-space:nowrap;
+  box-shadow:0 2px 10px rgba(0,0,0,.18)
+}
+.gc-countdown.hot{background:rgba(220,38,38,.44);border-color:rgba(255,255,255,.34)}
+.countdown-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;flex-shrink:0;animation:pulse 1.5s ease-in-out infinite}
+.gc-countdown.hot .countdown-dot{background:#FCA5A5}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.65)}}
 
-.countdown-badge{
-  position:absolute;top:10px;left:50%;transform:translateX(-50%);
-  background:rgba(124,8,8,.75);backdrop-filter:blur(6px);color:#fff;
-  border-radius:20px;padding:4px 10px;font-size:10px;font-weight:700;
-  display:flex;align-items:center;gap:5px;white-space:nowrap;z-index:3
-}
-.countdown-dot{width:5px;height:5px;border-radius:50%;background:#4ADE80;animation:pulse 1.4s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
-
-.poster-info-strip{
-  display:flex;align-items:stretch;
-  background:#fff;border-top:1px solid rgba(183,28,28,.12);border-bottom:1px solid rgba(183,28,28,.12)
-}
-.pii{flex:1;padding:8px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
-.pii+.pii{border-left:1px solid rgba(183,28,28,.12)}
-.pii-icon{font-size:14px;line-height:1}
-.pii-lbl{font-size:8px;font-weight:700;color:#9B1C1C;text-transform:uppercase;letter-spacing:.5px}
-.pii-val{font-size:11px;font-weight:800;color:#1C1B1F}
-
-.poster-middle{display:flex;gap:0;background:var(--red-dark)}
-.poster-prizes-col{flex:3;padding:10px 10px 10px 12px;border-right:1px solid rgba(255,255,255,.12)}
-.poster-entry-col{flex:2;padding:10px 12px 10px 10px}
-.col-hdr{
-  font-size:10px;font-weight:900;color:#FCD34D;
-  text-transform:uppercase;letter-spacing:.5px;
-  margin-bottom:7px;display:flex;align-items:center;gap:4px
-}
-.prize-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.07)}
-.prize-row:last-child{border-bottom:none}
-.prize-row.main{background:rgba(255,215,0,.13);border-radius:6px;padding:6px 5px;border-bottom:1px solid rgba(255,215,0,.25);margin-bottom:2px}
-.pr-icon{font-size:12px;margin-right:4px;flex-shrink:0}
-.pr-name{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.3px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pr-val{font-size:10px;font-weight:900;color:#FCD34D;flex-shrink:0;margin-left:6px}
-.prize-row.main .pr-icon{font-size:16px}
-.prize-row.main .pr-name{font-size:11px;font-weight:900;color:#fff}
-.prize-row.main .pr-val{font-size:14px;font-weight:900;color:#FCD34D}
-.entry-tier{
-  display:flex;align-items:center;justify-content:space-between;
-  background:rgba(255,255,255,.1);border-radius:6px;padding:5px 7px;margin-bottom:5px
-}
-.et-qty{font-size:10px;font-weight:900;color:#fff}
-.et-price{font-size:13px;font-weight:900;color:#FCD34D}
-.entry-limited{
-  background:rgba(255,255,255,.1);border:none;
-  border-radius:6px;padding:5px 7px;margin-top:4px;
-  font-size:10px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;line-height:1.4
+.gc-live-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 11px;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase
 }
 
-.poster-cta{
-  background:linear-gradient(90deg,#7B0000,#B91C1C,#7B0000);
-  padding:10px 14px;text-align:center;
-  font-size:11px;font-weight:900;color:#FCD34D;
-  letter-spacing:1.5px;text-transform:uppercase
+.gc-cover-bottom{display:flex;flex-direction:column;gap:7px}
+.gc-title{
+  font-size:clamp(20px,6.4vw,27px);font-weight:900;color:#fff;
+  line-height:1.08;letter-spacing:-.5px;
+  text-shadow:0 2px 14px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.45);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden
 }
+.gc-host{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.88)}
+.gc-host svg{flex-shrink:0;opacity:.9}
 
-.share-btn{
-  position:absolute;top:10px;right:10px;z-index:10;
-  background:rgba(255,255,255,.88);border:none;border-radius:50%;
-  width:32px;height:32px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 8px rgba(0,0,0,.2);transition:background .15s
+.gc-share{
+  position:absolute;top:12px;right:12px;z-index:4;
+  width:34px;height:34px;flex-shrink:0;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  background:rgba(255,255,255,.17);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.26);border-radius:50%;
+  box-shadow:0 2px 10px rgba(0,0,0,.18)
 }
-.share-btn:active{background:#fff}
+.gc-share:active{background:rgba(255,255,255,.3)}
 
-.sold-out-overlay{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;border-radius:20px}
-.sold-out-label{font-size:22px;font-weight:900;color:rgba(255,255,255,.7);letter-spacing:2px}
+/* Meta strip */
+.gc-meta{display:flex;background:#fff;border-bottom:1px solid rgba(17,16,30,.06)}
+.gc-meta-cell{flex:1;min-width:0;padding:9px 6px;text-align:center}
+.gc-meta-cell+.gc-meta-cell{border-left:1px solid rgba(17,16,30,.06)}
+.gc-meta-lbl{font-size:8.5px;font-weight:800;color:#8B85A0;text-transform:uppercase;letter-spacing:.6px}
+.gc-meta-val{font-size:11.5px;font-weight:800;color:#1C1B2E;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Jackpot — the Full House hero */
+.gc-prizes{padding:14px 14px 0}
+.gc-jackpot{
+  position:relative;overflow:hidden;
+  border-radius:18px;padding:14px 16px;
+  background:linear-gradient(135deg,#FFFBF0 0%,#FEF3D4 100%);
+  border:1px solid rgba(217,119,6,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7)
+}
+.gc-jackpot::after{
+  content:'';position:absolute;top:-40px;right:-30px;
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(251,191,36,.34),transparent 68%)
+}
+.gc-jackpot-row{position:relative;z-index:1;display:flex;align-items:center;gap:12px}
+.gc-crown{
+  width:42px;height:42px;flex-shrink:0;border-radius:13px;
+  display:flex;align-items:center;justify-content:center;font-size:21px;
+  background:linear-gradient(145deg,#FDE68A,#F59E0B);
+  box-shadow:0 3px 10px rgba(217,119,6,.32),inset 0 1px 0 rgba(255,255,255,.55)
+}
+.gc-jackpot-txt{flex:1;min-width:0}
+.gc-jackpot-lbl{font-size:9.5px;font-weight:900;color:#B45309;text-transform:uppercase;letter-spacing:1.3px}
+.gc-jackpot-name{font-size:13px;font-weight:800;color:#78350F;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-jackpot-val{
+  font-size:clamp(24px,7.6vw,32px);font-weight:900;color:#92400E;
+  line-height:1;letter-spacing:-1px;flex-shrink:0;text-align:right
+}
+.gc-jackpot-val.text{font-size:15px;letter-spacing:0;max-width:46%;line-height:1.25;text-align:right;white-space:normal}
+
+/* 2nd / 3rd Full House */
+.gc-runners{display:flex;gap:9px;margin-top:9px}
+.gc-runner{
+  flex:1;min-width:0;border-radius:14px;padding:10px 11px;
+  background:#F7F6FB;border:1px solid rgba(17,16,30,.06)
+}
+.gc-runner-lbl{font-size:8.5px;font-weight:800;color:#6B6585;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:4px}
+.gc-runner-val{font-size:16px;font-weight:900;color:#1C1B2E;margin-top:3px;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-runner-val.text{font-size:12px;font-weight:700;letter-spacing:0;white-space:normal;line-height:1.3}
+
+/* Remaining prizes */
+.gc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.gc-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  background:#F7F6FB;border:1px solid rgba(17,16,30,.06);
+  border-radius:999px;padding:5px 10px;
+  font-size:11px;font-weight:700;color:#413C58;max-width:100%
+}
+.gc-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-chip-val{font-weight:900;color:#6750A4;flex-shrink:0}
+.gc-chip.more{background:transparent;border-style:dashed;color:#8B85A0}
+.gc-pool{margin-top:10px;font-size:11.5px;font-weight:700;color:#6B6585;text-align:center}
+.gc-pool strong{color:#1C1B2E;font-weight:900}
+.gc-prizes-tba{padding:12px;text-align:center;font-size:12.5px;font-weight:700;color:#8B85A0;background:#F7F6FB;border-radius:14px}
+
+/* Supply + price */
+.gc-supply{padding:14px 14px 0}
+.gc-supply-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:7px}
+.gc-remaining{font-size:12.5px;font-weight:800;color:#1C1B2E}
+.gc-remaining b{color:#059669;font-weight:900}
+.gc-remaining.low b{color:#DC2626}
+.gc-price{font-size:12.5px;font-weight:700;color:#6B6585;white-space:nowrap}
+.gc-price b{font-size:15px;font-weight:900;color:#1C1B2E}
+.gc-bar{height:6px;border-radius:999px;background:#EDEAF5;overflow:hidden}
+.gc-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#8B5CF6,#6750A4);transition:width .4s}
+.gc-bar-fill.low{background:linear-gradient(90deg,#F87171,#DC2626)}
+.gc-sold-note{font-size:10.5px;font-weight:600;color:#8B85A0;margin-top:5px;text-align:right}
+
+/* Tiers */
+.gc-tiers{display:flex;gap:7px;overflow-x:auto;padding:12px 14px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.gc-tiers::-webkit-scrollbar{display:none}
+.gc-tier{
+  flex-shrink:0;border-radius:12px;padding:7px 11px;text-align:center;
+  background:#F7F6FB;border:1px solid rgba(17,16,30,.06)
+}
+.gc-tier-qty{font-size:9px;font-weight:800;color:#6B6585;text-transform:uppercase;letter-spacing:.5px}
+.gc-tier-price{font-size:14px;font-weight:900;color:#1C1B2E;margin-top:1px}
+.gc-tier.best{background:#EEF2FF;border-color:rgba(37,99,235,.2)}
+.gc-tier.best .gc-tier-price{color:#1D4ED8}
+
+/* CTA + trust */
+.gc-foot{padding:14px}
+.gc-cta{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:16px;border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(135deg,#2563EB 0%,#1D4ED8 100%);
+  color:#fff;border-radius:16px;font-size:15.5px;font-weight:800;letter-spacing:-.2px;
+  box-shadow:0 4px 16px -2px rgba(37,99,235,.45),inset 0 1px 0 rgba(255,255,255,.22);
+  transition:transform .14s,box-shadow .14s
+}
+.gc-cta:active{transform:scale(.975);box-shadow:0 2px 8px -2px rgba(37,99,235,.45)}
+.gc-cta:disabled{background:#CFCBDE;box-shadow:none;cursor:not-allowed}
+.gc-trust{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:11px}
+.gc-trust-item{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:#8B85A0}
+.gc-trust-item svg{flex-shrink:0;opacity:.75}
+
+.sold-out-overlay{
+  position:absolute;inset:0;z-index:5;
+  background:rgba(20,16,38,.55);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center
+}
+.sold-out-label{
+  font-size:15px;font-weight:900;color:#fff;letter-spacing:2.5px;
+  padding:11px 22px;border-radius:999px;
+  background:rgba(255,255,255,.13);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.3)
+}
 
 /* ── SHEET SELECTION ── */
 .sheets-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -229,26 +301,39 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .search-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;background:#EDE7F6;border-radius:12px;padding:10px 12px}
 .search-input{flex:1;min-width:0;padding:8px 10px;border:2px solid #6750A4;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;outline:none;color:#4527A0;background:#fff}
 .search-input::placeholder{font-weight:400;color:#9E9E9E}
-.search-clear{background:#6750A4;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.search-clear{background:#413C58;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
 
 .sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:10px}
 .sheet-chip{
-  border-radius:14px;padding:8px 4px 7px;
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;
+  border-radius:14px;padding:9px 4px 8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;
   cursor:pointer;position:relative;
-  box-shadow:0 4px 12px rgba(183,28,28,.32);
-  transition:transform .12s,box-shadow .12s;
+  transition:transform .12s,box-shadow .12s,background .12s;
   -webkit-user-select:none;user-select:none
 }
-.sheet-chip.avail{background:linear-gradient(145deg,#EF4444 0%,#B91C1C 100%)}
-.sheet-chip.avail:active{transform:scale(.9)}
-.sheet-chip.picked{
-  background:linear-gradient(145deg,#9C6FE4 0%,#6750A4 100%);
-  outline:3px solid #6750A4;outline-offset:2px;
-  box-shadow:0 4px 12px rgba(103,80,164,.55)
+.sheet-chip.avail{
+  background:#fff;border:1px solid rgba(17,16,30,.08);
+  box-shadow:0 1px 2px rgba(17,16,30,.05),0 4px 12px -6px rgba(17,16,30,.18)
 }
-.chip-doc{width:38px;height:47px;flex-shrink:0;filter:drop-shadow(1px 2px 3px rgba(0,0,0,.22))}
-.chip-num{font-size:11px;font-weight:900;color:#fff;text-align:center;line-height:1}
+.sheet-chip.avail:active{transform:scale(.92)}
+.sheet-chip.picked{
+  background:linear-gradient(145deg,#3B82F6 0%,#1D4ED8 100%);
+  border:1px solid transparent;
+  box-shadow:0 4px 14px -3px rgba(37,99,235,.55)
+}
+.sheet-chip.picked::after{
+  content:'✓';position:absolute;top:-6px;right:-6px;
+  width:19px;height:19px;border-radius:50%;background:#059669;color:#fff;
+  font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg)
+}
+.chip-doc{width:34px;height:42px;flex-shrink:0}
+.chip-num{font-size:12px;font-weight:900;color:#413C58;text-align:center;line-height:1}
+.sheet-chip.picked .chip-num{color:#fff}
+.cd-page{fill:#EDEAF5}.cd-fold{fill:rgba(17,16,30,.16)}.cd-txt{fill:#8B85A0}
+.sheet-chip.picked .cd-page{fill:rgba(255,255,255,.92)}
+.sheet-chip.picked .cd-fold{fill:rgba(29,78,216,.42)}
+.sheet-chip.picked .cd-txt{fill:#1D4ED8}
 .sheets-loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
 .no-sheets{text-align:center;padding:30px;color:var(--muted);font-size:14px;grid-column:1/-1}
 
@@ -260,12 +345,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .sheets-bottom-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .bottom-info{flex:1}
 .bottom-count{font-size:12px;font-weight:600;color:var(--muted)}
-.bottom-amount{font-size:22px;font-weight:900;color:#6750A4;line-height:1.1}
+.bottom-amount{font-size:22px;font-weight:900;color:#1C1B2E;line-height:1.1}
 .continue-btn{
-  background:linear-gradient(135deg,#6750A4,#4527A0);color:#fff;
+  background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;
   border:none;border-radius:16px;padding:14px 24px;font-size:15px;font-weight:800;
   cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;
-  box-shadow:0 4px 14px rgba(103,80,164,.38);transition:opacity .2s
+  box-shadow:0 4px 16px -2px rgba(37,99,235,.45);transition:opacity .2s
 }
 .continue-btn:disabled{opacity:.4;cursor:not-allowed}
 
@@ -278,15 +363,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .details-body{padding:16px;max-width:480px;margin:0 auto}
 
 .buying-as-card{
-  display:flex;align-items:center;justify-content:space-between;
-  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.25);
-  border-radius:14px;padding:14px 16px;margin-bottom:16px
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:#fff;border:1px solid rgba(17,16,30,.08);
+  border-radius:16px;padding:14px 16px;margin-bottom:16px;
+  box-shadow:0 1px 2px rgba(17,16,30,.05)
 }
-.buying-as-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.buying-as-name{font-size:17px;font-weight:800;color:#fff}
-.not-you-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.85);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.buying-as-label{font-size:10px;font-weight:800;color:#8B85A0;text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px}
+.buying-as-name{font-size:16px;font-weight:800;color:#1C1B2E}
+.not-you-btn{background:#F7F6FB;border:1px solid rgba(17,16,30,.08);color:#6B6585;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
 
-.order-summary{background:linear-gradient(135deg,#4527A0,#6750A4);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
+.order-summary{background:linear-gradient(135deg,#312E81,#4527A0);border-radius:18px;padding:16px 18px;margin-bottom:16px;color:#fff}
 .os-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;opacity:.8;margin-bottom:4px}
 .os-game{font-size:16px;font-weight:800;margin-bottom:8px}
 .os-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -303,9 +389,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 .err-msg{font-size:13px;color:var(--error);font-weight:500;margin-bottom:10px;text-align:center}
 .pay-btn{
-  width:100%;padding:17px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;
+  width:100%;padding:17px;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;border:none;
   border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
-  box-shadow:0 4px 14px rgba(5,150,105,.35);transition:opacity .2s
+  box-shadow:0 4px 16px -2px rgba(37,99,235,.45);transition:opacity .2s
 }
 .pay-btn:disabled{opacity:.5;cursor:not-allowed}
 
@@ -319,7 +405,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 /* ── QR MODAL ── */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .modal-backdrop.open{opacity:1;pointer-events:auto}
-.modal-sheet{background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;width:100%;max-width:520px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.modal-sheet{background:#fff;border-radius:28px 28px 0 0;padding:24px 24px 40px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .modal-backdrop.open .modal-sheet{transform:translateY(0)}
 .modal-handle{width:40px;height:4px;border-radius:2px;background:#DDD;margin:0 auto 20px}
 .modal-title{font-size:17px;font-weight:800;text-align:center;margin-bottom:4px}
@@ -330,6 +416,81 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .modal-pay-btn{width:100%;padding:16px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s}
 .modal-pay-btn:disabled{opacity:.5;cursor:not-allowed}
 .modal-cancel-link{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline}
+
+/* ── UPI PAY STEP ── */
+.pay-amount{font-size:34px;font-weight:900;color:#1C1B2E;text-align:center;line-height:1;letter-spacing:-1.5px;margin-bottom:5px}
+.pay-step{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#8B85A0;text-transform:uppercase;letter-spacing:.9px;margin:18px 0 10px}
+.pay-step-num{width:19px;height:19px;flex-shrink:0;border-radius:50%;background:#2563EB;color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;letter-spacing:0}
+.pay-step.done .pay-step-num{background:#059669}
+
+.upi-pay-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:17px;border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;
+  border-radius:16px;font-size:16px;font-weight:800;letter-spacing:-.2px;
+  box-shadow:0 4px 16px -2px rgba(37,99,235,.45),inset 0 1px 0 rgba(255,255,255,.22);
+  transition:transform .14s
+}
+.upi-pay-btn:active{transform:scale(.978)}
+.upi-pay-btn-sub{display:block;font-size:11px;font-weight:600;opacity:.82;margin-top:2px;letter-spacing:0}
+
+.upi-apps{display:flex;gap:8px;margin-top:9px}
+.upi-app{
+  flex:1;min-width:0;background:#F7F6FB;border:1px solid rgba(17,16,30,.08);
+  border-radius:13px;padding:10px 4px;cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;color:#413C58;transition:background .14s
+}
+.upi-app:active{background:#EDEAF5}
+.upi-app-ico{font-size:17px;line-height:1}
+
+.upi-id-row{
+  display:flex;align-items:center;gap:8px;margin-top:10px;
+  background:#F7F6FB;border:1px solid rgba(17,16,30,.07);border-radius:13px;padding:11px 13px
+}
+.upi-id-txt{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#413C58;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upi-id-txt span{display:block;font-size:9.5px;font-weight:800;color:#8B85A0;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.upi-copy-btn{background:#fff;border:1px solid rgba(17,16,30,.1);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:800;color:#2563EB;cursor:pointer;font-family:inherit;flex-shrink:0}
+
+.qr-toggle{display:block;width:100%;background:none;border:none;cursor:pointer;font-family:inherit;text-align:center;margin-top:12px;font-size:12.5px;font-weight:700;color:#6750A4;text-decoration:underline}
+.qr-panel{display:none;margin-top:12px}
+.qr-panel.open{display:block}
+.pay-hint{display:none;margin-top:10px;background:#FFF8E1;border-radius:12px;padding:11px 13px;font-size:12px;font-weight:600;color:#92400E;line-height:1.5}
+.pay-hint.show{display:block}
+
+.modal-pay-btn.waiting{background:#fff;border:1.5px solid rgba(17,16,30,.12);color:#6B6585;box-shadow:none;font-size:14px;font-weight:700}
+.pay-confirm-note{font-size:12px;font-weight:600;color:#8B85A0;text-align:center;line-height:1.5;margin-bottom:10px}
+.pay-confirm-note.ready{color:#059669;font-weight:800}
+.modal-trust{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:12px;font-size:11px;font-weight:600;color:#8B85A0}
+
+/* ── TELEGRAM DELIVERY ── */
+.tg-card{
+  display:none;text-align:left;
+  background:linear-gradient(135deg,#E8F4FD,#D9ECFB);
+  border:1px solid rgba(34,158,217,.22);
+  border-radius:18px;padding:16px;margin-bottom:14px
+}
+.tg-card.show{display:block}
+.tg-card-top{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+.tg-ico{
+  width:38px;height:38px;flex-shrink:0;border-radius:12px;
+  background:linear-gradient(145deg,#3BA7E0,#1E88C7);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 10px rgba(30,136,199,.3)
+}
+.tg-card-txt{flex:1;min-width:0}
+.tg-card-title{font-size:14px;font-weight:800;color:#0C4A6E}
+.tg-card-sub{font-size:12px;font-weight:600;color:#1E6A94;line-height:1.45;margin-top:2px}
+.tg-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:14px;border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(135deg,#2AA3E0,#1778B5);color:#fff;
+  border-radius:13px;font-size:14.5px;font-weight:800;
+  box-shadow:0 3px 12px -2px rgba(23,120,181,.45)
+}
+.tg-btn:active{transform:scale(.978)}
+.tg-btn:disabled{opacity:.6}
+.tg-linked{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#047857}
 
 /* ── TRACK MODAL ── */
 
@@ -358,7 +519,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#4527A0;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform .25s;white-space:nowrap;max-width:90vw;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
-@media(max-width:360px){.poster-title{font-size:24px}.bottom-amount{font-size:18px}}
+@media(max-width:360px){.gc-title{font-size:20px}.gc-jackpot-val{font-size:23px}.bottom-amount{font-size:18px}.gc-meta-val{font-size:10.5px}}
 </style>
 </head>
 <body>
@@ -439,9 +600,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
   <!-- SCREEN: SHEET SELECTION -->
   <div class="screen" id="screenSheets">
     <div class="sheets-scroll">
+      <div class="sheets-hero">
+        <button class="screen-back-btn" onclick="history.back()">← Back</button>
+        <div class="sheets-game-name" id="sheetsGameName"></div>
+        <div class="sheets-game-sub" id="sheetsGameSub">Tap the numbers you want — they are yours the moment payment clears.</div>
+      </div>
       <div class="sheets-body">
         <div class="sheets-hdr">
-          <span class="sheets-hdr-label">Available Sheets</span>
+          <span class="sheets-hdr-label">Remaining Sheets</span>
           <span class="sheets-hdr-count" id="sheetsAvailCount"></span>
         </div>
         <div class="search-row">
@@ -506,13 +672,23 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
       </div>
 
       <div class="err-msg" id="buyErr" style="display:none"></div>
-      <button class="pay-btn" id="payBtn" onclick="openQRModal()">💳 Pay Now →</button>
+      <button class="pay-btn" id="payBtn" onclick="openQRModal()">Pay ₹0 with UPI →</button>
     </div>
 
     <div class="confirm-card" id="confirmCard">
       <div class="confirm-icon">🎟️</div>
       <div class="confirm-title">Order Received!</div>
       <div class="confirm-msg">Your payment is being verified. Sheets will be assigned within a few minutes.</div>
+      <div class="tg-card" id="tgCardConfirm">
+        <div class="tg-card-top">
+          <div class="tg-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M21.6 4.3 2.9 11.5c-.8.3-.8 1.4 0 1.7l4.3 1.5 1.7 5.2c.2.7 1.1.9 1.6.3l2.3-2.6 4.4 3.2c.6.5 1.5.1 1.7-.6l3.3-15c.2-.9-.7-1.6-1.6-1.2zM9.4 14.3l8.2-5.4-6.5 6.6-.2 2.8-1.5-4z"/></svg></div>
+          <div class="tg-card-txt">
+            <div class="tg-card-title">Get your sheets on Telegram</div>
+            <div class="tg-card-sub">One tap. The bot sends your PDFs and the game joining link straight to your chat.</div>
+          </div>
+        </div>
+        <button class="tg-btn" id="tgBtnConfirm" onclick="linkTelegram('tgBtnConfirm')">Connect Telegram →</button>
+      </div>
       <div class="confirm-note" id="confirmNote"></div>
       <button class="confirm-home-btn" onclick="goHome()">← Back to Marketplace</button>
     </div>
@@ -540,15 +716,43 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
 
 </div>
 
-<!-- QR Payment Modal -->
+<!-- UPI Payment Modal -->
 <div class="modal-backdrop" id="qrModal" onclick="handleQRBackdrop(event)">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">Scan to Pay</div>
+    <div class="pay-amount" id="payAmount">₹0</div>
     <div class="modal-sub" id="modalSub"></div>
-    <div class="qr-wrap"><div class="qr-box"><div id="qrContainer"></div></div></div>
-    <div class="qr-upi-txt" id="qrUpiTxt"></div>
-    <button class="modal-pay-btn" id="modalPaidBtn" onclick="submitPurchase()">✓ Payment Done — Get My Sheets →</button>
+
+    <!-- Step 1: open a UPI app -->
+    <div class="pay-step" id="payStep1"><span class="pay-step-num">1</span>Pay with UPI</div>
+    <button class="upi-pay-btn" id="upiPayBtn" onclick="openUpiApp()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M11 18h2"/></svg>
+      <span>Pay with UPI app<span class="upi-pay-btn-sub" id="upiPayBtnSub">Opens GPay, PhonePe, Paytm…</span></span>
+    </button>
+    <div class="upi-apps" id="upiApps">
+      <button class="upi-app" onclick="openUpiApp('gpay')"><span class="upi-app-ico">🔵</span>GPay</button>
+      <button class="upi-app" onclick="openUpiApp('phonepe')"><span class="upi-app-ico">🟣</span>PhonePe</button>
+      <button class="upi-app" onclick="openUpiApp('paytm')"><span class="upi-app-ico">🔷</span>Paytm</button>
+    </div>
+    <div class="upi-id-row" id="upiIdRow">
+      <div class="upi-id-txt"><span>Pay to UPI ID</span><b id="upiIdValue"></b></div>
+      <button class="upi-copy-btn" id="upiCopyBtn" onclick="copyUpiId()">Copy</button>
+    </div>
+    <div class="pay-hint" id="payHint">No app opened? Copy the UPI ID above, or tap <b>Show QR code</b> to scan it from another phone.</div>
+    <button class="qr-toggle" id="qrToggle" onclick="toggleQR()">Show QR code</button>
+    <div class="qr-panel" id="qrPanel">
+      <div class="qr-wrap"><div class="qr-box"><div id="qrContainer"></div></div></div>
+      <div class="qr-upi-txt" id="qrUpiTxt"></div>
+    </div>
+
+    <!-- Step 2: confirm -->
+    <div class="pay-step" id="payStep2"><span class="pay-step-num">2</span>Confirm &amp; collect</div>
+    <div class="pay-confirm-note" id="payConfirmNote">Come back here after paying and confirm below.</div>
+    <button class="modal-pay-btn waiting" id="modalPaidBtn" onclick="submitPurchase()">I’ve already paid — get my sheets</button>
+    <div class="modal-trust">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      Money goes straight to the organiser’s UPI — we never hold it
+    </div>
     <span class="modal-cancel-link" onclick="closeQRModal()">Cancel</span>
   </div>
 </div>
@@ -561,6 +765,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--o
     <div class="modal-handle"></div>
     <div class="orders-title">🔔 My Orders</div>
     <div id="ordersList"><div class="orders-empty">Loading…</div></div>
+    <div class="tg-card" id="tgCardOrders">
+      <div class="tg-card-top">
+        <div class="tg-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M21.6 4.3 2.9 11.5c-.8.3-.8 1.4 0 1.7l4.3 1.5 1.7 5.2c.2.7 1.1.9 1.6.3l2.3-2.6 4.4 3.2c.6.5 1.5.1 1.7-.6l3.3-15c.2-.9-.7-1.6-1.6-1.2zM9.4 14.3l8.2-5.4-6.5 6.6-.2 2.8-1.5-4z"/></svg></div>
+        <div class="tg-card-txt">
+          <div class="tg-card-title">Sheets delivered on Telegram</div>
+          <div class="tg-card-sub">Connect once — every future order arrives as a PDF in your Telegram chat.</div>
+        </div>
+      </div>
+      <button class="tg-btn" id="tgBtnOrders" onclick="linkTelegram('tgBtnOrders')">Connect Telegram →</button>
+    </div>
     <div class="push-row" id="pushRow">
       <div class="push-row-txt">Get notified the moment your sheets are approved</div>
       <button class="push-enable-btn" id="enablePushBtn" onclick="enablePush()">Enable</button>
@@ -580,7 +794,7 @@ function closeInParent() {
 
 let cfg = {}, games = [], currentGame = null;
 let availableSheets = [], selectedNums = new Set();
-let purchaseId = null, pollTimer = null, pollCount = 0;
+let purchaseId = null, pollTimer = null, pollCount = 0, countdownTimer = null;
 let currentDownloadToken = null, currentSheets = [];
 let playerSession = null;
 const MAX_POLL = 360; // 30 min (push handles beyond that)
@@ -716,6 +930,8 @@ function openOrdersSheet() {
   document.getElementById('ordersSheet').classList.add('open');
   renderOrdersList();
   checkPushState();
+  paintTelegramCards();
+  if (tgLinked === null) refreshTelegramState();
 }
 function closeOrdersSheet() { document.getElementById('ordersSheet').classList.remove('open'); }
 function handleOrdersBackdrop(e) { if (e.target === document.getElementById('ordersSheet')) closeOrdersSheet(); }
@@ -798,6 +1014,77 @@ async function checkPushState() {
   if (perm === 'denied') { row.style.display = 'none'; }
 }
 
+/* ── Telegram delivery ──
+   A bot cannot message a phone number, only a chat it has been started in, so
+   linking is a one-tap deep link: open t.me/<bot>?start=link_<token> and the
+   bot redeems the token and binds this phone to that chat. From then on every
+   approved order arrives there as PDFs plus the game joining link. */
+let tgLinked = null, tgAvailable = false;
+
+async function refreshTelegramState() {
+  if (!playerSession) return;
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'telegram-status', sessionToken: playerSession.token })
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    tgAvailable = !!data.available;
+    tgLinked = !!data.linked;
+  } catch(e) { return; }
+  paintTelegramCards();
+}
+
+function paintTelegramCards() {
+  const show = tgAvailable && tgLinked === false;
+  ['tgCardConfirm', 'tgCardOrders'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('show', show);
+  });
+  if (tgAvailable && tgLinked) {
+    const orders = document.getElementById('tgCardOrders');
+    if (orders) {
+      orders.classList.add('show');
+      orders.innerHTML = '<div class="tg-linked">\u2713 Telegram connected \u2014 sheets are delivered to your chat</div>';
+    }
+  }
+}
+
+async function linkTelegram(btnId) {
+  if (!playerSession) return;
+  const btn = document.getElementById(btnId);
+  btn.disabled = true; btn.textContent = 'Opening Telegram…';
+  try {
+    const r = await fetch('/api/marketplace', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'telegram-link-token', sessionToken: playerSession.token })
+    });
+    const data = await r.json();
+    if (!r.ok || !data.deepLink) {
+      if (data.linked) { tgLinked = true; paintTelegramCards(); toast('Telegram already connected'); return; }
+      toast(data.error || 'Could not open Telegram');
+      btn.disabled = false; btn.textContent = 'Connect Telegram →';
+      return;
+    }
+    // Re-check on return so the card flips to "connected" without a reload.
+    tgPendingCheck = true;
+    window.open(data.deepLink, '_blank') || (window.location.href = data.deepLink);
+    btn.disabled = false; btn.textContent = 'Connect Telegram →';
+  } catch(e) {
+    toast('Network error. Try again.');
+    btn.disabled = false; btn.textContent = 'Connect Telegram →';
+  }
+}
+
+let tgPendingCheck = false;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && tgPendingCheck) {
+    tgPendingCheck = false;
+    setTimeout(refreshTelegramState, 800);
+  }
+});
+
 /* ── Push Notifications ── */
 const VAPID_PUBLIC_KEY = 'BKWahdDruaAK2xoTYGryXCGrFes1ROmEMjtR3g5BMyNxwJZm1DDpxSO8RQCsnQZa_lh0ZFtlA-IS_tnv7-j6vZg';
 
@@ -859,6 +1146,7 @@ async function init() {
 function startOrdersPolling() {
   if (ordersCheckTimer) clearInterval(ordersCheckTimer);
   checkMyOrders();
+  refreshTelegramState();
   ordersCheckTimer = setInterval(checkMyOrders, 30000);
 }
 
@@ -907,15 +1195,21 @@ function renderGames() {
     return;
   }
 
-  container.innerHTML = `<div class="section-label">Available Games (${games.length})</div>` + games.map(buildGameCard).join('');
+  container.innerHTML = `<div class="section-label">${games.length} game${games.length !== 1 ? "s" : ""} open for booking</div>` + games.map(buildGameCard).join('');
 
-  setInterval(() => {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
     games.forEach(g => {
       const el = document.getElementById(`cd-${g.id}`);
       if (!el) return;
       const ms = getGameMs(g);
-      if (!ms || ms <= 0) { el.style.display = 'none'; return; }
-      el.innerHTML = `<div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}`;
+      if (!ms || ms <= 0) {
+        el.className = 'gc-live-tag glass-pill';
+        el.innerHTML = '\ud83c\udf9f Sheets on sale';
+        return;
+      }
+      el.className = 'gc-countdown glass-pill' + (ms < 7200000 ? ' hot' : '');
+      el.innerHTML = `<span class="countdown-dot"></span>Starts in ${msToCountdown(ms)}`;
     });
   }, 1000);
 }
@@ -959,103 +1253,187 @@ function parsePosterDateTime(g) {
   return { dateStr: null, timeStr: null };
 }
 
-const BALL_NUMS = [7,18,33,22,45,62,14,77];
+/* ── Prize ranking ──
+   Operators name prizes free-form and the publisher (tukpamaster) ships both
+   "2nd Full House" and "Second Full House" style labels, so each rank accepts
+   either spelling. Rank 1/2/3 drive the card hierarchy: Full House is the
+   headline, 2nd/3rd sit beneath it, everything else becomes a chip. */
+const PRIZE_RANKS = [
+  { rank:1, icon:'👑', re:/^(the\s+)?full\s*house$/i },
+  { rank:2, icon:'🥈', re:/^(2nd|second)\s*full\s*house$/i },
+  { rank:3, icon:'🥉', re:/^(3rd|third)\s*full\s*house$/i },
+  { rank:4, icon:'⬆️', re:/^(upper|top|first)\s*line$/i },
+  { rank:5, icon:'➡️', re:/^(middle|mid|second)\s*line$/i },
+  { rank:6, icon:'⬇️', re:/^(bottom|lower|third|last)\s*line$/i },
+  { rank:7, icon:'🔲', re:/^ticket\s*corners?$/i },
+  { rank:8, icon:'🏁', re:/^sheet\s*corners?$/i },
+  { rank:9, icon:'⚡', re:/^early\s*(5|6|7|five|six|seven)$/i },
+];
+
+function prizeRank(name) {
+  for (const r of PRIZE_RANKS) if (r.re.test(String(name || '').trim())) return r;
+  return { rank: 50, icon: '🎯', re: null };
+}
+
+function sortPrizes(prizes) {
+  return (Array.isArray(prizes) ? prizes : [])
+    .map(p => ({ ...p, _r: prizeRank(p.name) }))
+    .sort((a, b) => a._r.rank - b._r.rank || (b.amount || 0) - (a.amount || 0));
+}
+
+function prizeValueHtml(p) {
+  return p.kind === 'cash'
+    ? `&#8377;${Number(p.amount || 0).toLocaleString('en-IN')}`
+    : esc(p.description || p.name || '');
+}
+function isCash(p) { return p.kind === 'cash' && Number(p.amount) > 0; }
+
+const ICO = {
+  cal:  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>',
+  user: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 21a8 8 0 1 0-16 0"/><circle cx="12" cy="8" r="4"/></svg>',
+  lock: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  bolt: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+  cart: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.6L20 8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>',
+};
 
 function buildGameCard(g) {
-  const avail = (g.sheetCount || 0) - (g.soldCount || 0);
-  const full = avail <= 0 && g.sheetCount > 0;
-  const prizes = Array.isArray(g.prizes) ? g.prizes : [];
-  const tiers = Array.isArray(g.pricingTiers) ? g.pricingTiers : [];
+  const total = g.sheetCount || 0;
+  const sold  = g.soldCount  || 0;
+  const avail = total - sold;
+  const full  = avail <= 0 && total > 0;
+  const soldPct = total ? Math.min(100, Math.round((sold / total) * 100)) : 0;
+  const low = total > 0 && avail > 0 && avail <= Math.max(5, Math.round(total * 0.15));
 
   const ms = getGameMs(g);
+  const soon = ms !== null && ms > 0 && ms < 7200000; // under 2h
   const cdHtml = ms && ms > 0
-    ? `<div class="countdown-badge" id="cd-${g.id}"><div class="countdown-dot"></div>Starts in ${msToCountdown(ms)}</div>`
-    : '';
+    ? `<div class="gc-countdown glass-pill${soon ? ' hot' : ''}" id="cd-${g.id}"><span class="countdown-dot"></span>Starts in ${msToCountdown(ms)}</div>`
+    : `<div class="gc-live-tag glass-pill">🎟 Sheets on sale</div>`;
 
+  /* ── Meta strip ── */
   const { dateStr, timeStr } = parsePosterDateTime(g);
   const joinTimeStr = g.joinTime ? formatJoinTime(g.joinTime) : null;
+  const metaItems = [];
+  if (dateStr) metaItems.push({ lbl:'Date', val:dateStr });
+  if (joinTimeStr) metaItems.push({ lbl:'Join by', val:joinTimeStr });
+  if (timeStr) metaItems.push({ lbl:'Game time', val:timeStr });
+  if (!metaItems.length && g.gameDate) metaItems.push({ lbl:'Date', val:esc(g.gameDate).toUpperCase() });
+  const metaHtml = metaItems.length
+    ? `<div class="gc-meta">${metaItems.slice(0,3).map(m =>
+        `<div class="gc-meta-cell"><div class="gc-meta-lbl">${m.lbl}</div><div class="gc-meta-val">${m.val}</div></div>`
+      ).join('')}</div>`
+    : '';
 
-  const infoItems = [];
-  if (dateStr) infoItems.push({ icon:'📅', lbl:'DATE', val:dateStr });
-  if (joinTimeStr) infoItems.push({ icon:'🕐', lbl:'JOIN TIME', val:joinTimeStr });
-  if (timeStr) infoItems.push({ icon:'⏱', lbl:'GAME TIME', val:timeStr });
-  if (!infoItems.length && g.gameDate) infoItems.push({ icon:'📅', lbl:'DATE', val:esc(g.gameDate).toUpperCase() });
-
-  const infoHtml = infoItems.slice(0,3).map(x =>
-    `<div class="pii"><span class="pii-icon">${x.icon}</span><div class="pii-lbl">${x.lbl}</div><div class="pii-val">${x.val}</div></div>`
-  ).join('');
-
-  const PRIO = [[/^full house$/i,1],[/^second full house$/i,2],[/^third full house$/i,3],[/^upper line$/i,4],[/^middle line$/i,5],[/^bottom line$/i,6],[/^ticket corners$/i,7],[/^sheet corner$/i,8],[/^early [567]$/i,9]];
-  function prio(n){for(const[re,r]of PRIO)if(re.test(n))return r;return 10}
-  const PRIZE_ICONS = {1:'👑',2:'🥈',3:'🥉',4:'⭐',5:'⭐',6:'⭐',7:'💎',8:'💎',9:'⚡'};
-  function fmtVal(p){return p.kind==='cash'?`&#8377;${(p.amount||0).toLocaleString('en-IN')}`:esc(p.description||'')}
-
-  const sorted = [...prizes].sort((a,b)=>prio(a.name)-prio(b.name));
-  const prizesHtml = sorted.slice(0,6).map((p,i)=>{
-    const pr = prio(p.name);
-    const mainCls = i === 0 ? ' main' : '';
-    return `<div class="prize-row${mainCls}">
-      <span class="pr-icon">${PRIZE_ICONS[pr]||'⭐'}</span>
-      <span class="pr-name">${esc(p.name)}</span>
-      <span class="pr-val">${fmtVal(p)}</span>
-    </div>`;
-  }).join('') || `<div class="prize-row"><span class="pr-name" style="color:rgba(255,255,255,.5)">Prizes TBA</span></div>`;
-
-  let tiersHtml = '';
-  if (tiers.length) {
-    tiersHtml = tiers.slice(0,4).map(t=>
-      `<div class="entry-tier"><span class="et-qty">${t.qty} SHEET${t.qty>1?'S':''}</span><span class="et-price">&#8377;${t.price.toLocaleString('en-IN')}</span></div>`
-    ).join('');
+  /* ── Prizes: Full House headline, 2nd/3rd beneath, rest as chips ── */
+  const sorted = sortPrizes(g.prizes);
+  let prizesHtml;
+  if (!sorted.length) {
+    prizesHtml = `<div class="gc-prizes-tba">🏆 Prizes announced soon</div>`;
   } else {
-    tiersHtml = `<div class="entry-tier"><span class="et-qty">PER SHEET</span><span class="et-price">&#8377;${g.pricePerSheet}</span></div>`;
+    const head = sorted[0];
+    const runners = sorted.filter(p => p._r.rank === 2 || p._r.rank === 3).slice(0, 2);
+    const runnerSet = new Set(runners);
+    const rest = sorted.filter(p => p !== head && !runnerSet.has(p));
+
+    const headCash = isCash(head);
+    const headLabel = head._r.rank === 1 ? 'Biggest prize' : 'Top prize';
+    prizesHtml = `<div class="gc-jackpot">
+      <div class="gc-jackpot-row">
+        <div class="gc-crown">${head._r.icon}</div>
+        <div class="gc-jackpot-txt">
+          <div class="gc-jackpot-lbl">${headLabel}</div>
+          <div class="gc-jackpot-name">${esc(head.name)}</div>
+        </div>
+        <div class="gc-jackpot-val${headCash ? '' : ' text'}">${prizeValueHtml(head)}</div>
+      </div>
+    </div>`;
+
+    if (runners.length) {
+      prizesHtml += `<div class="gc-runners">${runners.map(p =>
+        `<div class="gc-runner">
+          <div class="gc-runner-lbl">${p._r.icon} ${esc(p.name)}</div>
+          <div class="gc-runner-val${isCash(p) ? '' : ' text'}">${prizeValueHtml(p)}</div>
+        </div>`
+      ).join('')}</div>`;
+    }
+
+    if (rest.length) {
+      const shown = rest.slice(0, 5);
+      prizesHtml += `<div class="gc-chips">${shown.map(p =>
+        `<span class="gc-chip"><span class="gc-chip-name">${p._r.icon} ${esc(p.name)}</span><span class="gc-chip-val">${prizeValueHtml(p)}</span></span>`
+      ).join('')}${rest.length > shown.length ? `<span class="gc-chip more">+${rest.length - shown.length} more</span>` : ''}</div>`;
+    }
+
+    const pool = sorted.reduce((s, p) => s + (isCash(p) ? Number(p.amount) : 0), 0);
+    if (pool > 0 && sorted.length > 1) {
+      prizesHtml += `<div class="gc-pool">Total prize pool <strong>&#8377;${pool.toLocaleString('en-IN')}</strong> across ${sorted.length} prizes</div>`;
+    }
   }
-  tiersHtml += `<div class="entry-limited">${avail} sheets remaining</div>`;
 
-  const seed = g.id ? g.id.charCodeAt(0) : 0;
-  const ballNums = BALL_NUMS.slice(seed % 4, (seed % 4) + 4);
-  const ballColors = [
-    `radial-gradient(circle at 35% 35%,#f87171,#DC2626)`,
-    `radial-gradient(circle at 35% 35%,#a78bfa,#5B21B6)`,
-    `radial-gradient(circle at 35% 35%,#34d399,#047857)`,
-    `radial-gradient(circle at 35% 35%,#60a5fa,#1D4ED8)`
-  ];
-  const ballPos = [
-    'top:8px;left:8px','top:8px;right:48px','top:44px;right:8px','top:44px;left:48px'
-  ];
-  const ballsHtml = ballNums.map((n,i)=>
-    `<div class="poster-ball" style="${ballPos[i]};background:${ballColors[i]}"><span class="pb-num">${n}</span></div>`
-  ).join('');
+  /* ── Supply + pricing ── */
+  const tiers = Array.isArray(g.pricingTiers) ? g.pricingTiers.filter(t => t.qty > 0 && t.price > 0) : [];
+  const bestTier = tiers.reduce((best, t) => {
+    const per = t.price / t.qty;
+    return (!best || per < best.per) ? { ...t, per } : best;
+  }, null);
+  const tiersHtml = tiers.length
+    ? `<div class="gc-tiers">
+        <div class="gc-tier"><div class="gc-tier-qty">1 sheet</div><div class="gc-tier-price">&#8377;${Number(g.pricePerSheet || 0).toLocaleString('en-IN')}</div></div>
+        ${tiers.slice(0,4).map(t =>
+          `<div class="gc-tier${bestTier && t.qty === bestTier.qty ? ' best' : ''}"><div class="gc-tier-qty">${t.qty} sheets</div><div class="gc-tier-price">&#8377;${Number(t.price).toLocaleString('en-IN')}</div></div>`
+        ).join('')}
+      </div>`
+    : '';
 
-  const bgStyle = g.thumbnail ? `style="background-image:url('${esc(g.thumbnail)}')"` : '';
+  const supplyHtml = total > 0
+    ? `<div class="gc-supply">
+        <div class="gc-supply-top">
+          <div class="gc-remaining${low ? ' low' : ''}"><b>${avail}</b> remaining sheet${avail !== 1 ? 's' : ''}</div>
+          <div class="gc-price">from <b>&#8377;${Number(g.pricePerSheet || 0).toLocaleString('en-IN')}</b>/sheet</div>
+        </div>
+        <div class="gc-bar"><div class="gc-bar-fill${low ? ' low' : ''}" style="width:${soldPct}%"></div></div>
+        ${sold > 0 ? `<div class="gc-sold-note">${soldPct}% already booked${low ? ' · going fast' : ''}</div>` : ''}
+      </div>`
+    : '';
 
-  return `<div class="game-card" onclick="selectGame('${g.id}')" id="card-${g.id}">
-    <div class="poster-hero">
-      ${g.thumbnail?`<div class="poster-hero-bg" ${bgStyle}></div>`:''}
-      ${ballsHtml}
-      ${cdHtml}
-      <div class="poster-hero-content">
-        <div class="poster-stars">★ ★ ★ ★ ★</div>
-        <div class="poster-title">${esc(g.name)}</div>
-        <div class="poster-banner"><div class="poster-banner-text">TAMBOLA</div></div>
-        <div class="poster-tagline">PLAY &bull; WIN &bull; ENJOY</div>
+  /* ── Cover ── */
+  const art = g.thumbnail ? esc(g.thumbnail) : '';
+  const coverArt = art
+    ? `<div class="gc-cover-art" style="background-image:url('${art}')"></div>
+       <div class="gc-cover-sharp" style="background-image:url('${art}')"></div>`
+    : '';
+  const host = g.operatorDisplayName || g.operatorName;
+
+  return `<div class="game-card" id="card-${g.id}">
+    <div class="gc-cover" onclick="selectGame('${g.id}')">
+      ${coverArt}
+      <div class="gc-cover-veil"></div>
+      <div class="gc-cover-body">
+        <div class="gc-cover-top">${cdHtml}</div>
+        <div class="gc-cover-bottom">
+          <div class="gc-title">${esc(g.name)}</div>
+          ${host ? `<div class="gc-host">${ICO.user}Hosted by ${esc(host)}</div>` : ''}
+        </div>
+      </div>
+      <button class="gc-share" onclick="event.stopPropagation();shareGame('${g.id}')" title="Share" aria-label="Share game">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+    </div>
+    ${metaHtml}
+    <div class="gc-prizes">${prizesHtml}</div>
+    ${supplyHtml}
+    ${tiersHtml}
+    <div class="gc-foot">
+      <button class="gc-cta" onclick="selectGame('${g.id}')"${full ? ' disabled' : ''}>
+        ${ICO.cart}${full ? 'Sold out' : 'Tap to buy sheets'}
+      </button>
+      <div class="gc-trust">
+        <span class="gc-trust-item">${ICO.lock}Secure UPI payment</span>
+        <span class="gc-trust-item">${ICO.bolt}Instant PDF delivery</span>
+        <span class="gc-trust-item">${ICO.cal}Pick your own numbers</span>
       </div>
     </div>
-    ${infoHtml ? `<div class="poster-info-strip">${infoHtml}</div>` : ''}
-    <div class="poster-middle">
-      <div class="poster-prizes-col">
-        <div class="col-hdr">🏆 TODAY'S PRIZES</div>
-        ${prizesHtml}
-      </div>
-      <div class="poster-entry-col">
-        <div class="col-hdr">⚡ ENTRY</div>
-        ${tiersHtml}
-      </div>
-    </div>
-    <div class="poster-cta">⬇ TAP TO PICK YOUR LUCKY SHEET ⬇</div>
-    <button class="share-btn" onclick="event.stopPropagation();shareGame('${g.id}')" title="Share">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6750A4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-    </button>
-    ${full?`<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>`:''}
+    ${full ? `<div class="sold-out-overlay"><div class="sold-out-label">SOLD OUT</div></div>` : ''}
   </div>`;
 }
 
@@ -1070,6 +1448,7 @@ function selectGame(id) {
   selectedNums = new Set();
   availableSheets = [];
 
+  document.getElementById('sheetsGameName').textContent = currentGame.name;
   document.getElementById('sheetsAvailCount').textContent = '';
   document.getElementById('sheetsLoading').style.display = 'block';
   document.getElementById('sheetsGrid').style.display = 'none';
@@ -1096,7 +1475,7 @@ async function loadSheets(gameId) {
 
     const grid = document.getElementById('sheetsGrid');
     grid.innerHTML = availableSheets.length
-      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})"><svg class="chip-doc" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg"><path d="M0 2 Q0 0 2 0 H32 L46 14 V56 Q46 58 44 58 H2 Q0 58 0 56 Z" fill="#FEF9EC"/><path d="M32 0 L46 14 H34 Q32 14 32 12 Z" fill="rgba(140,20,20,0.38)"/><text x="23" y="40" text-anchor="middle" fill="#9B1C1C" font-size="9" font-weight="900" font-family="Inter,system-ui,sans-serif">PDF</text></svg><span class="chip-num">${n}</span></div>`).join('')
+      ? availableSheets.map(n => `<div class="sheet-chip avail" id="chip-${n}" data-n="${n}" onclick="toggleChip(${n})"><svg class="chip-doc" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg"><path d="M0 2 Q0 0 2 0 H32 L46 14 V56 Q46 58 44 58 H2 Q0 58 0 56 Z" class="cd-page"/><path d="M32 0 L46 14 H34 Q32 14 32 12 Z" class="cd-fold"/><text x="23" y="40" text-anchor="middle" class="cd-txt" font-size="9" font-weight="900" font-family="Inter,system-ui,sans-serif">PDF</text></svg><span class="chip-num">${n}</span></div>`).join('')
       : `<div class="no-sheets">No sheets available right now.</div>`;
     grid.style.display = 'grid';
   } catch(e) {
@@ -1154,6 +1533,7 @@ function goToDetails() {
     shown.map(n => `<span class="os-chip">#${n}</span>`).join('') +
     (extra > 0 ? `<span class="os-chip">+${extra} more</span>` : '');
   document.getElementById('osAmount').textContent = `₹${amount.toLocaleString('en-IN')}`;
+  document.getElementById('payBtn').textContent = `Pay ₹${amount.toLocaleString('en-IN')} with UPI →`;
   document.getElementById('buyErr').style.display = 'none';
   document.getElementById('detailsForm').style.display = 'block';
   document.getElementById('confirmCard').style.display = 'none';
@@ -1172,7 +1552,30 @@ function goToDetails() {
   show('screenDetails');
 }
 
-/* ── QR Modal ── */
+/* ── UPI Payment Modal ── */
+let payUpiId = '', payAmount = 0, payNote = '', payPayeeName = '';
+let upiAppOpened = false, payHintTimer = null;
+
+// Generic upi:// resolves to the Android app chooser. iOS and a few OEM
+// builds never register it, so the per-app schemes below are offered as a
+// fallback row — tez/phonepe/paytmmp are the published deep links for each.
+const UPI_SCHEMES = {
+  generic: 'upi://pay',
+  gpay:    'tez://upi/pay',
+  phonepe: 'phonepe://pay',
+  paytm:   'paytmmp://pay',
+};
+
+function buildUpiLink(app) {
+  const base = UPI_SCHEMES[app] || UPI_SCHEMES.generic;
+  return base
+    + `?pa=${encodeURIComponent(payUpiId)}`
+    + `&pn=${encodeURIComponent(payPayeeName)}`
+    + `&am=${encodeURIComponent(payAmount)}`
+    + `&cu=INR`
+    + `&tn=${encodeURIComponent(payNote)}`;
+}
+
 function openQRModal() {
   const errEl = document.getElementById('buyErr');
   errEl.style.display = 'none';
@@ -1185,30 +1588,115 @@ function openQRModal() {
   }
 
   const count = selectedNums.size;
-  const amount = calcClientAmount(currentGame, count);
-  // Use operator's own UPI if set, fall back to admin-configured UPI
-  const upiId = currentGame?.operatorUpiId || cfg.upiId || '';
-  const payeeName = encodeURIComponent(currentGame?.operatorDisplayName || currentGame?.operatorName || cfg.operatorName || 'Tungbola');
+  payAmount = calcClientAmount(currentGame, count);
+  // Operator's own UPI takes precedence over the admin-configured fallback.
+  payUpiId = currentGame?.operatorUpiId || cfg.upiId || '';
+  payPayeeName = currentGame?.operatorDisplayName || currentGame?.operatorName || cfg.operatorName || 'Tungbola';
+  payNote = `${currentGame?.name || 'Tambola'} sheets`.slice(0, 40);
 
-  document.getElementById('modalSub').textContent = `${count} sheet${count !== 1 ? 's' : ''} · ₹${amount.toLocaleString('en-IN')} · ${currentGame?.name || ''}`;
+  document.getElementById('payAmount').textContent = `₹${payAmount.toLocaleString('en-IN')}`;
+  document.getElementById('modalSub').textContent =
+    `${count} sheet${count !== 1 ? 's' : ''} · ${currentGame?.name || ''}`;
 
-  const qrContainer = document.getElementById('qrContainer');
-  qrContainer.innerHTML = '';
-  if (upiId) {
-    const upiStr = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${payeeName}&am=${amount}&cu=INR&tn=Tambola+Sheets`;
-    try { new QRCode(qrContainer, { text: upiStr, width: 200, height: 200, colorDark: '#1C1B1F', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch(e) {}
-    document.getElementById('qrUpiTxt').textContent = `UPI ID: ${upiId}`;
+  // Reset to step 1
+  upiAppOpened = false;
+  clearTimeout(payHintTimer);
+  document.getElementById('payHint').classList.remove('show');
+  document.getElementById('qrPanel').classList.remove('open');
+  document.getElementById('qrToggle').textContent = 'Show QR code';
+  document.getElementById('payStep1').classList.remove('done');
+  document.getElementById('payConfirmNote').className = 'pay-confirm-note';
+  document.getElementById('payConfirmNote').textContent = 'Come back here after paying and confirm below.';
+  const paidBtn = document.getElementById('modalPaidBtn');
+  paidBtn.className = 'modal-pay-btn waiting';
+  paidBtn.disabled = false;
+  paidBtn.textContent = 'I’ve already paid — get my sheets';
+
+  const hasUpi = !!payUpiId;
+  ['upiPayBtn', 'upiApps', 'upiIdRow', 'qrToggle'].forEach(id => {
+    document.getElementById(id).style.display = hasUpi ? '' : 'none';
+  });
+
+  if (hasUpi) {
+    document.getElementById('upiPayBtnSub').textContent = `₹${payAmount.toLocaleString('en-IN')} to ${payPayeeName}`;
+    document.getElementById('upiIdValue').textContent = payUpiId;
+    document.getElementById('upiCopyBtn').textContent = 'Copy';
+    document.getElementById('qrUpiTxt').textContent = `UPI ID: ${payUpiId}`;
+    const qrContainer = document.getElementById('qrContainer');
+    qrContainer.innerHTML = '';
+    try {
+      new QRCode(qrContainer, {
+        text: buildUpiLink(), width: 200, height: 200,
+        colorDark: '#1C1B2E', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch(e) {}
   } else {
-    qrContainer.innerHTML = `<div style="padding:24px;font-size:13px;color:var(--muted);text-align:center">UPI not configured.<br>Contact operator.</div>`;
+    document.getElementById('qrPanel').classList.add('open');
+    document.getElementById('qrContainer').innerHTML =
+      `<div style="padding:24px;font-size:13px;color:var(--muted);text-align:center">UPI not set up for this game.<br>Please contact the organiser.</div>`;
     document.getElementById('qrUpiTxt').textContent = '';
   }
 
-  document.getElementById('modalPaidBtn').disabled = false;
-  document.getElementById('modalPaidBtn').textContent = '✓ Payment Done — Get My Sheets →';
   document.getElementById('qrModal').classList.add('open');
 }
 
-function closeQRModal() { document.getElementById('qrModal').classList.remove('open'); }
+function openUpiApp(app) {
+  if (!payUpiId) { toast('UPI not set up for this game'); return; }
+  upiAppOpened = true;
+  promotePayConfirm();
+  // If the scheme does not resolve we stay on this page — surface the
+  // QR/copy fallback a couple of seconds later.
+  clearTimeout(payHintTimer);
+  payHintTimer = setTimeout(() => {
+    if (document.visibilityState === 'visible') document.getElementById('payHint').classList.add('show');
+  }, 2500);
+  window.location.href = buildUpiLink(app);
+}
+
+// Once a UPI app has been launched, step 2 becomes the primary action.
+function promotePayConfirm() {
+  document.getElementById('payStep1').classList.add('done');
+  const note = document.getElementById('payConfirmNote');
+  note.className = 'pay-confirm-note ready';
+  note.textContent = 'Paid? Tap below and your sheets are on the way.';
+  const btn = document.getElementById('modalPaidBtn');
+  if (btn.disabled) return;
+  btn.className = 'modal-pay-btn';
+  btn.textContent = '✓ Payment done — Get my sheets →';
+}
+
+function toggleQR() {
+  const panel = document.getElementById('qrPanel');
+  panel.classList.toggle('open');
+  document.getElementById('qrToggle').textContent = panel.classList.contains('open') ? 'Hide QR code' : 'Show QR code';
+}
+
+async function copyUpiId() {
+  if (!payUpiId) return;
+  const btn = document.getElementById('upiCopyBtn');
+  try {
+    await navigator.clipboard.writeText(payUpiId);
+    btn.textContent = '✓ Copied';
+    toast('UPI ID copied — paste it in your payment app');
+  } catch(e) {
+    toast('Could not copy. UPI ID: ' + payUpiId);
+  }
+}
+
+// Coming back from the UPI app re-focuses this tab — that is the moment to
+// make the confirm button impossible to miss.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && upiAppOpened &&
+      document.getElementById('qrModal').classList.contains('open')) {
+    document.getElementById('payHint').classList.remove('show');
+    promotePayConfirm();
+  }
+});
+
+function closeQRModal() {
+  clearTimeout(payHintTimer);
+  document.getElementById('qrModal').classList.remove('open');
+}
 function handleQRBackdrop(e) { if (e.target === document.getElementById('qrModal')) closeQRModal(); }
 
 async function submitPurchase() {
@@ -1231,7 +1719,7 @@ async function submitPurchase() {
     const data = await r.json();
     if (!r.ok) {
       btn.disabled = false;
-      btn.textContent = '✓ Payment Done — Get My Sheets →';
+      btn.textContent = '✓ Payment done — Get my sheets →';
       closeQRModal();
       document.getElementById('buyErr').textContent = data.error || 'Failed. Try again.';
       document.getElementById('buyErr').style.display = 'block';
@@ -1243,7 +1731,7 @@ async function submitPurchase() {
     startPolling();
   } catch(e) {
     btn.disabled = false;
-    btn.textContent = '✓ Payment Done — Get My Sheets →';
+    btn.textContent = '✓ Payment done — Get my sheets →';
     closeQRModal();
     document.getElementById('buyErr').textContent = 'Network error. Try again.';
     document.getElementById('buyErr').style.display = 'block';
@@ -1254,6 +1742,7 @@ function showConfirmation() {
   document.getElementById('detailsForm').style.display = 'none';
   document.getElementById('confirmCard').style.display = 'block';
   document.getElementById('screenDetails').scrollTop = 0;
+  paintTelegramCards();
   if (playerSession) {
     document.getElementById('confirmNote').innerHTML = `🔔 You'll get a push notification the moment your sheets are approved — even if you close this app.<br><br>⏳ Download links stay valid for <strong>6 hours</strong> after approval.`;
   } else {
@@ -1416,15 +1905,11 @@ async function shareGame(gameId) {
   if (!g) return;
   const marketUrl = window.location.origin + `/g/${gameId}`;
 
-  // Build prize list (sorted by priority, top 5)
-  const PRIO_RE = [[/^full house$/i,1],[/^second full house$/i,2],[/^third full house$/i,3],[/^upper line$/i,4],[/^middle line$/i,5],[/^bottom line$/i,6],[/^ticket corners$/i,7],[/^sheet corner$/i,8],[/^early [567]$/i,9]];
-  const ICONS = {1:'👑',2:'🥈',3:'🥉',4:'⭐',5:'⭐',6:'⭐',7:'💎',8:'💎',9:'⚡'};
-  function gPrio(n){for(const[re,r]of PRIO_RE)if(re.test(n))return r;return 10}
-  const sorted = [...(g.prizes||[])].sort((a,b)=>gPrio(a.name)-gPrio(b.name));
+  // Prize list — same ranking the card uses, so Full House always leads
+  const sorted = sortPrizes(g.prizes);
   const prizeLines = sorted.slice(0,5).map(p=>{
-    const icon = ICONS[gPrio(p.name)]||'⭐';
     const val = p.kind==='cash' ? `₹${(p.amount||0).toLocaleString('en-IN')}` : (p.description||'');
-    return `${icon} ${p.name}: ${val}`;
+    return `${p._r.icon} ${p.name}: ${val}`;
   }).join('\n');
 
   // Pricing
@@ -1435,7 +1920,9 @@ async function shareGame(gameId) {
 
   const dateStr = g.gameDate ? `📅 ${g.gameDate}\n` : '';
   const prizeSection = prizeLines ? `\n🏆 Prizes:\n${prizeLines}\n` : '';
-  const shareText = `🎯 ${g.name}\n${dateStr}${prizeSection}\n💰 ${priceLine}\n👇 Book your lucky number now!`;
+  const rem = Math.max(0, (g.sheetCount || 0) - (g.soldCount || 0));
+  const remLine = g.sheetCount ? `\n🎟 Only ${rem} remaining sheet${rem !== 1 ? 's' : ''} left` : '';
+  const shareText = `🎯 ${g.name}\n${dateStr}${prizeSection}\n💰 ${priceLine}${remLine}\n👇 Book your lucky number now!`;
   const shareData = { title: g.name, text: shareText, url: marketUrl };
   if (g.thumbnail && navigator.canShare) {
     try {

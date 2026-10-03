@@ -284,3 +284,17 @@ BEGIN
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
+
+-- One-tap Telegram linking for marketplace buyers.
+-- A Telegram bot cannot message someone by phone number — it can only reply to
+-- a chat it has been started in. So the web app mints a short-lived token tied
+-- to the signed-in player's phone and opens t.me/<bot>?start=link_<token>;
+-- the bot's /start handler redeems it and writes the player_telegram row that
+-- notifyPlayerApproved() needs to push sheets into the chat.
+CREATE TABLE IF NOT EXISTS telegram_link_tokens (
+  token      TEXT PRIMARY KEY,
+  phone      TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tg_link_tokens_phone ON telegram_link_tokens(phone);

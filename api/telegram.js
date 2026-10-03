@@ -351,6 +351,81 @@ async function handlePlayerStart(chatId, telegramId) {
   );
 }
 
+/* Redeems a one-tap link token minted by the marketplace
+   (api/marketplace.js -> telegram-link-token). Saves the player the trouble of
+   typing their phone number, and immediately pushes anything already approved
+   so the first thing they see in the chat is their sheets. */
+async function handleLinkToken(chatId, telegramId, token) {
+  const { data: row } = await db().from('telegram_link_tokens')
+    .select('phone, expires_at').eq('token', token).maybeSingle();
+
+  if (!row || new Date(row.expires_at).getTime() < Date.now()) {
+    if (row) await db().from('telegram_link_tokens').delete().eq('token', token);
+    await tgReply(chatId, `⌛ That link has expired.\n\nOpen the marketplace again and tap *Get sheets on Telegram* for a fresh one.`);
+    return;
+  }
+
+  const phone = String(row.phone);
+  await db().from('player_telegram').upsert(
+    { phone, telegram_id: String(telegramId) },
+    { onConflict: 'phone' }
+  );
+  await db().from('telegram_link_tokens').delete().eq('token', token);
+  await clearSession(telegramId);
+
+  const { data: player } = await db().from('players').select('name').eq('phone', phone).maybeSingle();
+  await tgReply(chatId,
+    `✅ *Connected${player?.name ? ', ' + player.name : ''}!*\n\n` +
+    `Your sheets will land right here as PDFs the moment an order is approved — along with the game joining link.\n\n` +
+    `/myorders — your orders\n/games — browse & buy`
+  );
+
+  await deliverPendingOrders(chatId, phone);
+}
+
+/* Anything approved before the chat existed never got delivered — send it now. */
+async function deliverPendingOrders(chatId, phone) {
+  try {
+    const { data: orders } = await db().from('purchases')
+      .select('purchase_id, game_name, quantity, amount, status, download_token, game_id')
+      .eq('phone', phone).in('status', ['approved'])
+      .order('created_at', { ascending: false }).limit(3);
+    if (!orders?.length) return;
+
+    const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+    for (const o of orders) {
+      if (!o.download_token) continue;
+      const { data: tok } = await db().from('download_tokens')
+        .select('sheets').eq('token', o.download_token).maybeSingle();
+      const sheets = tok?.sheets || [];
+      const { data: g } = await db().from('games')
+        .select('join_link, join_details').eq('id', o.game_id).maybeSingle();
+
+      let joining = '';
+      if (g?.join_link)    joining += `\n\n🔗 *Game Joining Link:*\n${g.join_link}`;
+      if (g?.join_details) joining += `\n${g.join_details}`;
+
+      const canSendDocs = sheets.length > 0 && sheets.length <= SHEET_DOC_LIMIT;
+      const buttons = [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${o.download_token}` }]];
+      if (g?.join_link) buttons[0].push({ text: '🔗 Join Game', url: g.join_link });
+
+      await tgSend('sendMessage', {
+        chat_id: chatId,
+        text: `🎟 *${o.game_name}* — ${o.quantity} sheet${o.quantity !== 1 ? 's' : ''} · ₹${o.amount}\n\n` +
+              (canSendDocs ? `Sending your sheets below 👇` : `Tap below to download your sheets.`) + joining,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons }
+      });
+
+      if (canSendDocs) {
+        for (const sh of sheets) {
+          await tgSend('sendDocument', { chat_id: chatId, document: sh.url, caption: `🎫 Sheet #${sh.n} — ${o.game_name}` });
+        }
+      }
+    }
+  } catch (e) { console.error('deliverPendingOrders failed:', e.message); }
+}
+
 async function handleMyOrders(chatId, telegramId, args) {
   let phone = await getPlayerPhone(telegramId);
 
@@ -1430,6 +1505,8 @@ module.exports = async function(req, res) {
           const op = await getOpByTgId(tgId);
           if (op) {
             await handleOperatorHelp(chatId);
+          } else if (args && args.startsWith('link_')) {
+            await handleLinkToken(chatId, tgId, args.slice(5));
           } else if (args && args.startsWith('buy_')) {
             await handleBuyGame(chatId, tgId, args.slice(4));
           } else {

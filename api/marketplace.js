@@ -576,6 +576,42 @@ module.exports = async function(req, res) {
     return res.json({ orders });
   }
 
+  /* ── Player: Telegram delivery link ──
+     A bot can only message a chat that the user has started, so there is no way
+     to push sheets to a phone number alone. These two actions drive a one-tap
+     link instead: the client asks for status, and if unlinked opens the deep
+     link below — Telegram's /start handler redeems the token and writes the
+     player_telegram row that notifyPlayerApproved() delivers sheets through. */
+  if (action === 'telegram-status' || action === 'telegram-link-token') {
+    if (await rateLimit(req, 'tglink', 60, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { sessionToken } = body;
+    if (!sessionToken) return res.status(400).json({ error: 'sessionToken required' });
+
+    const { data: session } = await db().from('sessions').select('phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
+    if (!session) return res.status(401).json({ error: 'Session expired' });
+
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || '';
+    const available = !!(botUsername && process.env.TELEGRAM_BOT_TOKEN);
+    const phone = normPhone(session.phone);
+
+    const { data: link } = await db().from('player_telegram').select('telegram_id').eq('phone', phone).maybeSingle();
+    if (link?.telegram_id || action === 'telegram-status')
+      return res.json({ ok: true, available, linked: !!link?.telegram_id });
+
+    if (!available) return res.status(503).json({ error: 'Telegram delivery is not configured' });
+
+    // Single-use, 30-minute token. Replaces any earlier unredeemed token for
+    // this phone so an abandoned attempt cannot be reused later.
+    const token = crypto.randomBytes(16).toString('hex');
+    await db().from('telegram_link_tokens').delete().eq('phone', phone);
+    await db().from('telegram_link_tokens').insert({
+      token, phone, expires_at: new Date(Date.now() + 1800000).toISOString()
+    });
+
+    return res.json({ ok: true, available, linked: false, deepLink: `https://t.me/${botUsername}?start=link_${token}` });
+  }
+
   /* ── Player: save push subscription ── */
   if (action === 'subscribe-push') {
     if (await rateLimit(req, 'subscribepush', 20, 3600))
