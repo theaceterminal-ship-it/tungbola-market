@@ -284,3 +284,50 @@ BEGIN
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
+
+-- One-tap Telegram linking for marketplace buyers.
+-- A Telegram bot cannot message someone by phone number — it can only reply to
+-- a chat it has been started in. So the web app mints a short-lived token tied
+-- to the signed-in player's phone and opens t.me/<bot>?start=link_<token>;
+-- the bot's /start handler redeems it and writes the player_telegram row that
+-- notifyPlayerApproved() needs to push sheets into the chat.
+CREATE TABLE IF NOT EXISTS telegram_link_tokens (
+  token         TEXT PRIMARY KEY,
+  -- 'link' binds Telegram to an already signed-in player; 'auth' is the
+  -- sign-in itself, where Telegram's verified contact supplies the phone.
+  purpose       TEXT        NOT NULL DEFAULT 'link',
+  status        TEXT        NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending','opened','verified')),
+  phone         TEXT,
+  telegram_id   TEXT,
+  session_token TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tg_link_tokens_phone ON telegram_link_tokens(phone);
+CREATE INDEX IF NOT EXISTS idx_tg_link_tokens_tg    ON telegram_link_tokens(telegram_id);
+
+-- Short holds on picked sheet numbers.
+-- Sheets were previously only locked at approval, so two buyers could pick the
+-- same number and one of them ended up in a refund conversation. A hold is
+-- taken the moment checkout opens and released on approve/reject/expiry.
+-- (game_id, n) is the primary key, so the database itself refuses a double
+-- booking even if two requests race.
+CREATE TABLE IF NOT EXISTS sheet_reservations (
+  game_id        TEXT        NOT NULL,
+  n              INTEGER     NOT NULL,
+  reservation_id TEXT        NOT NULL,
+  phone          TEXT,
+  purchase_id    TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at     TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (game_id, n)
+);
+CREATE INDEX IF NOT EXISTS idx_sheet_res_rid     ON sheet_reservations(reservation_id);
+CREATE INDEX IF NOT EXISTS idx_sheet_res_expires ON sheet_reservations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sheet_res_pid     ON sheet_reservations(purchase_id);
+
+-- Optional payment screenshot attached at checkout, so the operator approves
+-- from the notification instead of going hunting in their UPI app.
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS screenshot_url TEXT;
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS reservation_id TEXT;

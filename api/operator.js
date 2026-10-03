@@ -6,6 +6,7 @@ const { sendPush } = require('./_push');
 const { notifyPlayerApproved, notifyPlayerRejected, broadcastGame, broadcastLiveNumbers, broadcastPrizeClaim, tgSend } = require('./telegram');
 const { generateTickets, verifyDividend } = require('./_tambola');
 const { resolveGenerateSheetsForPurchase } = require('./_sheetDelivery');
+const { releaseReservation } = require('./_reservations');
 const crypto = require('crypto');
 
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -424,6 +425,7 @@ module.exports = async function(req, res) {
     try {
       await notifyPlayerApproved(np, game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails, sheetList);
     } catch(e) { console.error('Telegram notify failed:', e.message); }
+    await releaseReservation({ purchaseId });
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
@@ -446,6 +448,7 @@ module.exports = async function(req, res) {
       const np = String(pRow.phone || '').replace(/\D/g, '');
       await notifyPlayerRejected(np, pRow.game_name, pRow.quantity, pRow.amount);
     } catch(e) { console.error('Telegram notify failed:', e.message); }
+    await releaseReservation({ purchaseId });
 
     return res.json({ ok: true });
   }

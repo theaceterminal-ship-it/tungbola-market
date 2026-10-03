@@ -1,9 +1,10 @@
 const { put } = require('@vercel/blob');
 const { secureHeaders, rateLimit, checkPassword } = require('./_security');
-const { db, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow } = require('./_db');
+const { db, normPhone, gameFromRow, gameToRow, purchaseFromRow, purchaseToRow, operatorFromRow } = require('./_db');
 const { sendPush } = require('./_push');
 const { broadcastGame, notifyPlayerApproved, notifyPlayerRejected } = require('./telegram');
 const { resolveGenerateSheetsForPurchase } = require('./_sheetDelivery');
+const { reserveSheets, heldNums, attachToPurchase, releaseReservation } = require('./_reservations');
 const crypto = require('crypto');
 
 // ── Telegram notification ────────────────────────────────────
@@ -23,24 +24,31 @@ async function sendTelegramOrderNotification(purchase, game) {
       ? `\n📌 Requested: #${purchase.requestedSheetNums.join(', #')}`
       : '';
     const time = new Date(purchase.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
-    const text = `🎟 *New Order*\n\n👤 ${purchase.playerName}\n📱 ${purchase.phone}\n🎮 ${purchase.gameName}\n📋 ${purchase.quantity} sheet${purchase.quantity !== 1 ? 's' : ''}\n💰 ₹${purchase.amount}\n⏰ ${time}${reqNums}\n\n_Check your UPI app for ₹${purchase.amount} before approving._`;
+    const verifyLine = purchase.screenshotUrl
+      ? `\n\n_Payment screenshot attached — check it matches ₹${purchase.amount} before approving._`
+      : `\n\n_Check your UPI app for ₹${purchase.amount} before approving._`;
+    const text = `🎟 *New Order*\n\n👤 ${purchase.playerName}\n📱 ${purchase.phone}\n🎮 ${purchase.gameName}\n📋 ${purchase.quantity} sheet${purchase.quantity !== 1 ? 's' : ''}\n💰 ₹${purchase.amount}\n⏰ ${time}${reqNums}${verifyLine}`;
 
-    const payload = {
-      chat_id: chatId,
-      text,
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '✅ Approve', callback_data: `approve:${purchase.purchaseId}` },
-          { text: '❌ Reject',  callback_data: `reject:${purchase.purchaseId}` }
-        ]]
-      }
+    const reply_markup = {
+      inline_keyboard: [[
+        { text: '✅ Approve', callback_data: `approve:${purchase.purchaseId}` },
+        { text: '❌ Reject',  callback_data: `reject:${purchase.purchaseId}` }
+      ]]
     };
+
+    // With a screenshot the operator can approve straight from the card
+    // instead of opening their UPI app — same shape the bot's own buy flow
+    // already sends. Telegram fetches the blob URL itself.
+    const method  = purchase.screenshotUrl ? 'sendPhoto' : 'sendMessage';
+    const payload = purchase.screenshotUrl
+      ? { chat_id: chatId, photo: purchase.screenshotUrl, caption: text, parse_mode: 'Markdown', reply_markup }
+      : { chat_id: chatId, text, parse_mode: 'Markdown', reply_markup };
+
     const https = require('https');
     const body = JSON.stringify(payload);
     await new Promise((resolve, reject) => {
       const req = https.request({
-        hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
+        hostname: 'api.telegram.org', path: `/bot${token}/${method}`, method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
       }, res => { res.resume(); resolve(); });
       req.on('error', reject);
@@ -52,7 +60,6 @@ async function sendTelegramOrderNotification(purchase, game) {
 // ── Helpers ──────────────────────────────────────────────────
 function genId()    { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function genToken() { return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 9).toUpperCase(); }
-function normPhone(s) { return String(s || '').replace(/\D/g, ''); }
 
 function hashPassword(pwd) {
   return crypto.createHmac('sha256', process.env.HMAC_SECRET || 'tb-cmp-key').update(String(pwd)).digest('hex');
@@ -346,6 +353,7 @@ module.exports = async function(req, res) {
       if (pushRow?.subscription) await sendPush(pushRow.subscription);
     } catch(e) { console.error('Push failed:', e.message); }
     try { await notifyPlayerApproved(normPhone(purchase.phone), game.name, purchase.quantity, purchase.amount, dlToken, game.joinLink, game.joinDetails, sheetList); } catch(e) {}
+    await releaseReservation({ purchaseId });
 
     return res.json({ ok: true, downloadToken: dlToken, sheetsAssigned: assigned.length });
   }
@@ -366,6 +374,7 @@ module.exports = async function(req, res) {
     if (fullPRow) {
       try { await notifyPlayerRejected(normPhone(fullPRow.phone), fullPRow.game_name, fullPRow.quantity, fullPRow.amount); } catch(e) {}
     }
+    await releaseReservation({ purchaseId });
     return res.json({ ok: true });
   }
 
@@ -576,6 +585,90 @@ module.exports = async function(req, res) {
     return res.json({ orders });
   }
 
+  /* ── Player: sign in with Telegram ──
+     Replaces the password for new accounts. The phone is not typed in — the
+     bot asks Telegram for the account's verified contact and reports it back,
+     so nobody can claim a number they do not own by entering it here. */
+  if (action === 'auth-telegram-start') {
+    if (await rateLimit(req, 'tgauthstart', 20, 3600))
+      return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || '';
+    if (!botUsername || !process.env.TELEGRAM_BOT_TOKEN)
+      return res.status(503).json({ error: 'Telegram sign-in is not configured' });
+
+    const token = crypto.randomBytes(24).toString('hex');
+    await db().from('telegram_link_tokens').insert({
+      token, purpose: 'auth', status: 'pending',
+      expires_at: new Date(Date.now() + 600000).toISOString()   // 10 minutes
+    });
+    return res.json({ ok: true, token, deepLink: `https://t.me/${botUsername}?start=auth_${token}` });
+  }
+
+  if (action === 'auth-telegram-poll') {
+    if (await rateLimit(req, 'tgauthpoll', 300, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { token } = body;
+    if (!token) return res.status(400).json({ error: 'token required' });
+
+    const { data: row } = await db().from('telegram_link_tokens')
+      .select('*').eq('token', token).eq('purpose', 'auth').maybeSingle();
+    if (!row) return res.status(404).json({ error: 'Sign-in expired. Start again.' });
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      await db().from('telegram_link_tokens').delete().eq('token', token);
+      return res.status(410).json({ error: 'Sign-in expired. Start again.' });
+    }
+    if (row.status !== 'verified' || !row.session_token)
+      return res.json({ ok: true, status: row.status });
+
+    // Single use: the session is handed over once, then the token is gone.
+    const { data: session } = await db().from('sessions')
+      .select('name, phone').eq('token', row.session_token).maybeSingle();
+    await db().from('telegram_link_tokens').delete().eq('token', token);
+    if (!session) return res.status(410).json({ error: 'Sign-in expired. Start again.' });
+
+    return res.json({
+      ok: true, status: 'verified', sessionToken: row.session_token,
+      player: { name: session.name, phone: session.phone }
+    });
+  }
+
+  /* ── Player: Telegram delivery link ──
+     A bot can only message a chat that the user has started, so there is no way
+     to push sheets to a phone number alone. These two actions drive a one-tap
+     link instead: the client asks for status, and if unlinked opens the deep
+     link below — Telegram's /start handler redeems the token and writes the
+     player_telegram row that notifyPlayerApproved() delivers sheets through. */
+  if (action === 'telegram-status' || action === 'telegram-link-token') {
+    if (await rateLimit(req, 'tglink', 60, 3600))
+      return res.status(429).json({ error: 'Too many requests' });
+    const { sessionToken } = body;
+    if (!sessionToken) return res.status(400).json({ error: 'sessionToken required' });
+
+    const { data: session } = await db().from('sessions').select('phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
+    if (!session) return res.status(401).json({ error: 'Session expired' });
+
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || '';
+    const available = !!(botUsername && process.env.TELEGRAM_BOT_TOKEN);
+    const phone = normPhone(session.phone);
+
+    const { data: link } = await db().from('player_telegram').select('telegram_id').eq('phone', phone).maybeSingle();
+    if (link?.telegram_id || action === 'telegram-status')
+      return res.json({ ok: true, available, linked: !!link?.telegram_id });
+
+    if (!available) return res.status(503).json({ error: 'Telegram delivery is not configured' });
+
+    // Single-use, 30-minute token. Replaces any earlier unredeemed token for
+    // this phone so an abandoned attempt cannot be reused later.
+    const token = crypto.randomBytes(16).toString('hex');
+    await db().from('telegram_link_tokens').delete().eq('phone', phone);
+    await db().from('telegram_link_tokens').insert({
+      token, phone, expires_at: new Date(Date.now() + 1800000).toISOString()
+    });
+
+    return res.json({ ok: true, available, linked: false, deepLink: `https://t.me/${botUsername}?start=link_${token}` });
+  }
+
   /* ── Player: save push subscription ── */
   if (action === 'subscribe-push') {
     if (await rateLimit(req, 'subscribepush', 20, 3600))
@@ -590,11 +683,56 @@ module.exports = async function(req, res) {
     return res.json({ ok: true });
   }
 
+  /* ── Player: hold picked sheets through checkout ──
+     Called when the pay sheet opens, before the buyer leaves for their UPI
+     app. Without this, numbers were only locked at approval and two buyers
+     could pay for the same sheet. */
+  if (action === 'reserve-sheets') {
+    if (await rateLimit(req, 'reserve', 40, 3600))
+      return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    const { sessionToken, phone, gameId, sheetNums, previousReservationId } = body;
+    if (!gameId || !Array.isArray(sheetNums) || !sheetNums.length)
+      return res.status(400).json({ error: 'gameId and sheetNums required' });
+
+    let holderPhone = phone;
+    if (sessionToken) {
+      const { data: session } = await db().from('sessions').select('phone').eq('token', sessionToken).gt('expires_at', new Date().toISOString()).single();
+      if (!session) return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+      holderPhone = session.phone;
+    }
+
+    const { data: gRow } = await db().from('games').select('*').eq('id', gameId).eq('status', 'listed').single();
+    if (!gRow) return res.status(404).json({ error: 'Game not available' });
+    const game = gameFromRow(gRow);
+
+    const nums = sheetNums.slice(0, 150).map(Number)
+      .filter(n => Number.isInteger(n) && n >= game.sheetFrom && n <= game.sheetTo);
+    if (!nums.length) return res.status(400).json({ error: 'No valid sheet numbers' });
+
+    const result = await reserveSheets({
+      gameId, nums, phone: normPhone(holderPhone),
+      soldNums: game.soldSheetNums, previousReservationId
+    });
+
+    if (result.conflicts) {
+      const list = result.conflicts.map(n => '#' + n).join(', ');
+      return res.status(409).json({
+        error: result.reason === 'sold'
+          ? `${list} ${result.conflicts.length === 1 ? 'was' : 'were'} just sold. Pick another number.`
+          : `${list} ${result.conflicts.length === 1 ? 'is' : 'are'} being bought by someone else right now. Pick another number.`,
+        conflicts: result.conflicts
+      });
+    }
+    if (result.error) return res.status(400).json({ error: result.error });
+
+    return res.json({ ok: true, reservationId: result.reservationId, expiresAt: result.expiresAt });
+  }
+
   /* ── Player: purchase sheets ── */
   if (action === 'purchase') {
     if (await rateLimit(req, 'mktbuy', 10, 3600))
       return res.status(429).json({ error: 'Too many requests. Try again later.' });
-    const { sessionToken, playerName, phone, gameId, quantity, requestedSheetNums } = body;
+    const { sessionToken, playerName, phone, gameId, quantity, requestedSheetNums, reservationId, screenshot } = body;
     if (!gameId || !quantity) return res.status(400).json({ error: 'gameId and quantity required' });
 
     let resolvedName = playerName, resolvedPhone = phone;
@@ -620,11 +758,49 @@ module.exports = async function(req, res) {
       ? requestedSheetNums.slice(0, 150).map(Number).filter(n => n >= game.sheetFrom && n <= game.sheetTo)
       : null;
 
+    // The hold taken at checkout must still cover every requested number —
+    // otherwise it expired while the buyer was in their UPI app and someone
+    // else may have taken one. Say which, rather than failing at approval.
+    if (reservationId && reqNums?.length) {
+      const held = await attachToPurchase(reservationId, purchaseId, reqNums);
+      if (!held.ok) {
+        const lost = held.lost?.length ? held.lost.map(n => '#' + n).join(', ') : null;
+        return res.status(409).json({
+          error: lost
+            ? `Your hold on ${lost} expired. Go back and pick again — nothing was charged.`
+            : 'Your hold on these sheets expired. Go back and pick again — nothing was charged.',
+          conflicts: held.lost || []
+        });
+      }
+    }
+
+    // Optional payment screenshot — lets the operator approve straight from
+    // the Telegram card instead of cross-checking their UPI app by hand.
+    let screenshotUrl = null;
+    if (screenshot) {
+      try {
+        const m = /^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(screenshot));
+        if (m) {
+          const buf = Buffer.from(m[2], 'base64');
+          if (buf.length <= 4 * 1024 * 1024) {
+            const ext = m[1] === 'image/png' ? 'png' : m[1] === 'image/webp' ? 'webp' : 'jpg';
+            const blob = await put(`tungbola/receipts/${purchaseId}.${ext}`, buf, { access: 'public', contentType: m[1] });
+            screenshotUrl = blob.url;
+          }
+        }
+      } catch (e) {
+        // A failed upload must not cost the buyer their order — the operator
+        // simply falls back to checking their UPI app.
+        console.error('Screenshot upload failed:', e.message);
+      }
+    }
+
     const purchase = {
       purchaseId, playerName: String(resolvedName).trim().slice(0, 50),
       phone: String(resolvedPhone).trim().slice(0, 20),
       gameId, gameName: game.name, quantity: qty, amount,
-      requestedSheetNums: reqNums, status: 'pending', createdAt: Date.now()
+      requestedSheetNums: reqNums, status: 'pending', createdAt: Date.now(),
+      screenshotUrl, reservationId: reservationId || null
     };
     await db().from('purchases').insert(purchaseToRow(purchase));
 
@@ -659,10 +835,14 @@ module.exports = async function(req, res) {
     const { data: sheetRows } = await sheetQuery;
 
     const soldSet = new Set(game.soldSheetNums);
+    // Numbers someone else is mid-checkout on are not offered either — the
+    // hold expires on its own, so they come back if that checkout is abandoned.
+    const heldSet = await heldNums(gameId, body.reservationId);
     const allNums = (sheetRows || []).map(s => s.n).sort((a, b) => a - b);
     return res.json({
-      available: allNums.filter(n => !soldSet.has(n)),
+      available: allNums.filter(n => !soldSet.has(n) && !heldSet.has(n)),
       sold: allNums.filter(n => soldSet.has(n)),
+      held: allNums.filter(n => !soldSet.has(n) && heldSet.has(n)),
       total: allNums.length
     });
   }

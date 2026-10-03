@@ -1,7 +1,8 @@
 const { secureHeaders } = require('./_security');
-const { db, gameFromRow, purchaseFromRow } = require('./_db');
+const { db, normPhone, gameFromRow, purchaseFromRow } = require('./_db');
 const { sendPush } = require('./_push');
 const { resolveGenerateSheetsForPurchase } = require('./_sheetDelivery');
+const { releaseReservation } = require('./_reservations');
 const crypto = require('crypto');
 const https  = require('https');
 
@@ -95,14 +96,23 @@ async function getOpByTgId(telegramId) {
 
 async function getPlayerPhone(telegramId) {
   const { data } = await db().from('player_telegram').select('phone').eq('telegram_id', String(telegramId)).single();
-  return data?.phone || null;
+  return data?.phone ? normPhone(data.phone) : null;
+}
+
+// player_telegram rows written before phone numbers were canonicalised may
+// still carry the 91 country code, so look for both spellings.
+async function telegramIdForPhone(phone) {
+  const p = normPhone(phone);
+  if (!p) return null;
+  const { data } = await db().from('player_telegram')
+    .select('telegram_id').in('phone', [p, '91' + p]).limit(1);
+  return data?.[0]?.telegram_id || null;
 }
 
 async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken, joinLink, joinDetails, sheets) {
   try {
-    const { data } = await db().from('player_telegram').select('telegram_id').eq('phone', String(phone)).single();
-    if (!data?.telegram_id) return;
-    const chatId = data.telegram_id;
+    const chatId = await telegramIdForPhone(phone);
+    if (!chatId) return;
     const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
 
     let joiningSection = '';
@@ -144,10 +154,10 @@ async function notifyPlayerApproved(phone, gameName, quantity, amount, dlToken, 
 
 async function notifyPlayerRejected(phone, gameName, quantity, amount) {
   try {
-    const { data } = await db().from('player_telegram').select('telegram_id').eq('phone', String(phone)).single();
-    if (!data?.telegram_id) return;
+    const chatId = await telegramIdForPhone(phone);
+    if (!chatId) return;
     await tgSend('sendMessage', {
-      chat_id: data.telegram_id,
+      chat_id: chatId,
       text:
         `❌ *Order Declined*\n\n` +
         `🎮 ${gameName}\n` +
@@ -349,6 +359,184 @@ async function handlePlayerStart(chatId, telegramId) {
   await tgReply(chatId,
     `👋 *Welcome to Tungbola!*\n\nSend your *registered phone number* to link your account.\nYou'll receive order approvals and download links here automatically.`
   );
+}
+
+/* ── Sign in with Telegram ──
+   The marketplace mints an 'auth' token and sends the player here. The phone
+   number is never typed: Telegram supplies the account's verified contact,
+   which is what makes this safe to use in place of a password. */
+async function handleAuthToken(chatId, telegramId, token) {
+  const { data: row } = await db().from('telegram_link_tokens')
+    .select('token, purpose, status, expires_at').eq('token', token).maybeSingle();
+
+  if (!row || row.purpose !== 'auth' || new Date(row.expires_at).getTime() < Date.now()) {
+    if (row) await db().from('telegram_link_tokens').delete().eq('token', token);
+    await tgReply(chatId, `⌛ That sign-in link has expired.\n\nGo back to the marketplace and tap *Continue with Telegram* again.`);
+    return;
+  }
+  if (row.status === 'verified') {
+    await tgReply(chatId, `✅ Already signed in — go back to your browser.`);
+    return;
+  }
+
+  await db().from('telegram_link_tokens')
+    .update({ status: 'opened', telegram_id: String(telegramId) }).eq('token', token);
+
+  await tgSend('sendMessage', {
+    chat_id: chatId,
+    text:
+      `🔐 *One tap to finish*\n\n` +
+      `Tap the button below to confirm your number. Telegram sends it to us directly — ` +
+      `you never type it, and there is no password to remember.`,
+    parse_mode: 'Markdown',
+    reply_markup: {
+      keyboard: [[{ text: '📱 Confirm my number', request_contact: true }]],
+      resize_keyboard: true, one_time_keyboard: true
+    }
+  });
+}
+
+/* Handles the contact Telegram sends back. contact.user_id must match the
+   sender — otherwise anyone could forward someone else's contact card and
+   sign in as them. */
+async function handleSharedContact(chatId, telegramId, contact) {
+  if (!contact || String(contact.user_id || '') !== String(telegramId)) {
+    await tgReply(chatId, `❌ Please use the *Confirm my number* button — forwarded contacts are not accepted.`);
+    return;
+  }
+
+  const { data: row } = await db().from('telegram_link_tokens')
+    .select('token, purpose, expires_at').eq('telegram_id', String(telegramId))
+    .eq('purpose', 'auth').eq('status', 'opened')
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+  if (!row || new Date(row.expires_at).getTime() < Date.now()) {
+    await tgReply(chatId, `⌛ That sign-in expired. Start again from the marketplace.`,
+      { reply_markup: { remove_keyboard: true } });
+    return;
+  }
+
+  const phone = normPhone(contact.phone_number);
+  if (phone.length < 10) {
+    await tgReply(chatId, `❌ Could not read that number. Please try again.`,
+      { reply_markup: { remove_keyboard: true } });
+    return;
+  }
+
+  // Existing players keep their account; new ones are created from the
+  // Telegram profile, so there is nothing else to fill in.
+  let { data: player } = await db().from('players').select('id, name').eq('phone', phone).maybeSingle();
+  if (!player) {
+    const first = (contact.first_name || '').trim();
+    const last  = (contact.last_name  || '').trim();
+    const name  = (first + (last ? ' ' + last : '')) || `Player${phone.slice(-4)}`;
+    const id    = 'tg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    await db().from('players').insert({
+      id, phone, name, password_hash: crypto.randomBytes(16).toString('hex')
+    });
+    player = { id, name };
+  }
+
+  await db().from('player_telegram').upsert(
+    { phone, telegram_id: String(telegramId) }, { onConflict: 'phone' }
+  );
+
+  const sessionToken = crypto.randomBytes(32).toString('hex');
+  await db().from('sessions').insert({
+    token: sessionToken, player_id: player.id, phone, name: player.name,
+    expires_at: new Date(Date.now() + 604800000).toISOString()
+  });
+  await db().from('telegram_link_tokens')
+    .update({ status: 'verified', phone, session_token: sessionToken })
+    .eq('token', row.token);
+
+  await clearSession(telegramId);
+  await tgSend('sendMessage', {
+    chat_id: chatId,
+    text:
+      `✅ *Signed in as ${player.name}*\n\n` +
+      `Go back to your browser — you are already in.\n\n` +
+      `Your sheets will arrive here as PDFs whenever an order is approved.`,
+    parse_mode: 'Markdown',
+    reply_markup: { remove_keyboard: true }
+  });
+
+  await deliverPendingOrders(chatId, phone);
+}
+
+/* Redeems a one-tap link token minted by the marketplace
+   (api/marketplace.js -> telegram-link-token). Saves the player the trouble of
+   typing their phone number, and immediately pushes anything already approved
+   so the first thing they see in the chat is their sheets. */
+async function handleLinkToken(chatId, telegramId, token) {
+  const { data: row } = await db().from('telegram_link_tokens')
+    .select('phone, expires_at').eq('token', token).maybeSingle();
+
+  if (!row || new Date(row.expires_at).getTime() < Date.now()) {
+    if (row) await db().from('telegram_link_tokens').delete().eq('token', token);
+    await tgReply(chatId, `⌛ That link has expired.\n\nOpen the marketplace again and tap *Get sheets on Telegram* for a fresh one.`);
+    return;
+  }
+
+  const phone = String(row.phone);
+  await db().from('player_telegram').upsert(
+    { phone, telegram_id: String(telegramId) },
+    { onConflict: 'phone' }
+  );
+  await db().from('telegram_link_tokens').delete().eq('token', token);
+  await clearSession(telegramId);
+
+  const { data: player } = await db().from('players').select('name').eq('phone', phone).maybeSingle();
+  await tgReply(chatId,
+    `✅ *Connected${player?.name ? ', ' + player.name : ''}!*\n\n` +
+    `Your sheets will land right here as PDFs the moment an order is approved — along with the game joining link.\n\n` +
+    `/myorders — your orders\n/games — browse & buy`
+  );
+
+  await deliverPendingOrders(chatId, phone);
+}
+
+/* Anything approved before the chat existed never got delivered — send it now. */
+async function deliverPendingOrders(chatId, phone) {
+  try {
+    const { data: orders } = await db().from('purchases')
+      .select('purchase_id, game_name, quantity, amount, status, download_token, game_id')
+      .eq('phone', phone).in('status', ['approved'])
+      .order('created_at', { ascending: false }).limit(3);
+    if (!orders?.length) return;
+
+    const host = process.env.APP_HOST || 'tungbola-market.vercel.app';
+    for (const o of orders) {
+      if (!o.download_token) continue;
+      const { data: tok } = await db().from('download_tokens')
+        .select('sheets').eq('token', o.download_token).maybeSingle();
+      const sheets = tok?.sheets || [];
+      const { data: g } = await db().from('games')
+        .select('join_link, join_details').eq('id', o.game_id).maybeSingle();
+
+      let joining = '';
+      if (g?.join_link)    joining += `\n\n🔗 *Game Joining Link:*\n${g.join_link}`;
+      if (g?.join_details) joining += `\n${g.join_details}`;
+
+      const canSendDocs = sheets.length > 0 && sheets.length <= SHEET_DOC_LIMIT;
+      const buttons = [[{ text: '📥 Download Sheets', url: `https://${host}/?dl=${o.download_token}` }]];
+      if (g?.join_link) buttons[0].push({ text: '🔗 Join Game', url: g.join_link });
+
+      await tgSend('sendMessage', {
+        chat_id: chatId,
+        text: `🎟 *${o.game_name}* — ${o.quantity} sheet${o.quantity !== 1 ? 's' : ''} · ₹${o.amount}\n\n` +
+              (canSendDocs ? `Sending your sheets below 👇` : `Tap below to download your sheets.`) + joining,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons }
+      });
+
+      if (canSendDocs) {
+        for (const sh of sheets) {
+          await tgSend('sendDocument', { chat_id: chatId, document: sh.url, caption: `🎫 Sheet #${sh.n} — ${o.game_name}` });
+        }
+      }
+    }
+  } catch (e) { console.error('deliverPendingOrders failed:', e.message); }
 }
 
 async function handleMyOrders(chatId, telegramId, args) {
@@ -1222,6 +1410,7 @@ async function handleApprove(purchaseId, chatId, messageId, callbackQueryId) {
     db().from('download_tokens').insert({ token: dlToken, sheets: sheetList, game_name: game.name, purchase_id: purchaseId }),
     db().from('purchases').update({ status: 'approved', download_token: dlToken, approved_at: now, sheet_nums: assigned.map(s => s.n) }).eq('purchase_id', purchaseId)
   ]);
+  await releaseReservation({ purchaseId });
 
   // Push notification (web)
   try {
@@ -1266,6 +1455,7 @@ async function handleReject(purchaseId, chatId, messageId, callbackQueryId) {
   }
 
   await db().from('purchases').update({ status: 'rejected' }).eq('purchase_id', purchaseId);
+  await releaseReservation({ purchaseId });
 
   // Telegram notification (if player linked)
   await notifyPlayerRejected(
@@ -1418,6 +1608,12 @@ module.exports = async function(req, res) {
       if (!chatId || !tgId) return res.status(200).json({ ok: true });
       if (msg.chat?.type !== 'private') return res.status(200).json({ ok: true });
 
+      // A shared contact only ever means "finish signing in".
+      if (msg.contact) {
+        await handleSharedContact(chatId, tgId, msg.contact);
+        return res.status(200).json({ ok: true });
+      }
+
       const text        = msg.text || '';
       const photoFileId = msg.photo?.length ? msg.photo[msg.photo.length - 1].file_id : null;
 
@@ -1430,6 +1626,10 @@ module.exports = async function(req, res) {
           const op = await getOpByTgId(tgId);
           if (op) {
             await handleOperatorHelp(chatId);
+          } else if (args && args.startsWith('auth_')) {
+            await handleAuthToken(chatId, tgId, args.slice(5));
+          } else if (args && args.startsWith('link_')) {
+            await handleLinkToken(chatId, tgId, args.slice(5));
           } else if (args && args.startsWith('buy_')) {
             await handleBuyGame(chatId, tgId, args.slice(4));
           } else {
